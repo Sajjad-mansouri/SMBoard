@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     #my apps
-
+    'account',
 
     #third party
     'rest_framework',
@@ -77,7 +77,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
-
+AUTH_USER_MODEL = 'account.user'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
