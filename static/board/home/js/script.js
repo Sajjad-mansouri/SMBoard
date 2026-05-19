@@ -1,0 +1,496 @@
+    // Sample Data
+    const userData = {
+        name: "John Doe",
+        initials: "JD",
+        email: "john@example.com",
+        avatarColor: "#0079bf"
+    };
+
+    // Your own boards
+    let yourBoards = [{
+        id: 1,
+        name: "Marketing Website",
+        color: "#0079bf",
+        cards: 12,
+        lastActive: "2 hours ago",
+        cardsList: [{
+            id: 101,
+            name: "Design new landing page",
+            list: "In Progress",
+            labels: "High Priority",
+            dueDate: "2024-12-15",
+            board: "Marketing Website"
+        }, {
+            id: 102,
+            name: "Write SEO content",
+            list: "To Do",
+            labels: "Content",
+            dueDate: "2024-12-20",
+            board: "Marketing Website"
+        }]
+    }, {
+        id: 2,
+        name: "App Development",
+        color: "#61bd4f",
+        cards: 24,
+        lastActive: "5 minutes ago",
+        cardsList: [{
+            id: 201,
+            name: "Fix login bug",
+            list: "In Progress",
+            labels: "Bug",
+            dueDate: "2024-12-10",
+            board: "App Development"
+        }, {
+            id: 202,
+            name: "Add dark mode",
+            list: "To Do",
+            labels: "Feature",
+            dueDate: "2024-12-18",
+            board: "App Development"
+        }]
+    }, {
+        id: 3,
+        name: "Design System",
+        color: "#c377e0",
+        cards: 8,
+        lastActive: "1 day ago",
+        cardsList: [{
+            id: 301,
+            name: "Create button components",
+            list: "Done",
+            labels: "UI",
+            dueDate: "2024-12-05",
+            board: "Design System"
+        }]
+    }, {
+        id: 4,
+        name: "Product Roadmap",
+        color: "#ff9f1a",
+        cards: 15,
+        lastActive: "3 hours ago",
+        cardsList: [{
+            id: 401,
+            name: "Q1 planning",
+            list: "In Progress",
+            labels: "Planning",
+            dueDate: "2025-01-15",
+            board: "Product Roadmap"
+        }]
+    }];
+
+    // Guest boards
+    let guestBoards = [{
+        id: 5,
+        name: "Backend Services",
+        color: "#eb5a46",
+        owner: "Alice Johnson",
+        cards: 18,
+        lastActive: "1 hour ago",
+        cardsList: [{
+            id: 501,
+            name: "API rate limiting",
+            list: "To Do",
+            labels: "Performance",
+            dueDate: "2024-12-22",
+            board: "Backend Services"
+        }]
+    }, {
+        id: 6,
+        name: "UI/UX Review",
+        color: "#f2d600",
+        owner: "Bob Smith",
+        cards: 6,
+        lastActive: "3 days ago",
+        cardsList: [{
+            id: 601,
+            name: "Review mockups",
+            list: "In Progress",
+            labels: "Design",
+            dueDate: "2024-12-12",
+            board: "UI/UX Review"
+        }]
+    }, {
+        id: 7,
+        name: "Documentation",
+        color: "#00b8d9",
+        owner: "Carol White",
+        cards: 22,
+        lastActive: "30 minutes ago",
+        cardsList: [{
+            id: 701,
+            name: "Update API docs",
+            list: "Done",
+            labels: "Docs",
+            dueDate: "2024-12-01",
+            board: "Documentation"
+        }]
+    }];
+
+    // DOM Elements
+    const searchInput = document.getElementById('search-input');
+    const searchClearBtn = document.getElementById('search-clear-btn');
+    const searchResults = document.getElementById('search-results');
+    const searchResultsContent = document.getElementById('search-results-content');
+    const userAvatarBtn = document.getElementById('user-avatar-btn');
+    const profileDropdown = document.getElementById('profile-dropdown');
+    const profileSettingsBtn = document.getElementById('profile-settings-btn');
+    const profileLogoutBtn = document.getElementById('profile-logout-btn');
+    const yourBoardsContainer = document.getElementById('your-boards');
+    const guestBoardsContainer = document.getElementById('guest-boards');
+    const yourBoardsEmpty = document.getElementById('your-boards-empty');
+    const guestBoardsEmpty = document.getElementById('guest-boards-empty');
+    const createBoardModal = document.getElementById('create-board-modal');
+    const createBoardBtn = document.getElementById('create-board-btn');
+    const closeModalBtn = document.getElementById('close-modal');
+    const cancelCreateBtn = document.getElementById('cancel-create');
+    const confirmCreateBtn = document.getElementById('confirm-create');
+    const boardNameInput = document.getElementById('board-name-input');
+    const colorPicker = document.getElementById('color-picker');
+
+
+    let selectedColor = '#0079bf';
+
+    // Profile Dropdown Toggle
+    userAvatarBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        profileDropdown.classList.toggle('active');
+        searchResults.classList.remove('active');
+    });
+
+    // Close profile dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!profileDropdown.contains(e.target) && e.target !== userAvatarBtn) {
+            profileDropdown.classList.remove('active');
+        }
+    });
+
+    // Profile Dropdown Actions
+    profileSettingsBtn.addEventListener('click', () => {
+        profileDropdown.classList.remove('active');
+        alert('Opening Settings page...');
+    });
+
+    profileLogoutBtn.addEventListener('click', () => {
+        profileDropdown.classList.remove('active');
+        if (confirm('Are you sure you want to logout?')) {
+            alert('Logged out successfully!');
+        }
+    });
+
+    // Search Functionality
+    function getAllSearchableItems() {
+        const boards = [];
+        const cards = [];
+
+        // Collect all boards
+        [...yourBoards, ...guestBoards].forEach(board => {
+            boards.push({
+                type: 'board',
+                id: board.id,
+                name: board.name,
+                color: board.color,
+                meta: board.owner ? `Owner: ${board.owner} · ${board.cards} cards` : `${board.cards} cards · ${board.lastActive}`,
+                isGuest: !!board.owner
+            });
+
+            // Collect cards from each board
+            if (board.cardsList) {
+                board.cardsList.forEach(card => {
+                    cards.push({
+                        type: 'card',
+                        id: card.id,
+                        name: card.name,
+                        boardName: card.board,
+                        list: card.list,
+                        labels: card.labels,
+                        dueDate: card.dueDate,
+                        boardColor: board.color
+                    });
+                });
+            }
+        });
+
+        return {
+            boards,
+            cards
+        };
+    }
+
+    function highlightMatch(text, query) {
+        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        return text.replace(regex, '<span class="highlight">$1</span>');
+    }
+
+    function performSearch(query) {
+        if (!query.trim()) {
+            searchResults.classList.remove('active');
+            searchClearBtn.classList.remove('visible');
+            return;
+        }
+
+        searchClearBtn.classList.add('visible');
+        const {
+            boards,
+            cards
+        } = getAllSearchableItems();
+        const searchTerm = query.toLowerCase();
+
+        const matchedBoards = boards.filter(board =>
+            board.name.toLowerCase().includes(searchTerm)
+        );
+
+        const matchedCards = cards.filter(card =>
+            card.name.toLowerCase().includes(searchTerm) ||
+            card.boardName.toLowerCase().includes(searchTerm) ||
+            card.labels.toLowerCase().includes(searchTerm)
+        );
+
+        let html = '';
+
+        if (matchedBoards.length === 0 && matchedCards.length === 0) {
+            html = '<div class="search-no-results">🔍 No results found for "' + query + '"</div>';
+        } else {
+            // Boards section
+            if (matchedBoards.length > 0) {
+                html += '<div class="search-results-header">📊 Boards (' + matchedBoards.length + ')</div>';
+                matchedBoards.forEach(board => {
+                    html += `
+                            <div class="search-result-item" data-type="board" data-id="${board.id}">
+                                <div class="search-result-icon board-icon" style="background: ${board.color};">📋</div>
+                                <div class="search-result-info">
+                                    <div class="search-result-title">${highlightMatch(board.name, query)}</div>
+                                    <div class="search-result-meta">${board.meta}</div>
+                                </div>
+                                ${board.isGuest ? '<span class="search-result-badge">👥 Guest</span>' : ''}
+                            </div>
+                        `;
+                });
+            }
+
+            // Cards section
+            if (matchedCards.length > 0) {
+                html += '<div class="search-results-header">📋 Cards (' + matchedCards.length + ')</div>';
+                matchedCards.forEach(card => {
+                    html += `
+                            <div class="search-result-item" data-type="card" data-id="${card.id}">
+                                <div class="search-result-icon card-icon">📄</div>
+                                <div class="search-result-info">
+                                    <div class="search-result-title">${highlightMatch(card.name, query)}</div>
+                                    <div class="search-result-meta">
+                                        ${card.boardName} · ${card.list} · ${card.labels}
+                                        ${card.dueDate ? ' · 📅 ' + card.dueDate : ''}
+                                    </div>
+                                </div>
+                                <span class="search-result-badge" style="background: ${card.boardColor}; color: white; font-size:0.6rem;">${card.boardName}</span>
+                            </div>
+                        `;
+                });
+            }
+        }
+
+        searchResultsContent.innerHTML = html;
+        searchResults.classList.add('active');
+
+        // Add click events to search result items
+        searchResultsContent.querySelectorAll('.search-result-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const type = item.getAttribute('data-type');
+                const id = item.getAttribute('data-id');
+
+                if (type === 'board') {
+                    const board = [...yourBoards, ...guestBoards].find(b => b.id == id);
+                    if (board) {
+                        alert(`Opening board: ${board.name}`);
+                    }
+                } else if (type === 'card') {
+                    let foundCard = null;
+                    [...yourBoards, ...guestBoards].forEach(board => {
+                        if (board.cardsList) {
+                            const card = board.cardsList.find(c => c.id == id);
+                            if (card) foundCard = card;
+                        }
+                    });
+                    if (foundCard) {
+                        alert(`Opening card: ${foundCard.name}\nBoard: ${foundCard.boardName}\nList: ${foundCard.list}`);
+                    }
+                }
+
+                searchResults.classList.remove('active');
+                searchInput.value = '';
+                searchClearBtn.classList.remove('visible');
+            });
+        });
+    }
+
+    searchInput.addEventListener('input', (e) => {
+        performSearch(e.target.value);
+    });
+
+    searchInput.addEventListener('focus', () => {
+        if (searchInput.value.trim()) {
+            performSearch(searchInput.value);
+        }
+    });
+
+    searchClearBtn.addEventListener('click', () => {
+        searchInput.value = '';
+        searchResults.classList.remove('active');
+        searchClearBtn.classList.remove('visible');
+        searchInput.focus();
+    });
+
+    // Close search results when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!searchResults.contains(e.target) && e.target !== searchInput) {
+            searchResults.classList.remove('active');
+        }
+    });
+
+    // Color picker functionality
+    colorPicker.addEventListener('click', (e) => {
+        if (e.target.classList.contains('color-option')) {
+            document.querySelectorAll('.color-option').forEach(opt => opt.classList.remove('selected'));
+            e.target.classList.add('selected');
+            selectedColor = e.target.getAttribute('data-color');
+        }
+    });
+
+    // Render Board Card
+    function renderBoardCard(board, isGuest = false) {
+        const card = document.createElement('div');
+        card.className = 'board-card';
+        card.style.background = board.color;
+
+        let metaInfo = `${board.cards} cards · ${board.lastActive}`;
+        if (isGuest) {
+            metaInfo = `Owner: ${board.owner} · ${board.cards} cards`;
+        }
+
+        card.innerHTML = `
+                ${isGuest ? '<div class="guest-badge">👥 Guest</div>' : ''}
+                <div class="board-card-title">${board.name}</div>
+                <div class="board-card-meta">${metaInfo}</div>
+            `;
+
+        card.addEventListener('click', () => {
+            alert(`Opening board: ${board.name}\n${isGuest ? 'Guest workspace' : 'Your workspace'}`);
+        });
+
+        return card;
+    }
+
+    // Render All Boards
+    function renderBoards() {
+        // Your Boards
+        yourBoardsContainer.innerHTML = '';
+        if (yourBoards.length === 0) {
+            yourBoardsEmpty.classList.remove('hidden');
+        } else {
+            yourBoardsEmpty.classList.add('hidden');
+            yourBoards.forEach(board => {
+                yourBoardsContainer.appendChild(renderBoardCard(board));
+            });
+            // Add Create New Board card
+            const createCard = document.createElement('div');
+            createCard.className = 'board-card create-new';
+            createCard.innerHTML = `
+                    <div class="create-new-content">
+                        <div class="create-new-icon">+</div>
+                        <div class="create-new-text">Create New Board</div>
+                    </div>
+                `;
+            createCard.addEventListener('click', openCreateModal);
+            yourBoardsContainer.appendChild(createCard);
+        }
+
+        // Guest Boards
+        guestBoardsContainer.innerHTML = '';
+        if (guestBoards.length === 0) {
+            guestBoardsEmpty.classList.remove('hidden');
+        } else {
+            guestBoardsEmpty.classList.add('hidden');
+            guestBoards.forEach(board => {
+                guestBoardsContainer.appendChild(renderBoardCard(board, true));
+            });
+        }
+    }
+
+    // Modal Functions
+    function openCreateModal() {
+        createBoardModal.classList.add('active');
+        boardNameInput.focus();
+    }
+
+    function closeCreateModal() {
+        createBoardModal.classList.remove('active');
+        boardNameInput.value = '';
+        document.querySelector('.color-option[data-color="#0079bf"]').classList.add('selected');
+        selectedColor = '#0079bf';
+    }
+
+    // Create New Board
+    function createNewBoard() {
+        const name = boardNameInput.value.trim();
+        if (!name) {
+            alert('Please enter a board name.');
+            return;
+        }
+
+        const newBoard = {
+            id: Date.now(),
+            name: name,
+            color: selectedColor,
+            cards: 0,
+            lastActive: 'Just now',
+            cardsList: []
+        };
+
+        yourBoards.push(newBoard);
+        renderBoards();
+        closeCreateModal();
+    }
+
+    // Event Listeners
+    createBoardBtn.addEventListener('click', openCreateModal);
+    closeModalBtn.addEventListener('click', closeCreateModal);
+    cancelCreateBtn.addEventListener('click', closeCreateModal);
+    confirmCreateBtn.addEventListener('click', createNewBoard);
+
+    createBoardModal.addEventListener('click', (e) => {
+        if (e.target === createBoardModal) {
+            closeCreateModal();
+        }
+    });
+
+    boardNameInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            createNewBoard();
+        }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (createBoardModal.classList.contains('active')) {
+                closeCreateModal();
+            }
+            if (profileDropdown.classList.contains('active')) {
+                profileDropdown.classList.remove('active');
+            }
+            if (searchResults.classList.contains('active')) {
+                searchResults.classList.remove('active');
+            }
+        }
+
+        // Ctrl+K or Cmd+K to focus search
+        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+            e.preventDefault();
+            searchInput.focus();
+        }
+    });
+
+    // Initialize
+    renderBoards();
+    console.log('SMBoards Page Loaded');
+    console.log('Press Ctrl+K to focus search');
