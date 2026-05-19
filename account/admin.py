@@ -14,6 +14,4 @@ class ProfileAdmin(admin.ModelAdmin):
 
 
 	def get_profile_image(self, obj):
-		print(obj)
-
 		return mark_safe(f"<img src='{obj.get_image()}' width='50'>")

@@ -34,3 +34,24 @@ class Board(models.Model):
 	class Meta:
 		verbose_name = _("Board")
 		verbose_name_plural = _("Boards")
+
+
+class BoardMembership(models.Model):
+	MEMBER_TYPES = [
+		("admin", "Admin"),
+		("member", "Member"),
+		("observer", "Observer"),
+		("guest", "Guest")
+	]
+	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_memberships")
+	board = models.ForeignKey(Board, on_delete=models.CASCADE, verbose_name=_("Board"), related_name="board_memberships")
+	member_type = models.CharField(_("Member Type"), choices=MEMBER_TYPES, max_length=8)
+	created = models.DateTimeField(auto_now_add=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	def __str__(self):
+		return f"{self.user} is {self.board} board {self.member_type} member"
+
+	class Meta:
+		verbose_name = _("Board Member")
+		verbose_name_plural = _("Boards Members")
