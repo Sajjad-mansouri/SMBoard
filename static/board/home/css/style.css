@@ -350,6 +350,11 @@
             font-size: 1rem;
             flex-shrink: 0;
         }
+        .profile-avatar-lg img, .user-avatar img{
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;   
+        }
 
         .profile-dropdown-header .profile-info {
             display: flex;

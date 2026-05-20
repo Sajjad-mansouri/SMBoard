@@ -1,62 +1,12 @@
     const auth = new Auth()
     // Sample Data
-    const userData = {
-        name: "John Doe",
-        initials: "JD",
-        email: "john@example.com",
-        avatarColor: "#0079bf"
-    };
+    let userData = {};
 
     // Your own boards
     let yourBoards = [];
 
     // Guest boards
-    let guestBoards = [{
-        id: 5,
-        name: "Backend Services",
-        color: "#eb5a46",
-        owner: "Alice Johnson",
-        cards: 18,
-
-        cardsList: [{
-            id: 501,
-            name: "API rate limiting",
-            list: "To Do",
-            labels: "Performance",
-            dueDate: "2024-12-22",
-            board: "Backend Services"
-        }]
-    }, {
-        id: 6,
-        name: "UI/UX Review",
-        color: "#f2d600",
-        owner: "Bob Smith",
-        cards: 6,
-
-        cardsList: [{
-            id: 601,
-            name: "Review mockups",
-            list: "In Progress",
-            labels: "Design",
-            dueDate: "2024-12-12",
-            board: "UI/UX Review"
-        }]
-    }, {
-        id: 7,
-        name: "Documentation",
-        color: "#00b8d9",
-        owner: "Carol White",
-        cards: 22,
-
-        cardsList: [{
-            id: 701,
-            name: "Update API docs",
-            list: "Done",
-            labels: "Docs",
-            dueDate: "2024-12-01",
-            board: "Documentation"
-        }]
-    }];
+    let guestBoards = [];
 
     // DOM Elements
     const searchInput = document.getElementById('search-input');
@@ -444,6 +394,19 @@
         }
     });
 
+    function renderUserInfo() {
+        document.querySelector(".profile-name").innerText = userData.username
+        document.querySelector(".profile-email").innerText = userData.email
+        if (userData.profile_image) {
+            document.querySelector(".profile-avatar-lg").innerHTML = `<img src="${userData.profile_image}">`
+            document.getElementById("user-avatar-btn").innerHTML = `<img src="${userData.profile_image}">`
+        } else {
+            document.querySelector(".profile-avatar-lg").innerText = userData.username[0]
+            document.getElementById("user-avatar-btn").innerText = userData.username[0]
+        }
+        console.log(userData)
+    }
+
     async function getData() {
         // id: 1,
         // name: "Marketing Website",
@@ -453,11 +416,17 @@
 
             const boardResponse = await auth.authenticatedRequest(`api/boards/`, null, "GET")
             const guestBoardResponse = await auth.authenticatedRequest(`api/guest-boards/`, null, "GET")
+            const userResponse = await auth.authenticatedRequest(`api/user/`, null, "GET")
+
 
             const boardData = await boardResponse.json()
             const guestBoardData = await guestBoardResponse.json()
+            userData = await userResponse.json()
+            console.log(userData)
             console.log(guestBoardData)
-
+            if (userResponse.ok) {
+                renderUserInfo()
+            }
             if (boardResponse.ok && guestBoardResponse.ok) {
                 yourBoards = boardData;
                 guestBoards = guestBoardData;

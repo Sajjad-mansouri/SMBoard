@@ -4,10 +4,16 @@ from board.models import Board
 
 UserModel = get_user_model()
 
+
+
 class UserSerializer(serializers.ModelSerializer):
+	profile_image = serializers.SerializerMethodField()
 	class Meta:
 		model = UserModel
-		fields = ["id", "username", "email"]
+		fields = ["id", "username", "email", "profile_image"]
+
+	def get_profile_image(self, obj):
+		return obj.profile.profile_image.url if obj.profile.profile_image else ""
 
 class BoardSerializer(serializers.ModelSerializer):
 	# user = UserSerializer()
