@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMchat • Reset Password</title>
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+font-family:Inter,system-ui,Arial;
+}
+
+body{
+background:#f4f7fb;
+height:100vh;
+display:flex;
+align-items:center;
+justify-content:center;
+}
+
+.container{
+background:white;
+padding:40px 34px;
+border-radius:14px;
+box-shadow:0 10px 30px rgba(0,0,0,0.08);
+max-width:420px;
+width:90%;
+}
+
+h1{
+text-align:center;
+margin-bottom:8px;
+font-size:24px;
+color:#222;
+}
+
+p{
+text-align:center;
+color:#555;
+font-size:15px;
+margin-bottom:22px;
+line-height:1.6;
+}
+
+label{
+display:block;
+font-size:14px;
+font-weight:600;
+margin-bottom:6px;
+color:#333;
+}
+
+input{
+width:100%;
+padding:12px 14px;
+border-radius:8px;
+border:1px solid #d7dce6;
+margin-bottom:18px;
+font-size:15px;
+transition:0.2s;
+}
+
+input:focus{
+border-color:#3d7fff;
+outline:none;
+box-shadow:0 0 0 3px rgba(61,127,255,0.15);
+}
+
+button{
+width:100%;
+padding:12px;
+background:#3d7fff;
+color:white;
+border:none;
+border-radius:8px;
+font-size:16px;
+font-weight:600;
+cursor:pointer;
+transition:0.2s;
+}
+
+button:hover{
+background:#2f6feb;
+}
+
+.login-link{
+text-align:center;
+margin-top:16px;
+}
+
+.login-link a{
+color:#3d7fff;
+text-decoration:none;
+font-size:14px;
+font-weight:500;
+}
+
+/* error box */
+
+.alert{
+background:#fff1f1;
+border:1px solid #ffb3b3;
+color:#d8000c;
+padding:14px;
+border-radius:8px;
+margin-bottom:18px;
+font-size:14px;
+}
+
+.error-msg{
+margin-bottom:6px;
+}
+
+/* success icon */
+
+.icon-circle{
+width:80px;
+height:80px;
+border-radius:50%;
+display:flex;
+align-items:center;
+justify-content:center;
+margin:0 auto 18px auto;
+}
+
+.icon-circle.green{
+border:4px solid #35c46a;
+}
+
+.icon-circle.red{
+border:4px solid #ff4d4f;
+}
+
+.icon-circle svg{
+width:42px;
+height:42px;
+}
+
+.success svg{
+stroke:#35c46a;
+}
+
+.invalid svg{
+stroke:#ff4d4f;
+}
+
+.btn{
+display:block;
+text-align:center;
+margin-top:18px;
+padding:12px;
+background:#3d7fff;
+color:white;
+text-decoration:none;
+border-radius:8px;
+font-weight:600;
+}
+
+</style>
+</head>
+<body>
+
+<div class="container">
+
+{% if validlink %}
+
+<h1>Create New Password</h1>
+<p>Please enter your new password below.</p>
+
+{% if form.errors %}
+<div class="alert">
+
+{% for error in form.non_field_errors %}
+<p class="error-msg">{{ error }}</p>
+{% endfor %}
+
+{% for field in form %}
+{% for error in field.errors %}
+<p class="error-msg"><strong>{{ field.label }}:</strong> {{ error }}</p>
+{% endfor %}
+{% endfor %}
+
+</div>
+{% endif %}
+
+<form method="POST">
+{% csrf_token %}
+
+<label for="id_new_password1">New Password</label>
+{{ form.new_password1 }}
+
+<label for="id_new_password2">Confirm Password</label>
+{{ form.new_password2 }}
+
+<button type="submit">Update Password</button>
+
+</form>
+
+<div class="login-link">
+<a href="{% url 'account:login' %}">Back to Login</a>
+</div>
+
+{% else %}
+
+<div class="invalid">
+
+<div class="icon-circle red">
+<svg viewBox="0 0 24 24" fill="none">
+<path d="M6 6L18 18M6 18L18 6" stroke-width="3" stroke-linecap="round"/>
+</svg>
+</div>
+
+<h1>Invalid or Expired Link</h1>
+
+<p>
+This password reset link is invalid or has expired.
+Please request a new password reset.
+</p>
+
+<a class="btn" href="{% url 'account:password_reset' %}">
+Request New Reset Link
+</a>
+
+</div>
+
+{% endif %}
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMchat • Email Confirmation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Inter", sans-serif;
+        }
+
+        body {
+            background: #f5f7fb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            background: #fff;
+            padding: 40px 32px;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            max-width: 480px;
+            width: 90%;
+            text-align: center;
+        }
+
+
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #222;
+        }
+
+        p {
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 22px;
+        }
+
+        a {
+            color: #3d7fff;
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="resultBox">
+    {% if validlink %}
+            <div style="margin-bottom:18px;">
+                <svg width="80" height="80" viewBox="0 0 100 100" fill="none">
+                    <circle cx="50" cy="50" r="45" stroke="#28a745" stroke-width="6"/>
+                    <path d="M30 52 L45 67 L72 38" stroke="#28a745" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+
+            <h1>Registration Completed</h1>
+            <p>
+                Your email has been successfully confirmed and your SMchat account is now active.
+                You can now sign in and start chatting.
+            </p>
+            <a href="{%url 'account:login'%}">Go to Login</a>
+    {%else%}
+            <div style="margin-bottom:18px;">
+                <svg width="80" height="80" viewBox="0 0 100 100" fill="none">
+                    <circle cx="50" cy="50" r="45" stroke="#e63946" stroke-width="6"/>
+                    <path d="M35 35 L65 65" stroke="#e63946" stroke-width="7" stroke-linecap="round"/>
+                    <path d="M65 35 L35 65" stroke="#e63946" stroke-width="7" stroke-linecap="round"/>
+                </svg>
+            </div>
+
+            <h1>Invalid or Expired Link</h1>
+            <p>
+                This confirmation link is not valid or has already been used.
+                Please request a new confirmation email to complete your registration.
+            </p>
+            <a href="{%url 'account:register'%}">Register</a>
+    {%endif%}
+</div>
+
+<script>
+
+</script>
+
+</body>
+</html>

@@ -1,3 +1,4 @@
+    const auth = new Auth()
     // Sample Data
     const userData = {
         name: "John Doe",
@@ -171,12 +172,7 @@
         alert('Opening Settings page...');
     });
 
-    profileLogoutBtn.addEventListener('click', () => {
-        profileDropdown.classList.remove('active');
-        if (confirm('Are you sure you want to logout?')) {
-            alert('Logged out successfully!');
-        }
-    });
+
 
     // Search Functionality
     function getAllSearchableItems() {
@@ -494,3 +490,7 @@
     renderBoards();
     console.log('SMBoards Page Loaded');
     console.log('Press Ctrl+K to focus search');
+
+    document.getElementById("profile-logout-btn").addEventListener("click", () => {
+        auth.logout()
+    })

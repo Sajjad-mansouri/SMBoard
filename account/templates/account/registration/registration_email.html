@@ -1,0 +1,20 @@
+{% load i18n %}{% autoescape off %}
+{% translate "Hi" %}
+{% blocktranslate %}Thank you for signing up at {{ site_name }}!{% endblocktranslate %}
+
+{% blocktranslate %}To complete your registration and activate your account, please verify your email address by clicking the link below:{% endblocktranslate %}
+
+{{ protocol }}://{{ domain }}{% url 'account:register-confirm' uidb64=uid token=token %}
+
+{% blocktranslate %}
+If you didn’t create an account with us, you can safely ignore this message.
+If you have any questions, our support team is here to help.
+Thank you,
+
+{{ site_name }} Support Team
+{% endblocktranslate %}
+
+
+
+
+{% endautoescape %}

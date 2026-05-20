@@ -1,0 +1,171 @@
+{%load static%}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMchat • Login</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Inter", sans-serif;
+        }
+
+        body {
+            background: #f5f7fb;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background: #fff;
+            width: 360px;
+            padding: 32px;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+
+        .brand {
+            font-size: 28px;
+            font-weight: 700;
+            color: #3d7fff;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 24px;
+        }
+
+        .form-group {
+            text-align: left;
+            margin-bottom: 18px;
+        }
+
+        label {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            transition: 0.2s;
+        }
+
+        input:focus {
+            border-color: #3d7fff;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(61,127,255,0.2);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 12px;
+            background: #3d7fff;
+            border: none;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 15px;
+            cursor: pointer;
+            margin-top: 6px;
+            transition: 0.2s;
+        }
+
+        .btn:hover {
+            background: #1e66ff;
+        }
+
+        .options {
+            margin-top: 16px;
+            font-size: 14px;
+        }
+
+        a {
+            color: #3d7fff;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .error {
+            color: red;
+            font-size: 13px;
+            margin-bottom: 10px;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="brand">SMchat</div>
+    <div class="subtitle">Welcome back! Log in to continue.</div>
+
+
+    <div id="errorBox" class="error">Invalid email or password.</div>
+
+
+    <form id="loginForm" method="POST">
+        {%csrf_token%}
+        <div class="form-group">
+            <label>Email</label>
+            <input type="text" id="username" name="username" autocomplete="off">
+        </div>
+
+        <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="password" name="password">
+        </div>
+
+        <button class="btn" type="submit" onclick="login()">Log In</button>
+    </form>
+
+    <div class="options">
+        <a href="{%url 'account:password_reset'%}">Forgot Password?</a><br><br>
+        Don't have an account? 
+        <a href="{%url 'account:register'%}">Register</a>
+    </div>
+</div>
+<script src="{%static 'authentication/js/auth.js'%}"></script>
+
+<script>
+
+async function login() {
+    event.preventDefault()
+    const username = document.getElementById("username").value
+    const password = document.getElementById("password").value
+
+    const auth = new Auth()
+
+    const data = await auth.login(username, password)
+
+    if(data.ok){
+        window.location.href="{%url 'board:home'%}"
+    }else{
+
+        document.getElementById("errorBox").style.display = "block"
+    }
+    
+
+}
+</script>
+
+</body>
+</html>
