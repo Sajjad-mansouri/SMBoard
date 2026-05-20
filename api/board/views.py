@@ -1,4 +1,6 @@
+from django.db.models import Q
 from rest_framework import viewsets, mixins
+from rest_framework.generics import ListAPIView
 from board.models import Board
 from . import serializers
 from .permissions import IsBoardOwner
@@ -14,3 +16,10 @@ class CreateListBoardViewSet(mixins.CreateModelMixin,
 	def get_queryset(self):
 
 		return Board.objects.filter(user=self.request.user)
+
+
+class GuestBoardListView(ListAPIView):
+	serializer_class = serializers.BoardSerializer
+	def get_queryset(self):
+		q = Q(board_memberships__user=self.request.user) & ~Q(user=self.request.user)
+		return Board.objects.filter(q)

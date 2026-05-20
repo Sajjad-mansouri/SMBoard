@@ -301,7 +301,7 @@
 
         let metaInfo = `${board.cards} cards`;
         if (isGuest) {
-            metaInfo = `Owner: ${board.owner} · ${board.cards} cards`;
+            metaInfo = `Owner: ${board.user.username} · ${board.cards} cards`;
         }
 
         card.innerHTML = `
@@ -434,13 +434,19 @@
         // cards: 12,
         try {
 
-            const response = await auth.authenticatedRequest(`api/boards/`, null, "GET")
-            const data = await response.json()
-            if (response.ok) {
-                yourBoards = data
+            const boardResponse = await auth.authenticatedRequest(`api/boards/`, null, "GET")
+            const guestBoardResponse = await auth.authenticatedRequest(`api/guest-boards/`, null, "GET")
+
+            const boardData = await boardResponse.json()
+            const guestBoardData = await guestBoardResponse.json()
+            console.log(guestBoardData)
+
+            if (boardResponse.ok && guestBoardResponse.ok) {
+                yourBoards = boardData;
+                guestBoards = guestBoardData;
                 renderBoards();
             }
-            console.log(data)
+            console.log(boardData)
         } catch (error) {
             console.log(error)
         }

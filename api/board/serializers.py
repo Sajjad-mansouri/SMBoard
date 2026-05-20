@@ -1,7 +1,16 @@
 from rest_framework import serializers
+from django.contrib.auth import get_user_model
 from board.models import Board
 
+UserModel = get_user_model()
+
+class UserSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = UserModel
+		fields = ["id", "username", "email"]
+
 class BoardSerializer(serializers.ModelSerializer):
+	user = UserSerializer()
 	cards = serializers.SerializerMethodField()
 	class Meta:
 		model = Board
