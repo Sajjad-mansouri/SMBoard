@@ -1,16 +1,18 @@
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 
 UserModel = get_user_model()
 
 def board_image_path(instance, file_name):
+	created = timezone.now()
 	return "{user}/{board}/{year}/{month}/{day}/{file_name}".format(
 										user=instance.user_id,
 										board=instance.name, 
-										year = instance.updated.year,
-										month = instance.updated.month,
-										day = instance.updated.day,
+										year = created.year ,
+										month = created.month,
+										day = created.day,
 										file_name = file_name)
 
 class Board(models.Model):

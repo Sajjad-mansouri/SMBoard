@@ -8,77 +8,7 @@
     };
 
     // Your own boards
-    let yourBoards = [{
-        id: 1,
-        name: "Marketing Website",
-        color: "#0079bf",
-        cards: 12,
-        lastActive: "2 hours ago",
-        cardsList: [{
-            id: 101,
-            name: "Design new landing page",
-            list: "In Progress",
-            labels: "High Priority",
-            dueDate: "2024-12-15",
-            board: "Marketing Website"
-        }, {
-            id: 102,
-            name: "Write SEO content",
-            list: "To Do",
-            labels: "Content",
-            dueDate: "2024-12-20",
-            board: "Marketing Website"
-        }]
-    }, {
-        id: 2,
-        name: "App Development",
-        color: "#61bd4f",
-        cards: 24,
-        lastActive: "5 minutes ago",
-        cardsList: [{
-            id: 201,
-            name: "Fix login bug",
-            list: "In Progress",
-            labels: "Bug",
-            dueDate: "2024-12-10",
-            board: "App Development"
-        }, {
-            id: 202,
-            name: "Add dark mode",
-            list: "To Do",
-            labels: "Feature",
-            dueDate: "2024-12-18",
-            board: "App Development"
-        }]
-    }, {
-        id: 3,
-        name: "Design System",
-        color: "#c377e0",
-        cards: 8,
-        lastActive: "1 day ago",
-        cardsList: [{
-            id: 301,
-            name: "Create button components",
-            list: "Done",
-            labels: "UI",
-            dueDate: "2024-12-05",
-            board: "Design System"
-        }]
-    }, {
-        id: 4,
-        name: "Product Roadmap",
-        color: "#ff9f1a",
-        cards: 15,
-        lastActive: "3 hours ago",
-        cardsList: [{
-            id: 401,
-            name: "Q1 planning",
-            list: "In Progress",
-            labels: "Planning",
-            dueDate: "2025-01-15",
-            board: "Product Roadmap"
-        }]
-    }];
+    let yourBoards = [];
 
     // Guest boards
     let guestBoards = [{
@@ -87,7 +17,7 @@
         color: "#eb5a46",
         owner: "Alice Johnson",
         cards: 18,
-        lastActive: "1 hour ago",
+
         cardsList: [{
             id: 501,
             name: "API rate limiting",
@@ -102,7 +32,7 @@
         color: "#f2d600",
         owner: "Bob Smith",
         cards: 6,
-        lastActive: "3 days ago",
+
         cardsList: [{
             id: 601,
             name: "Review mockups",
@@ -117,7 +47,7 @@
         color: "#00b8d9",
         owner: "Carol White",
         cards: 22,
-        lastActive: "30 minutes ago",
+
         cardsList: [{
             id: 701,
             name: "Update API docs",
@@ -186,7 +116,7 @@
                 id: board.id,
                 name: board.name,
                 color: board.color,
-                meta: board.owner ? `Owner: ${board.owner} · ${board.cards} cards` : `${board.cards} cards · ${board.lastActive}`,
+                meta: board.owner ? `Owner: ${board.owner} · ${board.cards} cards` : `${board.cards} cards`,
                 isGuest: !!board.owner
             });
 
@@ -356,9 +286,20 @@
     function renderBoardCard(board, isGuest = false) {
         const card = document.createElement('div');
         card.className = 'board-card';
-        card.style.background = board.color;
 
-        let metaInfo = `${board.cards} cards · ${board.lastActive}`;
+        if (board.background_color) {
+            card.style.background = board.background_color;
+
+        } else if (board.background_image != null) {
+            card.style.backgroundImage = `url(${board.background_image})`;
+            card.style.backgroundSize = "cover";
+            card.style.backgroundPosition = "center";
+            card.style.backgroundRepeat = "no-repeat";
+
+        }
+
+
+        let metaInfo = `${board.cards} cards`;
         if (isGuest) {
             metaInfo = `Owner: ${board.owner} · ${board.cards} cards`;
         }
@@ -438,7 +379,7 @@
             name: name,
             color: selectedColor,
             cards: 0,
-            lastActive: 'Just now',
+
             cardsList: []
         };
 
@@ -486,8 +427,27 @@
         }
     });
 
+    async function getData() {
+        // id: 1,
+        // name: "Marketing Website",
+        // color: "#0079bf",
+        // cards: 12,
+        try {
+
+            const response = await auth.authenticatedRequest(`api/boards/`, null, "GET")
+            const data = await response.json()
+            if (response.ok) {
+                yourBoards = data
+                renderBoards();
+            }
+            console.log(data)
+        } catch (error) {
+            console.log(error)
+        }
+    }
     // Initialize
-    renderBoards();
+    getData()
+
     console.log('SMBoards Page Loaded');
     console.log('Press Ctrl+K to focus search');
 
