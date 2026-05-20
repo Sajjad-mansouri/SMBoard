@@ -366,27 +366,44 @@
         selectedColor = '#0079bf';
     }
 
+    async function fetchCreateNewBoard(name) {
+
+    }
+
     // Create New Board
-    function createNewBoard() {
+    async function createNewBoard() {
         const name = boardNameInput.value.trim();
+
         if (!name) {
             alert('Please enter a board name.');
             return;
         }
+        try {
+            body = JSON.stringify({
+                "name": name,
+                "background_color": selectedColor,
+            });
+            const response = await auth.authenticatedRequest(`api/boards/`, body, "POST");
+            const newBoard = await response.json()
 
-        const newBoard = {
-            id: Date.now(),
-            name: name,
-            color: selectedColor,
-            cards: 0,
+            if (response.ok) {
+                console.log(newBoard)
+                yourBoards.push(newBoard);
+                renderBoards();
+                closeCreateModal();
+                console.log(data)
+            } else {
+                closeCreateModal();
+                console.log(data)
+            }
+        } catch (error) {
+            closeCreateModal();
+            console.log(error)
+        }
 
-            cardsList: []
-        };
 
-        yourBoards.push(newBoard);
-        renderBoards();
-        closeCreateModal();
     }
+
 
     // Event Listeners
     createBoardBtn.addEventListener('click', openCreateModal);

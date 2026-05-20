@@ -23,7 +23,7 @@ class Board(models.Model):
 	]
 	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_boards")
 	name = models.CharField(_("Name"), max_length=250)
-	status = models.CharField(_("Status"), choices=STATUS_CHOICES, max_length=10)
+	status = models.CharField(_("Status"), choices=STATUS_CHOICES, max_length=10, default="workspace")
 	background_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
 	background_image = models.ImageField(_("Background Image"), upload_to=board_image_path, null=True, blank=True)
 	created = models.DateTimeField(auto_now_add=True)

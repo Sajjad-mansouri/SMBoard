@@ -10,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
 		fields = ["id", "username", "email"]
 
 class BoardSerializer(serializers.ModelSerializer):
-	user = UserSerializer()
+	# user = UserSerializer()
 	cards = serializers.SerializerMethodField()
 	class Meta:
 		model = Board
@@ -18,3 +18,8 @@ class BoardSerializer(serializers.ModelSerializer):
 
 	def get_cards(self, obj):
 		return 12
+
+	def to_internal_value(self, data):
+		request = self.context["request"]
+		data["user"] = request.user.id
+		return super().to_internal_value(data)
