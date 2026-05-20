@@ -2,6 +2,7 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
+from .fields import OrderField
 
 UserModel = get_user_model()
 
@@ -57,3 +58,30 @@ class BoardMembership(models.Model):
 	class Meta:
 		verbose_name = _("Board Member")
 		verbose_name_plural = _("Boards Members")
+
+
+def list_cover_path(instance, file_name):
+	created = timezone.now()
+	return "{user}/{board}/{list}/{year}/{month}/{day}/{file_name}".format(
+										user=instance.board.user,
+										board=instance.name, 
+										list=instance.name,
+										year = created.year ,
+										month = created.month,
+										day = created.day,
+										file_name = file_name)
+class BoardList(models.Model):
+	order = OrderField(_("Order"), blank=True)
+	board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name="board_lists", verbose_name="Board")
+	name = models.CharField(_("Name"), max_length=250)
+	cover_image = models.ImageField(_("Conver Image"), upload_to=list_cover_path, null=True, blank=True)
+	cover_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
+	created = models.DateTimeField(auto_now_add=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	def __str__(self):
+		return f"{self.name} is list of  {self.board.user} {self.board} board "
+
+	class Meta:
+		verbose_name = _("List")
+		verbose_name_plural = _("Lists")
