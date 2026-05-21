@@ -6,6 +6,13 @@ from .fields import OrderField
 
 UserModel = get_user_model()
 
+class DateAbstractModel(models.Model):
+	created = models.DateTimeField(auto_now_add=True)
+	updated = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		abstract = True
+
 def board_image_path(instance, file_name):
 	created = timezone.now()
 	return "{user}/{board}/{year}/{month}/{day}/{file_name}".format(
@@ -16,7 +23,7 @@ def board_image_path(instance, file_name):
 										day = created.day,
 										file_name = file_name)
 
-class Board(models.Model):
+class Board(DateAbstractModel):
 	STATUS_CHOICES = [
 	("private", "Private"),
 	("workspace", "Workspace"),
@@ -27,8 +34,7 @@ class Board(models.Model):
 	status = models.CharField(_("Status"), choices=STATUS_CHOICES, max_length=10, default="workspace")
 	background_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
 	background_image = models.ImageField(_("Background Image"), upload_to=board_image_path, null=True, blank=True)
-	created = models.DateTimeField(auto_now_add=True)
-	updated = models.DateTimeField(auto_now=True)
+
 
 
 	def __str__(self):
@@ -39,7 +45,7 @@ class Board(models.Model):
 		verbose_name_plural = _("Boards")
 
 
-class BoardMembership(models.Model):
+class BoardMembership(DateAbstractModel):
 	MEMBER_TYPES = [
 		("admin", "Admin"),
 		("member", "Member"),
@@ -49,8 +55,7 @@ class BoardMembership(models.Model):
 	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_memberships")
 	board = models.ForeignKey(Board, on_delete=models.CASCADE, verbose_name=_("Board"), related_name="board_memberships")
 	member_type = models.CharField(_("Member Type"), choices=MEMBER_TYPES, max_length=8)
-	created = models.DateTimeField(auto_now_add=True)
-	updated = models.DateTimeField(auto_now=True)
+
 
 	def __str__(self):
 		return f"{self.user} is {self.board} board {self.member_type} member"
@@ -70,14 +75,13 @@ def list_cover_path(instance, file_name):
 										month = created.month,
 										day = created.day,
 										file_name = file_name)
-class BoardList(models.Model):
+class BoardList(DateAbstractModel):
 	order = OrderField(_("Order"), blank=True)
 	board = models.ForeignKey(Board, on_delete=models.CASCADE, related_name="board_lists", verbose_name="Board")
 	name = models.CharField(_("Name"), max_length=250)
 	cover_image = models.ImageField(_("Conver Image"), upload_to=list_cover_path, null=True, blank=True)
 	cover_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
-	created = models.DateTimeField(auto_now_add=True)
-	updated = models.DateTimeField(auto_now=True)
+
 
 	def __str__(self):
 		return f"{self.name} is list of  {self.board.user} {self.board} board "
@@ -85,3 +89,65 @@ class BoardList(models.Model):
 	class Meta:
 		verbose_name = _("List")
 		verbose_name_plural = _("Lists")
+
+
+
+class Card(DateAbstractModel):
+	STATUS_CHOICES = [
+		("complete", "Complete"),
+		("incomplete", "Incomplete")
+	]
+	board_list = models.ForeignKey(BoardList, on_delete=models.CASCADE, related_name="list_cards", verbose_name="Board List")
+	name = models.CharField(_("Name"), max_length=250)
+	description = models.TextField(_("Description"), blank=True)
+	start_date = models.DateTimeField(_("Start Date"), null=True, blank=True)
+	due_date = models.DateTimeField(_("Due Date"), null=True, blank=True)
+	status = models.CharField(_("Status"), choices=STATUS_CHOICES,default="incomplete")
+
+
+	def __str__(self):
+		return f"{self.name} is card of  {self.board_list} list "
+
+	class Meta:
+		verbose_name = _("Card")
+		verbose_name_plural = _("Cards")
+
+
+class CardLabel(DateAbstractModel):
+	card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="card_labels", verbose_name="Card")
+	name = models.CharField(_("Name"), max_length=250)
+	label = models.CharField(_("Label"), max_length=7, help_text="format:#00fca8")
+
+
+	def __str__(self):
+		return f"{self.name} is {self.card} label"
+
+	class Meta:
+		verbose_name = _("Label")
+		verbose_name_plural = _("Labels")
+
+
+class CheckList(DateAbstractModel):
+	card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="card_checklists", verbose_name="Card")
+	name = models.CharField(_("Name"), max_length=250)
+
+	def __str__(self):
+		return f"{self.name} is {self.card} checklist"
+
+	class Meta:
+		verbose_name = _("CheckList")
+		verbose_name_plural = _("CheckLists")
+
+class ChecklistItem(DateAbstractModel):
+	checklist = models.ForeignKey(CheckList, on_delete=models.CASCADE, related_name="checklist_items", verbose_name="CheckList")
+	name = models.CharField(_("Name"), max_length=250)
+	is_completed = models.BooleanField(_("is completed"), default=False)
+
+
+	def __str__(self):
+		return f"{self.name} is {self.checklist} checklist {self.is_completed}"
+
+	class Meta:
+		verbose_name = _("CheckList Item")
+		verbose_name_plural = _("CheckLists Items")
+
