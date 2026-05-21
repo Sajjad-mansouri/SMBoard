@@ -15,8 +15,8 @@ class DateAbstractModel(models.Model):
 
 def board_image_path(instance, file_name):
 	created = timezone.now()
-	return "{user}/{board}/{year}/{month}/{day}/{file_name}".format(
-										user=instance.user_id,
+	return "{owner}/{board}/board_files/{year}/{month}/{day}/{file_name}".format(
+										owner=instance.owner_id,
 										board=instance.name, 
 										year = created.year ,
 										month = created.month,
@@ -29,7 +29,7 @@ class Board(DateAbstractModel):
 	("workspace", "Workspace"),
 	("public", "Public")
 	]
-	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_boards")
+	owner = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_boards")
 	name = models.CharField(_("Name"), max_length=250)
 	status = models.CharField(_("Status"), choices=STATUS_CHOICES, max_length=10, default="workspace")
 	background_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
@@ -38,7 +38,7 @@ class Board(DateAbstractModel):
 
 
 	def __str__(self):
-		return f"{self.user} board: {self.name}"
+		return f"{self.owner} board: {self.name}"
 
 	class Meta:
 		verbose_name = _("Board")
@@ -66,9 +66,9 @@ class BoardMembership(DateAbstractModel):
 
 
 def list_cover_path(instance, file_name):
-	created = timezone.now()
-	return "{user}/{board}/{list}/{year}/{month}/{day}/{file_name}".format(
-										user=instance.board.user,
+
+	return "{owner}/{board}/list_files/{list}/{year}/{month}/{day}/{file_name}".format(
+										owner=instance.board.owner_id,
 										board=instance.name, 
 										list=instance.name,
 										year = created.year ,
@@ -84,7 +84,7 @@ class BoardList(DateAbstractModel):
 
 
 	def __str__(self):
-		return f"{self.name} is list of  {self.board.user} {self.board} board "
+		return f"{self.name} is list of  {self.board.owner} {self.board} board "
 
 	class Meta:
 		verbose_name = _("List")
@@ -151,3 +151,46 @@ class ChecklistItem(DateAbstractModel):
 		verbose_name = _("CheckList Item")
 		verbose_name_plural = _("CheckLists Items")
 
+
+def attachment_path(instance, file_name):
+	created = timezone.now()
+	card = instance.card
+	board_list = card.list
+	board = board_list.board
+	user = board.owner_id
+	return "{owner}/{board}/{list}/{card}/card_attachments/{year}/{month}/{day}/{file_name}".format(
+										owner=user,
+										board=board.name, 
+										list=board_list.name,
+										card=card.name,
+										year = created.year ,
+										month = created.month,
+										day = created.day,
+										file_name = file_name)
+class AttachmentAbstractModel(DateAbstractModel):
+	name = models.CharField(_("Name"), max_length=250, blank=True)
+	description = models.TextField(_("Description"), blank=True)
+	card = models.ForeignKey(Card, on_delete=models.CASCADE, verbose_name="Card")
+	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"))
+
+	class Meta:
+		abstract = True
+class CardFile(AttachmentAbstractModel):
+	file = models.FileField(_("File"), upload_to=attachment_path)
+
+	def __str__(self):
+		return f"{self.user} file"
+
+	class Meta:
+		verbose_name = _("File Attachment")
+		verbose_name_plural = _("File Attachments")
+
+class CardImage(AttachmentAbstractModel):
+	file = models.ImageField(_("Image"), upload_to=attachment_path)
+
+	def __str__(self):
+		return f"{self.user} image"
+
+	class Meta:
+		verbose_name = _("Image Attachment")
+		verbose_name_plural = _("Image Attachments")

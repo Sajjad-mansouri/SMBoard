@@ -1,9 +1,9 @@
 from django.contrib import admin
-from .models import Board, BoardMembership, BoardList, Card, CardLabel, CheckList, ChecklistItem
+from .models import Board, BoardMembership, BoardList, Card, CardLabel, CheckList, ChecklistItem, CardFile, CardImage
 
 @admin.register(Board)
 class BoardAdmin(admin.ModelAdmin):
-	list_display = ["user", "name"]
+	list_display = ["owner", "name"]
 
 
 @admin.register(BoardMembership)
@@ -31,3 +31,13 @@ class CheckListAdmin(admin.ModelAdmin):
 @admin.register(ChecklistItem)
 class ChecklistItemAdmin(admin.ModelAdmin):
 	list_display = ["name", "checklist", "is_completed", "created"]
+
+
+
+@admin.register(CardFile)
+class FileAttachmentAdmin(admin.ModelAdmin):
+	list_display = ["name", "user", "card"]
+
+@admin.register(CardImage)
+class ImageAttachmentAdmin(admin.ModelAdmin):
+	list_display = ["name", "user", "card"]
