@@ -1,5 +1,10 @@
 from django.contrib import admin
-from .models import Board, BoardMembership, BoardList, Card, CardLabel, CheckList, ChecklistItem, CardFile, CardImage
+from .models import (
+	Board, BoardMembership, BoardList, 
+	Card, CardLabel, CheckList, ChecklistItem, 
+	CardFile, CardImage, Comment,
+	CardWatch, BoardWatch
+	)
 
 @admin.register(Board)
 class BoardAdmin(admin.ModelAdmin):
@@ -41,3 +46,17 @@ class FileAttachmentAdmin(admin.ModelAdmin):
 @admin.register(CardImage)
 class ImageAttachmentAdmin(admin.ModelAdmin):
 	list_display = ["name", "user", "card"]
+
+
+@admin.register(Comment)
+class CommentAdmin(admin.ModelAdmin):
+	list_display = ["user", "card", "content"]
+
+
+@admin.register(CardWatch)
+class CardWatchAdmin(admin.ModelAdmin):
+	list_display = ["user", "card", "watch"]
+
+@admin.register(BoardWatch)
+class BoardWatchAdmin(admin.ModelAdmin):
+	list_display = ["user", "board", "watch"]

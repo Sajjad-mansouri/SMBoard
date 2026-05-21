@@ -194,3 +194,46 @@ class CardImage(AttachmentAbstractModel):
 	class Meta:
 		verbose_name = _("Image Attachment")
 		verbose_name_plural = _("Image Attachments")
+
+
+
+class Comment(DateAbstractModel):
+	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_comments")
+	card = models.ForeignKey(Card, on_delete=models.CASCADE, verbose_name="Card", related_name="card_comments")
+	content = models.TextField()
+
+	def __str__(self):
+		return f"{self.user} comment {self.card}"
+
+	class Meta:
+		verbose_name = _("Comment")
+		verbose_name_plural = _("Comments")
+
+
+
+class CardWatch(DateAbstractModel):
+	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_cardwatchs")
+	card = models.ForeignKey(Card, on_delete=models.CASCADE, verbose_name="Card", related_name="card_cardwatchs")
+	watch = models.BooleanField(_("Watch"), default=False)
+
+	def __str__(self):
+		watch = "watch" if self.watch else "dont watch" 
+		return f"{self.user} {watch} {self.card}"
+
+	class Meta:
+		verbose_name = _("Card Watch")
+		verbose_name_plural = _("Card Watchs")
+
+
+class BoardWatch(DateAbstractModel):
+	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_boardwatchs")
+	board = models.ForeignKey(Board, on_delete=models.CASCADE, verbose_name="Board", related_name="board_boardwatchs")
+	watch = models.BooleanField(_("Watch"), default=False)
+
+	def __str__(self):
+		watch = "watch" if self.watch else "dont watch" 
+		return f"{self.user} {watch} {self.board}"
+
+	class Meta:
+		verbose_name = _("Board Watch")
+		verbose_name_plural = _("Board Watchs")
