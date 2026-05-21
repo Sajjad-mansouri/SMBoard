@@ -1,63 +1,8 @@
+{%extends 'board/base.html'%}
 {%load static%}
-<!DOCTYPE html>
-<html lang="en" data-theme="light">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMBoards</title>
-<link rel="stylesheet" type="text/css" href="{%static 'board/home/css/style.css'%}">
-</head>
-<body>
-    <!-- Header -->
-    <header class="header">
-        <!-- Brand -->
-        <div class="header-left">
-            <div class="brand-logo">
-                <span>📋</span> SMBoard
-            </div>
-        </div>
 
-        <!-- Search -->
-        <div class="header-center">
-            <div class="search-wrapper">
-                <span>🔍</span>
-                <input type="text" placeholder="Search boards and cards..." id="search-input">
-                <button class="search-clear-btn" id="search-clear-btn">✕</button>
-            </div>
-            
-            <!-- Search Results Dropdown -->
-            <div class="search-results" id="search-results">
-                <div id="search-results-content"></div>
-            </div>
-        </div>
 
-        <!-- Profile Avatar -->
-        <div class="header-right">
-
-            
-            <div class="profile-avatar-wrapper">
-                <button class="user-avatar" id="user-avatar-btn" ></button>
-                
-                <!-- Profile Dropdown -->
-                <div class="profile-dropdown" id="profile-dropdown">
-                    <div class="profile-dropdown-header">
-                        <div class="account-title">ACCOUNT</div>
-                        <div class="profile-row">
-                            <div class="profile-avatar-lg" style="background:#0079bf;"></div>
-                            <div class="profile-info">
-                                <span class="profile-name"></span>
-                                <span class="profile-email"></span>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="profile-dropdown-item" id="profile-settings-btn">⚙️ Settings</div>
-                    <div class="profile-dropdown-divider"></div>
-                    <div class="profile-dropdown-item" id="profile-logout-btn">🚪 Logout</div>
-                </div>
-            </div>
-        </div>
-    </header>
-
+{%block content%}
     <!-- Content Area -->
     <div class="content-area">
         <!-- Your Workspaces -->
@@ -128,8 +73,8 @@
             </div>
         </div>
     </div>
-<script src="{%static 'authentication/js/auth.js'%}"></script>
+{%endblock%}
 
+{%block style%}
 <script type="text/javascript" src="{%static 'board/home/js/script.js'%}"></script>
-</body>
-</html>
+{%endblock%}

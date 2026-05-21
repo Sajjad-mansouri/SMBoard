@@ -15,13 +15,13 @@ class CreateListBoardViewSet(mixins.CreateModelMixin,
 
 	def get_queryset(self):
 
-		return Board.objects.filter(user=self.request.user)
+		return Board.objects.filter(owner=self.request.user)
 
 
 class GuestBoardListView(ListAPIView):
 	serializer_class = serializers.BoardSerializer
 	def get_queryset(self):
-		q = Q(board_memberships__user=self.request.user) & ~Q(user=self.request.user)
+		q = Q(board_memberships__user=self.request.user) & ~Q(owner=self.request.user)
 		return Board.objects.filter(q)
 
 
