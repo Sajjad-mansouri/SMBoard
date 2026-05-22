@@ -22,7 +22,7 @@ class BoardSerializer(serializers.ModelSerializer):
 
 	class Meta:
 		model = Board
-		fields = ["id", "owner", "name", "status", "background_color", "background_image", "cards", "is_owner"]
+		fields = ["id", "owner", "name", "status", "background_color", "background_image", "cards", "is_owner", "closed"]
 
 	def get_cards(self, obj):
 		return 12

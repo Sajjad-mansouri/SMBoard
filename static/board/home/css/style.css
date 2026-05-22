@@ -732,3 +732,40 @@
                 width: 150px;
             }
         }
+
+
+
+    /* closed boards list styles */
+    .closed-board-list {
+      list-style: none;
+      max-height: 350px;
+      overflow-y: auto;
+      margin: 8px 0 16px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius);
+    }
+    .closed-board-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--content-bg);
+    }
+    .closed-board-item:last-child {
+      border-bottom: none;
+    }
+    .closed-board-name {
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .closed-board-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .confirm-text {
+      margin: 16px 0;
+      font-size: 0.95rem;
+    }

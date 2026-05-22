@@ -21,7 +21,17 @@
     const boardNameInput = document.getElementById('board-name-input');
     const colorPicker = document.getElementById('color-picker');
 
-
+    const closedModal = document.getElementById('closed-boards-modal');
+    const closedBoardsBtn = document.getElementById('closed-boards-btn');
+    const closeClosedModal = document.getElementById('close-closed-modal');
+    const doneClosed = document.getElementById('done-closed-boards');
+    const closeDeleteModal = document.getElementById('close-delete-modal');
+    const cancelDelete = document.getElementById('cancel-delete');
+    const confirmDeleteBtn = document.getElementById('confirm-delete');
+    const deleteConfirmModal = document.getElementById('delete-confirm-modal');
+    const closedBoardsList = document.getElementById('closed-boards-list');
+    const noClosedMessage = document.getElementById('no-closed-boards-message');
+    const deleteBoardNameSpan = document.getElementById('delete-board-name');
     let selectedColor = '#0079bf';
 
 
@@ -243,3 +253,155 @@
     document.getElementById("profile-logout-btn").addEventListener("click", () => {
         auth.logout()
     })
+
+
+
+    // ---------- CLOSED BOARDS MODAL LOGIC ----------
+    function renderClosedBoardsList() {
+        if (!closedBoardsList) return;
+        const closed = getClosedBoards();
+        closedBoardsList.innerHTML = '';
+
+        if (closed.length === 0) {
+            noClosedMessage.classList.remove('hidden');
+            closedBoardsList.classList.add('hidden');
+        } else {
+            noClosedMessage.classList.add('hidden');
+            closedBoardsList.classList.remove('hidden');
+
+            closed.forEach(board => {
+                const li = document.createElement('li');
+                li.className = 'closed-board-item';
+                li.innerHTML = `
+              <div class="closed-board-name">
+                ${escapeHtml(board.name)}
+                
+              </div>
+              <div class="closed-board-actions">
+                <button class="btn btn-outline reopen-btn" data-id="${board.id}" style="padding:6px 12px; font-size:0.8rem;">🔄 Reopen</button>
+                <button class="btn btn-outline delete-btn" data-id="${board.id}" style="padding:6px 12px; font-size:0.8rem; color:var(--danger-color); border-color:var(--danger-color);">🗑️ Delete</button>
+              </div>
+            `;
+                closedBoardsList.appendChild(li);
+            });
+
+            // Attach event listeners to reopen & delete buttons
+            document.querySelectorAll('#closed-boards-list .reopen-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const boardId = btn.getAttribute('data-id');
+                    reopenBoard(boardId);
+                });
+            });
+
+            document.querySelectorAll('#closed-boards-list .delete-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const boardId = btn.getAttribute('data-id');
+                    openDeleteConfirmation(boardId);
+                });
+            });
+        }
+    }
+
+    function reopenBoard(boardId) {
+        // Find board in your or guest
+        let found = boardsData.your.find(b => b.id === boardId);
+        if (found) {
+            found.closed = false;
+        } else {
+            found = boardsData.guest.find(b => b.id === boardId);
+            if (found) found.closed = false;
+        }
+        if (found) {
+            getContentData()
+            // If closed modal is still open, re-render its list
+            if (closedModal.classList.contains('active')) {
+                renderClosedBoardsList();
+            }
+        }
+    }
+
+    function openDeleteConfirmation(boardId) {
+        const board = [...boardsData.your, ...boardsData.guest].find(b => b.id === boardId);
+        if (!board) return;
+        boardToDeleteId = boardId;
+        deleteBoardNameSpan.textContent = board.title;
+        deleteConfirmModal.classList.add('active');
+    }
+
+    function deleteBoardPermanently(boardId) {
+        // Remove from your or guest
+        const yourIndex = boardsData.your.findIndex(b => b.id === boardId);
+        if (yourIndex !== -1) {
+            boardsData.your.splice(yourIndex, 1);
+        } else {
+            const guestIndex = boardsData.guest.findIndex(b => b.id === boardId);
+            if (guestIndex !== -1) boardsData.guest.splice(guestIndex, 1);
+        }
+        saveBoards(boardsData);
+        boardToDeleteId = null;
+        renderAllBoards();
+        // Close delete modal & update closed list if needed
+        deleteConfirmModal.classList.remove('active');
+        if (closedModal.classList.contains('active')) {
+            renderClosedBoardsList();
+        }
+    }
+
+    function openClosedModal() {
+        renderClosedBoardsList();
+        closedModal.classList.add('active');
+    }
+
+    function closeClosedModalFn() {
+        closedModal.classList.remove('active');
+    }
+
+    function closeDeleteModalFn() {
+        deleteConfirmModal.classList.remove('active');
+        boardToDeleteId = null;
+    }
+
+
+    // Closed boards button
+    closedBoardsBtn.addEventListener('click', openClosedModal);
+    closeClosedModal.addEventListener('click', closeClosedModalFn);
+    doneClosed.addEventListener('click', closeClosedModalFn);
+    closedModal.addEventListener('click', (e) => {
+        if (e.target === closedModal) closeClosedModalFn();
+    });
+
+    // Delete confirmation modal events
+    closeDeleteModal.addEventListener('click', closeDeleteModalFn);
+    cancelDelete.addEventListener('click', closeDeleteModalFn);
+    deleteConfirmModal.addEventListener('click', (e) => {
+        if (e.target === deleteConfirmModal) closeDeleteModalFn();
+    });
+
+    confirmDeleteBtn.addEventListener('click', () => {
+        if (boardToDeleteId) {
+            deleteBoardPermanently(boardToDeleteId);
+        }
+    });
+
+
+
+    function getClosedBoards() {
+
+        return [
+            ...yourBoards.filter(b => b.closed),
+
+        ];
+    }
+
+
+    function escapeHtml(text) {
+        return String(text).replace(/[&<>"]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            if (m === '"') return '&quot;';
+            return m;
+        });
+    }

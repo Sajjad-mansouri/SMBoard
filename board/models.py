@@ -34,6 +34,8 @@ class Board(DateAbstractModel):
 	status = models.CharField(_("Status"), choices=STATUS_CHOICES, max_length=10, default="workspace")
 	background_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
 	background_image = models.ImageField(_("Background Image"), upload_to=board_image_path, null=True, blank=True)
+	closed = models.BooleanField(_("Closed"), default=False)
+
 
 
 

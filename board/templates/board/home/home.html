@@ -8,11 +8,16 @@
         <!-- Your Workspaces -->
         <section class="workspace-section">
             <div class="section-header">
-                <h2 class="section-title">
-                    <span class="section-icon">👤</span>
-                    Your Workspaces
-                </h2>
-                <button class="btn btn-primary" id="create-board-btn">+ Create New Board</button>
+        <h2 class="section-title">
+          <span class="section-icon">👤</span>
+          Your Workspaces
+        </h2>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="btn btn-outline" id="closed-boards-btn" type="button">
+            📦 Closed Boards
+          </button>
+          <button class="btn btn-primary" id="create-board-btn">+ Create New Board</button>
+        </div>
             </div>
             <div class="boards-grid" id="your-boards">
                 <!-- Your boards will be rendered here -->
@@ -73,6 +78,43 @@
             </div>
         </div>
     </div>
+
+  <!-- Closed Boards Modal -->
+  <div class="modal-overlay" id="closed-boards-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">📦 Closed Boards</h3>
+        <button class="modal-close" id="close-closed-modal">✕</button>
+      </div>
+      <div id="closed-boards-list-container">
+        <ul class="closed-board-list" id="closed-boards-list"></ul>
+        <div id="no-closed-boards-message" class="empty-state" style="padding: 24px;">
+          <div class="empty-state-icon">📭</div>
+          <div class="empty-state-text">No closed boards</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="done-closed-boards">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal-overlay" id="delete-confirm-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">⚠️ Delete board permanently?</h3>
+        <button class="modal-close" id="close-delete-modal">✕</button>
+      </div>
+      <div class="confirm-text">
+        Are you sure you want to delete <strong id="delete-board-name">this board</strong>? This action cannot be undone.
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancel-delete">Cancel</button>
+        <button class="btn btn-danger" id="confirm-delete">Delete forever</button>
+      </div>
+    </div>
+  </div>
 {%endblock%}
 
 {%block style%}
