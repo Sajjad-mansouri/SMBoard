@@ -39,11 +39,17 @@ function highlightMatch(text, query) {
 async function fetchSearchResult(query) {
 
     try {
-        const response = await auth.authenticatedRequest(`api/search/?search=${query.trim()}`, null, "GET")
-        data = await response.json()
-        if (response.ok) {
-            const boards = []
-            data.forEach(board => {
+        const responseBoard = await auth.authenticatedRequest(`api/search/board/?search=${query.trim()}`, null, "GET")
+        const responseCard = await auth.authenticatedRequest(`api/search/card/?search=${query.trim()}`, null, "GET")
+
+        dataBoard = await responseBoard.json()
+
+        dataCard = await responseCard.json()
+
+        if (responseBoard.ok) {
+            const boards = [];
+            const cards = [];
+            dataBoard.forEach(board => {
                 boards.push({
                     type: 'board',
                     id: board.id,
@@ -54,7 +60,20 @@ async function fetchSearchResult(query) {
                 });
             })
 
-            return boards
+            dataCard.forEach(card => {
+                cards.push({
+                    type: 'card',
+                    id: card.id,
+                    name: card.name,
+                    boardName: card.board,
+                    list: card.board_list,
+                    labels: card.labels,
+                    dueDate: card.due_date,
+                    boardColor: card.board.color
+                });
+            });
+
+            return [boards, cards]
 
         } else {
             console.log('not ok')
@@ -75,7 +94,8 @@ async function performSearch(query) {
     searchClearBtn.classList.add('visible');
     let matchedCards = [];
     let matchedBoards = [];
-    matchedBoards = await fetchSearchResult(query)
+    [matchedBoards, matchedCards] = await fetchSearchResult(query)
+
     let html = '';
 
     if (matchedBoards.length === 0 && matchedCards.length === 0) {
@@ -102,17 +122,20 @@ async function performSearch(query) {
         if (matchedCards.length > 0) {
             html += '<div class="search-results-header">📋 Cards (' + matchedCards.length + ')</div>';
             matchedCards.forEach(card => {
+
+                const labels = card.labels.length != 0 ? `labels:${card.labels}` : ""
+
                 html += `
                             <div class="search-result-item" data-type="card" data-id="${card.id}">
                                 <div class="search-result-icon card-icon">📄</div>
                                 <div class="search-result-info">
                                     <div class="search-result-title">${highlightMatch(card.name, query)}</div>
                                     <div class="search-result-meta">
-                                        ${card.boardName} · ${card.list} · ${card.labels}
-                                        ${card.dueDate ? ' · 📅 ' + card.dueDate : ''}
+                                        board:${card.boardName} , list:${card.list}, ${labels}
+                                        ${card.dueDate != null ? ' · 📅 ' + card.dueDate.split("T")[0] : ''}
                                     </div>
                                 </div>
-                                <span class="search-result-badge" style="background: ${card.boardColor}; color: white; font-size:0.6rem;">${card.boardName}</span>
+                               
                             </div>
                         `;
             });

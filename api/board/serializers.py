@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from board.models import Board
+from board.models import Board, Card
 
 UserModel = get_user_model()
 
@@ -35,3 +35,23 @@ class BoardSerializer(serializers.ModelSerializer):
 		request = self.context["request"]
 		data["owner"] = request.user.id
 		return super().to_internal_value(data)
+
+
+class CardSerializer(serializers.ModelSerializer):
+	board_list = serializers.SerializerMethodField()
+	board = serializers.SerializerMethodField()
+	labels = serializers.SerializerMethodField()
+
+
+	class Meta:
+		model = Card
+		fields = ["id", "board_list", "name", "due_date", "board", "labels"]
+
+	def get_board_list(self, obj):
+		return obj.board_list.name
+
+	def get_board(self, obj):
+		return obj.board_list.board.name
+
+	def get_labels(self, obj):
+		return obj.card_labels.values_list("name", flat=True)

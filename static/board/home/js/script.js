@@ -206,7 +206,7 @@
             document.querySelector(".profile-avatar-lg").innerText = userData.username[0]
             document.getElementById("user-avatar-btn").innerText = userData.username[0]
         }
-        console.log(userData)
+
     }
 
     async function getContentData() {
@@ -229,7 +229,7 @@
                 guestBoards = guestBoardData;
                 renderBoards();
             }
-            console.log(boardData)
+
         } catch (error) {
             console.log(error)
         }

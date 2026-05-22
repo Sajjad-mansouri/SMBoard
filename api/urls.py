@@ -17,7 +17,9 @@ urlpatterns = router.urls
 urlpatterns += [
 	path("guest-boards/", board_views.GuestBoardListView.as_view(), name="guest_boards"),
 	path("user/", board_views.UserRetrieveView.as_view(), name="user"),
-	path("search/", board_views.SearchBoardView.as_view(), name="search_boards"),
+	path("search/board/", board_views.SearchBoardView.as_view(), name="search_boards"),
+	path("search/card/", board_views.SearchCardView.as_view(), name="search_cards"),
+
 
 
 
