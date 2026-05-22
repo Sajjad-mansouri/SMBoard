@@ -11,7 +11,7 @@ from .auth import views as api_auth_views
 
 
 router = DefaultRouter()
-router.register(r'boards', board_views.CreateListBoardViewSet, basename='board')
+router.register(r'boards', board_views.BoardViewSet, basename='board')
 urlpatterns = router.urls
 
 urlpatterns += [
@@ -19,6 +19,8 @@ urlpatterns += [
 	path("user/", board_views.UserRetrieveView.as_view(), name="user"),
 	path("search/board/", board_views.SearchBoardView.as_view(), name="search_boards"),
 	path("search/card/", board_views.SearchCardView.as_view(), name="search_cards"),
+	path("closed/", board_views.ClosedBoardView.as_view(), name="closed_boards"),
+
 
 
 

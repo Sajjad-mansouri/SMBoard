@@ -3,6 +3,7 @@
 
     // Your own boards
     let yourBoards = [];
+    let closedBoards = [];
 
     // Guest boards
     let guestBoards = [];
@@ -231,8 +232,11 @@
 
 
 
-            const boardData = await boardResponse.json()
-            const guestBoardData = await guestBoardResponse.json()
+            let boardData = await boardResponse.json()
+            let guestBoardData = await guestBoardResponse.json()
+
+
+            boardData = [...boardData.filter(b => b.closed == false)]
 
             if (boardResponse.ok && guestBoardResponse.ok) {
                 yourBoards = boardData;
@@ -257,9 +261,9 @@
 
 
     // ---------- CLOSED BOARDS MODAL LOGIC ----------
-    function renderClosedBoardsList() {
+    async function renderClosedBoardsList() {
         if (!closedBoardsList) return;
-        const closed = getClosedBoards();
+        const closed = await getClosedBoards();
         closedBoardsList.innerHTML = '';
 
         if (closed.length === 0) {
@@ -304,22 +308,21 @@
         }
     }
 
-    function reopenBoard(boardId) {
+    async function reopenBoard(boardId) {
         // Find board in your or guest
-        let found = boardsData.your.find(b => b.id === boardId);
-        if (found) {
-            found.closed = false;
-        } else {
-            found = boardsData.guest.find(b => b.id === boardId);
-            if (found) found.closed = false;
+        body = JSON.stringify({
+            "closed": false
+        })
+        const response = await auth.authenticatedRequest(`api/boards/${boardId}/`, body, "PATCH", {}, "application/json")
+        const data = await response.json()
+
+        getContentData()
+        renderClosedBoardsList()
+        // If closed modal is still open, re-render its list
+        if (closedModal.classList.contains('active')) {
+            renderClosedBoardsList();
         }
-        if (found) {
-            getContentData()
-            // If closed modal is still open, re-render its list
-            if (closedModal.classList.contains('active')) {
-                renderClosedBoardsList();
-            }
-        }
+
     }
 
     function openDeleteConfirmation(boardId) {
@@ -387,12 +390,22 @@
 
 
 
-    function getClosedBoards() {
+    async function getClosedBoards() {
+        try {
+            const response = await auth.authenticatedRequest(`api/closed/`, null, "GET")
+            const data = await response.json()
 
-        return [
-            ...yourBoards.filter(b => b.closed),
 
-        ];
+            if (response.ok) {
+
+                return data
+            } else {
+            console.log('not ok!')
+            }
+        } catch (error) {
+            console.log(error)
+        }
+
     }
 
 

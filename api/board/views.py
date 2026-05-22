@@ -5,10 +5,7 @@ from board.models import Board, Card
 from . import serializers
 from .permissions import IsBoardOwner
 
-class CreateListBoardViewSet(mixins.CreateModelMixin,
-								mixins.ListModelMixin,
-								mixins.RetrieveModelMixin,
-								viewsets.GenericViewSet):
+class BoardViewSet(viewsets.ModelViewSet):
 
 	serializer_class = serializers.BoardSerializer
 	permission_classes = [IsBoardOwner]
@@ -21,7 +18,7 @@ class CreateListBoardViewSet(mixins.CreateModelMixin,
 class GuestBoardListView(ListAPIView):
 	serializer_class = serializers.BoardSerializer
 	def get_queryset(self):
-		q = Q(board_memberships__user=self.request.user) & ~Q(owner=self.request.user)
+		q = Q(board_memberships__user=self.request.user) & ~Q(owner=self.request.user) & Q(closed=False)
 		return Board.objects.filter(q)
 
 
@@ -51,10 +48,11 @@ class SearchCardView(ListAPIView):
 		return Card.objects.filter(q)
 
 
-class ClosedBoarView(ListAPIView):
+class ClosedBoardView(ListAPIView):
 	serializer_class = serializers.BoardSerializer
 	def get_queryset(self):
-		search = self.request.query_params["search"]
-		q = Q(board_memberships__user=self.request.user) | Q(owner=self.request.user)
+
+		print(Board.objects.filter(Q(closed=True)))
+		q = Q(owner=self.request.user)
 		q = q & Q(closed=True)
 		return Board.objects.filter(q)
