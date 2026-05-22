@@ -18,14 +18,20 @@ class UserSerializer(serializers.ModelSerializer):
 class BoardSerializer(serializers.ModelSerializer):
 	# user = UserSerializer()
 	cards = serializers.SerializerMethodField()
+	is_owner = serializers.SerializerMethodField()
+
 	class Meta:
 		model = Board
-		fields = ["id", "user", "name", "status", "background_color", "background_image", "cards"]
+		fields = ["id", "owner", "name", "status", "background_color", "background_image", "cards", "is_owner"]
 
 	def get_cards(self, obj):
 		return 12
 
+	def get_is_owner(self, obj):
+		request = self.context["request"]
+		return obj.owner_id == request.user.id 
+
 	def to_internal_value(self, data):
 		request = self.context["request"]
-		data["user"] = request.user.id
+		data["owner"] = request.user.id
 		return super().to_internal_value(data)

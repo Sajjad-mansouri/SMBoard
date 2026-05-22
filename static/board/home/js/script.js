@@ -1,4 +1,3 @@
-    const auth = new Auth()
     // Sample Data
     let userData = {};
 
@@ -9,14 +8,7 @@
     let guestBoards = [];
 
     // DOM Elements
-    const searchInput = document.getElementById('search-input');
-    const searchClearBtn = document.getElementById('search-clear-btn');
-    const searchResults = document.getElementById('search-results');
-    const searchResultsContent = document.getElementById('search-results-content');
-    const userAvatarBtn = document.getElementById('user-avatar-btn');
-    const profileDropdown = document.getElementById('profile-dropdown');
-    const profileSettingsBtn = document.getElementById('profile-settings-btn');
-    const profileLogoutBtn = document.getElementById('profile-logout-btn');
+
     const yourBoardsContainer = document.getElementById('your-boards');
     const guestBoardsContainer = document.getElementById('guest-boards');
     const yourBoardsEmpty = document.getElementById('your-boards-empty');
@@ -32,196 +24,6 @@
 
     let selectedColor = '#0079bf';
 
-    // Profile Dropdown Toggle
-    userAvatarBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        profileDropdown.classList.toggle('active');
-        searchResults.classList.remove('active');
-    });
-
-    // Close profile dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!profileDropdown.contains(e.target) && e.target !== userAvatarBtn) {
-            profileDropdown.classList.remove('active');
-        }
-    });
-
-    // Profile Dropdown Actions
-    profileSettingsBtn.addEventListener('click', () => {
-        profileDropdown.classList.remove('active');
-        alert('Opening Settings page...');
-    });
-
-
-
-    // Search Functionality
-    function getAllSearchableItems() {
-        const boards = [];
-        const cards = [];
-
-        // Collect all boards
-        [...yourBoards, ...guestBoards].forEach(board => {
-            boards.push({
-                type: 'board',
-                id: board.id,
-                name: board.name,
-                color: board.color,
-                meta: board.owner ? `Owner: ${board.owner} · ${board.cards} cards` : `${board.cards} cards`,
-                isGuest: !!board.owner
-            });
-
-            // Collect cards from each board
-            if (board.cardsList) {
-                board.cardsList.forEach(card => {
-                    cards.push({
-                        type: 'card',
-                        id: card.id,
-                        name: card.name,
-                        boardName: card.board,
-                        list: card.list,
-                        labels: card.labels,
-                        dueDate: card.dueDate,
-                        boardColor: board.color
-                    });
-                });
-            }
-        });
-
-        return {
-            boards,
-            cards
-        };
-    }
-
-    function highlightMatch(text, query) {
-        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-        return text.replace(regex, '<span class="highlight">$1</span>');
-    }
-
-    function performSearch(query) {
-        if (!query.trim()) {
-            searchResults.classList.remove('active');
-            searchClearBtn.classList.remove('visible');
-            return;
-        }
-
-        searchClearBtn.classList.add('visible');
-        const {
-            boards,
-            cards
-        } = getAllSearchableItems();
-        const searchTerm = query.toLowerCase();
-
-        const matchedBoards = boards.filter(board =>
-            board.name.toLowerCase().includes(searchTerm)
-        );
-
-        const matchedCards = cards.filter(card =>
-            card.name.toLowerCase().includes(searchTerm) ||
-            card.boardName.toLowerCase().includes(searchTerm) ||
-            card.labels.toLowerCase().includes(searchTerm)
-        );
-
-        let html = '';
-
-        if (matchedBoards.length === 0 && matchedCards.length === 0) {
-            html = '<div class="search-no-results">🔍 No results found for "' + query + '"</div>';
-        } else {
-            // Boards section
-            if (matchedBoards.length > 0) {
-                html += '<div class="search-results-header">📊 Boards (' + matchedBoards.length + ')</div>';
-                matchedBoards.forEach(board => {
-                    html += `
-                            <div class="search-result-item" data-type="board" data-id="${board.id}">
-                                <div class="search-result-icon board-icon" style="background: ${board.color};">📋</div>
-                                <div class="search-result-info">
-                                    <div class="search-result-title">${highlightMatch(board.name, query)}</div>
-                                    <div class="search-result-meta">${board.meta}</div>
-                                </div>
-                                ${board.isGuest ? '<span class="search-result-badge">👥 Guest</span>' : ''}
-                            </div>
-                        `;
-                });
-            }
-
-            // Cards section
-            if (matchedCards.length > 0) {
-                html += '<div class="search-results-header">📋 Cards (' + matchedCards.length + ')</div>';
-                matchedCards.forEach(card => {
-                    html += `
-                            <div class="search-result-item" data-type="card" data-id="${card.id}">
-                                <div class="search-result-icon card-icon">📄</div>
-                                <div class="search-result-info">
-                                    <div class="search-result-title">${highlightMatch(card.name, query)}</div>
-                                    <div class="search-result-meta">
-                                        ${card.boardName} · ${card.list} · ${card.labels}
-                                        ${card.dueDate ? ' · 📅 ' + card.dueDate : ''}
-                                    </div>
-                                </div>
-                                <span class="search-result-badge" style="background: ${card.boardColor}; color: white; font-size:0.6rem;">${card.boardName}</span>
-                            </div>
-                        `;
-                });
-            }
-        }
-
-        searchResultsContent.innerHTML = html;
-        searchResults.classList.add('active');
-
-        // Add click events to search result items
-        searchResultsContent.querySelectorAll('.search-result-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const type = item.getAttribute('data-type');
-                const id = item.getAttribute('data-id');
-
-                if (type === 'board') {
-                    const board = [...yourBoards, ...guestBoards].find(b => b.id == id);
-                    if (board) {
-                        alert(`Opening board: ${board.name}`);
-                    }
-                } else if (type === 'card') {
-                    let foundCard = null;
-                    [...yourBoards, ...guestBoards].forEach(board => {
-                        if (board.cardsList) {
-                            const card = board.cardsList.find(c => c.id == id);
-                            if (card) foundCard = card;
-                        }
-                    });
-                    if (foundCard) {
-                        alert(`Opening card: ${foundCard.name}\nBoard: ${foundCard.boardName}\nList: ${foundCard.list}`);
-                    }
-                }
-
-                searchResults.classList.remove('active');
-                searchInput.value = '';
-                searchClearBtn.classList.remove('visible');
-            });
-        });
-    }
-
-    searchInput.addEventListener('input', (e) => {
-        performSearch(e.target.value);
-    });
-
-    searchInput.addEventListener('focus', () => {
-        if (searchInput.value.trim()) {
-            performSearch(searchInput.value);
-        }
-    });
-
-    searchClearBtn.addEventListener('click', () => {
-        searchInput.value = '';
-        searchResults.classList.remove('active');
-        searchClearBtn.classList.remove('visible');
-        searchInput.focus();
-    });
-
-    // Close search results when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!searchResults.contains(e.target) && e.target !== searchInput) {
-            searchResults.classList.remove('active');
-        }
-    });
 
     // Color picker functionality
     colorPicker.addEventListener('click', (e) => {
@@ -251,7 +53,7 @@
 
         let metaInfo = `${board.cards} cards`;
         if (isGuest) {
-            metaInfo = `Owner: ${board.user.username} · ${board.cards} cards`;
+            metaInfo = `Owner: ${board.owner.username} · ${board.cards} cards`;
         }
 
         card.innerHTML = `
@@ -337,14 +139,14 @@
             const newBoard = await response.json()
 
             if (response.ok) {
-                console.log(newBoard)
+
                 yourBoards.push(newBoard);
                 renderBoards();
                 closeCreateModal();
-                console.log(data)
+
             } else {
                 closeCreateModal();
-                console.log(data)
+
             }
         } catch (error) {
             closeCreateModal();
@@ -407,7 +209,7 @@
         console.log(userData)
     }
 
-    async function getData() {
+    async function getContentData() {
         // id: 1,
         // name: "Marketing Website",
         // color: "#0079bf",
@@ -416,17 +218,12 @@
 
             const boardResponse = await auth.authenticatedRequest(`api/boards/`, null, "GET")
             const guestBoardResponse = await auth.authenticatedRequest(`api/guest-boards/`, null, "GET")
-            const userResponse = await auth.authenticatedRequest(`api/user/`, null, "GET")
+
 
 
             const boardData = await boardResponse.json()
             const guestBoardData = await guestBoardResponse.json()
-            userData = await userResponse.json()
-            console.log(userData)
-            console.log(guestBoardData)
-            if (userResponse.ok) {
-                renderUserInfo()
-            }
+
             if (boardResponse.ok && guestBoardResponse.ok) {
                 yourBoards = boardData;
                 guestBoards = guestBoardData;
@@ -438,7 +235,7 @@
         }
     }
     // Initialize
-    getData()
+    getContentData()
 
     console.log('SMBoards Page Loaded');
     console.log('Press Ctrl+K to focus search');

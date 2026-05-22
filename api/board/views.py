@@ -30,3 +30,12 @@ class UserRetrieveView(RetrieveAPIView):
 
 	def get_object(self):
 		return self.request.user
+
+
+class SearchBoardView(ListAPIView):
+	serializer_class = serializers.BoardSerializer
+	def get_queryset(self):
+		search = self.request.query_params["search"]
+		q = Q(board_memberships__user=self.request.user) | Q(owner=self.request.user)
+		q = q & Q(name__icontains=search)
+		return Board.objects.filter(q)
