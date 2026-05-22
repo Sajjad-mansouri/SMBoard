@@ -52,7 +52,7 @@ class ClosedBoardView(ListAPIView):
 	serializer_class = serializers.BoardSerializer
 	def get_queryset(self):
 
-		print(Board.objects.filter(Q(closed=True)))
+
 		q = Q(owner=self.request.user)
 		q = q & Q(closed=True)
 		return Board.objects.filter(q)

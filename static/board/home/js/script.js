@@ -326,30 +326,37 @@
     }
 
     function openDeleteConfirmation(boardId) {
-        const board = [...boardsData.your, ...boardsData.guest].find(b => b.id === boardId);
+        console.log(closedBoards)
+        const board = [...closedBoards].find(b => b.id === Number(boardId));
+        console.log(board, boardId)
         if (!board) return;
         boardToDeleteId = boardId;
         deleteBoardNameSpan.textContent = board.title;
         deleteConfirmModal.classList.add('active');
     }
 
-    function deleteBoardPermanently(boardId) {
+    async function deleteBoardPermanently(boardId) {
         // Remove from your or guest
-        const yourIndex = boardsData.your.findIndex(b => b.id === boardId);
-        if (yourIndex !== -1) {
-            boardsData.your.splice(yourIndex, 1);
-        } else {
-            const guestIndex = boardsData.guest.findIndex(b => b.id === boardId);
-            if (guestIndex !== -1) boardsData.guest.splice(guestIndex, 1);
+        console.log("delete this", boardId)
+        try {
+            const response = await auth.authenticatedRequest(`api/boards/${boardId}/`, "", "DELETE")
+
+            if (response.ok) {
+                // Close delete modal & update closed list if needed
+                deleteConfirmModal.classList.remove('active');
+                if (closedModal.classList.contains('active')) {
+                    renderClosedBoardsList()
+
+                }
+
+            } else {
+                console.log("error happening")
+            }
+        } catch (error) {
+            console.log(error)
         }
-        saveBoards(boardsData);
-        boardToDeleteId = null;
-        renderAllBoards();
-        // Close delete modal & update closed list if needed
-        deleteConfirmModal.classList.remove('active');
-        if (closedModal.classList.contains('active')) {
-            renderClosedBoardsList();
-        }
+
+
     }
 
     function openClosedModal() {
@@ -397,10 +404,10 @@
 
 
             if (response.ok) {
-
+                closedBoards = data
                 return data
             } else {
-            console.log('not ok!')
+                console.log('not ok!')
             }
         } catch (error) {
             console.log(error)
