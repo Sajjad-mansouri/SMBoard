@@ -5,7 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SMBoards</title>
-<link rel="stylesheet" type="text/css" href="{%static 'board/home/css/style.css'%}">
+    <link rel="stylesheet" type="text/css" href="{%static 'board/base/css/style.css'%}">
+
+    {%block style%}
+    {%endblock%}
 </head>
 <body>
     <!-- Header -->
@@ -35,12 +38,12 @@
         <div class="header-right">
 
             
-            <div class="profile-avatar-wrapper">
+            <div class="dropdown-wrapper">
                 <button class="user-avatar" id="user-avatar-btn" ></button>
                 
                 <!-- Profile Dropdown -->
-                <div class="profile-dropdown" id="profile-dropdown">
-                    <div class="profile-dropdown-header">
+                <div class="dropdown" id="profile-dropdown">
+                    <div class="dropdown-header">
                         <div class="account-title">ACCOUNT</div>
                         <div class="profile-row">
                             <div class="profile-avatar-lg" style="background:#0079bf;"></div>
@@ -50,9 +53,9 @@
                             </div>
                         </div>
                     </div>
-                    <div class="profile-dropdown-item" id="profile-settings-btn">⚙️ Settings</div>
-                    <div class="profile-dropdown-divider"></div>
-                    <div class="profile-dropdown-item" id="profile-logout-btn">🚪 Logout</div>
+                    <div class="dropdown-item" id="profile-settings-btn">⚙️ Settings</div>
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-item" id="profile-logout-btn">🚪 Logout</div>
                 </div>
             </div>
         </div>
@@ -66,7 +69,7 @@
 <script src="{%static 'board/base/js/script.js'%}"></script>
 
 
-{%block style%}
+{%block script%}
 {%endblock%}
 
 </body>

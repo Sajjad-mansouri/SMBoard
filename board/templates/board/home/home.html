@@ -1,7 +1,10 @@
 {%extends 'board/base.html'%}
 {%load static%}
 
+{%block style%}
+<link rel="stylesheet" type="text/css" href="{%static 'board/home/css/style.css'%}">
 
+{%endblock%}
 {%block content%}
     <!-- Content Area -->
     <div class="content-area">
@@ -117,6 +120,6 @@
   </div>
 {%endblock%}
 
-{%block style%}
+{%block script%}
 <script type="text/javascript" src="{%static 'board/home/js/script.js'%}"></script>
 {%endblock%}

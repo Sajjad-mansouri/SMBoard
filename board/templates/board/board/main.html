@@ -1,11 +1,54 @@
 {%extends 'board/base.html'%}
 {%load static%}
 
-
-{%block content%}
+{%block style%}
+<link rel="stylesheet" type="text/css" href="{%static 'board/board/css/style.css'%}">
 
 {%endblock%}
+{%block content%}
+            <div class="board-menu-bar" id="board-menu-bar">
+                <div class="board-menu-bar-left">
+                    <h1 id="board-title" class="board-title" contenteditable="false">My Kanban Board</h1>
+                    <button id="edit-title-btn" class="icon-btn small">✎</button>
+                </div>
+                <div class="board-menu-bar-right">
 
-{%block style%}
+
+                    <div class="board-member-avatars" id="board-member-avatars"></div>
+                    <div class="dropdown-wrapper">
+                        <button class="visibility-badge" id="board-status-dots-btn">🌐 Public ▾</button>
+
+                        
+                        <!-- Profile Dropdown -->
+                        <div class="dropdown" id="board-status-dropdown">
+                            <button class="board-menu-item" data-action="share-users">🔒 Private</button>
+                            <button class="board-menu-item" data-action="change-bg">🏢 Workspace</button>
+                            <button class="board-menu-item" data-action="activity">🌐 Public</button>
+
+                        </div>
+                    </div>
+
+
+                    <div class="dropdown-wrapper">
+                        <button class="board-menu-btn" id="board-menu-dots-btn" title="Board menu">⋯</button>
+                        
+                        <!-- Profile Dropdown -->
+                        <div class="dropdown" id="board-menu-dropdown">
+                            <button class="board-menu-item" data-action="share-users">🔗 Share and users</button>
+                            <button class="board-menu-item" data-action="change-bg">🎨 Change background</button>
+                            <button class="board-menu-item" data-action="activity">📋 Activity</button>
+                            <div class="board-menu-divider"></div>
+                            <button class="board-menu-item" data-action="watch" id="board-watch-btn">👀 Watch <span class="menu-item-extra" id="board-watch-status">Not watching</span></button>
+                            <div class="board-menu-divider"></div>
+                            <button class="board-menu-item danger" data-action="close-board" id="board-close-btn">📦 Close board</button>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+{%endblock%}
+
+{%block script%}
+<script type="text/javascript" src="{%static 'board/board/js/script.js'%}"></script>
 
 {%endblock%}
