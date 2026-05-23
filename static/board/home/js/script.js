@@ -74,12 +74,15 @@
             `;
 
         card.addEventListener('click', () => {
-            alert(`Opening board: ${board.name}\n${isGuest ? 'Guest workspace' : 'Your workspace'}`);
+            window.location.href = `/board/${board.id}/`
         });
 
         return card;
     }
 
+    function openBoard() {
+        console.log("open board")
+    }
     // Render All Boards
     function renderBoards() {
         // Your Boards
@@ -90,6 +93,7 @@
             yourBoardsEmpty.classList.add('hidden');
             yourBoards.forEach(board => {
                 yourBoardsContainer.appendChild(renderBoardCard(board));
+
             });
             // Add Create New Board card
             const createCard = document.createElement('div');
@@ -207,18 +211,7 @@
         }
     });
 
-    function renderUserInfo() {
-        document.querySelector(".profile-name").innerText = userData.username
-        document.querySelector(".profile-email").innerText = userData.email
-        if (userData.profile_image) {
-            document.querySelector(".profile-avatar-lg").innerHTML = `<img src="${userData.profile_image}">`
-            document.getElementById("user-avatar-btn").innerHTML = `<img src="${userData.profile_image}">`
-        } else {
-            document.querySelector(".profile-avatar-lg").innerText = userData.username[0]
-            document.getElementById("user-avatar-btn").innerText = userData.username[0]
-        }
 
-    }
 
     async function getContentData() {
         // id: 1,

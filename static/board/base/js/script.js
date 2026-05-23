@@ -39,8 +39,11 @@ function highlightMatch(text, query) {
 async function fetchSearchResult(query) {
 
     try {
-        const responseBoard = await auth.authenticatedRequest(`api/search/board/?search=${query.trim()}`, null, "GET")
-        const responseCard = await auth.authenticatedRequest(`api/search/card/?search=${query.trim()}`, null, "GET")
+        const searchBoarUrl = origin + `/api/search/board/?search=${query.trim()}`
+        const searchCardUrl = origin + `/api/search/card/?search=${query.trim()}`
+
+        const responseBoard = await auth.authenticatedRequest(searchBoarUrl, null, "GET")
+        const responseCard = await auth.authenticatedRequest(searchCardUrl, null, "GET")
 
         dataBoard = await responseBoard.json()
 
@@ -200,10 +203,23 @@ document.addEventListener('click', (e) => {
     }
 });
 
+function renderUserInfo() {
+    document.querySelector(".profile-name").innerText = userData.username
+    document.querySelector(".profile-email").innerText = userData.email
+    if (userData.profile_image) {
+        document.querySelector(".profile-avatar-lg").innerHTML = `<img src="${userData.profile_image}">`
+        document.getElementById("user-avatar-btn").innerHTML = `<img src="${userData.profile_image}">`
+    } else {
+        document.querySelector(".profile-avatar-lg").innerText = userData.username[0]
+        document.getElementById("user-avatar-btn").innerText = userData.username[0]
+    }
+
+}
 
 async function getHeaderData() {
     try {
-        const userResponse = await auth.authenticatedRequest(`api/user/`, null, "GET")
+        const url = origin + `/api/user/`
+        const userResponse = await auth.authenticatedRequest(url, null, "GET")
         userData = await userResponse.json()
         if (userResponse.ok) {
             renderUserInfo()
