@@ -6,48 +6,73 @@
 
 {%endblock%}
 {%block content%}
-            <div class="board-menu-bar" id="board-menu-bar">
+  <div class="board-menu-bar" id="board-menu-bar">
                 <div class="board-menu-bar-left">
-                    <h1 id="board-title" class="board-title" contenteditable="false">My Kanban Board</h1>
+                    <h1 id="board-title" class="board-title" contenteditable="false">My Board</h1>
                     <button id="edit-title-btn" class="icon-btn small">✎</button>
                 </div>
                 <div class="board-menu-bar-right">
-
-
                     <div class="board-member-avatars" id="board-member-avatars"></div>
-                    <div class="dropdown-wrapper">
-                        <button class="visibility-badge " id="visibility-badge-btn">🌐 Public ▾</button>
-
-                        
-                        <!-- Profile Dropdown -->
-                        <div class="dropdown" id="board-status-dropdown">
-                            <button class="board-menu-item" data-action="share-users">🔒 Private</button>
-                            <button class="board-menu-item" data-action="change-bg">🏢 Workspace</button>
-                            <button class="board-menu-item" data-action="activity">🌐 Public</button>
-
+                    <div style="position:relative;">
+                        <button class="visibility-badge" id="visibility-badge-btn">🌐 Public ▾</button>
+                        <div class="visibility-dropdown hidden" id="visibility-dropdown">
+                            <div class="dropdown-item" data-vis="private">🔒 Private</div>
+                            <div class="dropdown-item" data-vis="workspace">🏢 Workspace</div>
+                            <div class="dropdown-item" data-vis="public">🌐 Public</div>
                         </div>
                     </div>
-
-
-                    <div class="dropdown-wrapper">
-                        <button class="board-menu-btn" id="board-menu-dots-btn" title="Board menu">⋯</button>
-                        
-                        <!-- Profile Dropdown -->
-                        <div class="dropdown" id="board-menu-dropdown">
-                            <button class="board-menu-item" data-action="share-users">🔗 Share and users</button>
-                            <button class="board-menu-item" data-action="change-bg">🎨 Change background</button>
-                            <button class="board-menu-item" data-action="activity">📋 Activity</button>
-                            <div class="board-menu-divider"></div>
-                            <button class="board-menu-item" data-action="watch" id="board-watch-btn">👀 Watch <span class="menu-item-extra" id="board-watch-status">Not watching</span></button>
-                            <div class="board-menu-divider"></div>
-                            <button class="board-menu-item danger" data-action="close-board" id="board-close-btn">📦 Close board</button>
-                        </div>
-                    </div>
-
+                    <button class="share-btn" id="share-board-btn">🔗 Share</button>
+                    <button class="board-menu-btn" id="board-menu-dots-btn" title="Board menu">⋯</button>
                 </div>
             </div>
             <main id="board-container"><div id="lists-wrapper" class="lists-wrapper"></div><div class="add-list-container"><button id="add-list-btn" class="add-list-btn">+ Add List</button><div id="add-list-form" class="add-list-form hidden"><input type="text" id="new-list-title" placeholder="Enter list title..." maxlength="50" /><div class="add-list-actions"><button id="save-list-btn" class="btn-primary">Add</button><button id="cancel-list-btn" class="btn-secondary">✕</button></div></div></div>
+            </main>
 
+
+
+
+    <!-- Board Menu Dropdown (floating) - replaces sidebar -->
+    <div id="board-menu-dropdown" class="board-menu-dropdown hidden">
+        <div class="board-menu-dropdown-item" data-action="share-users">
+            <span>🔗</span> <span>Share and users</span>
+        </div>
+        <div class="board-menu-dropdown-item" data-action="change-bg">
+            <span>🎨</span> <span>Change background</span>
+        </div>
+        <div class="board-menu-dropdown-item" data-action="activity">
+            <span>📋</span> <span>Activity</span>
+        </div>
+        <div class="board-menu-dropdown-divider"></div>
+        <div class="board-menu-dropdown-item" data-action="watch" id="board-watch-item">
+            <span>👀</span> <span>Watch</span>
+            <span class="menu-item-extra" id="board-watch-status">Not watching</span>
+        </div>
+        <div class="board-menu-dropdown-divider"></div>
+        <div class="board-menu-dropdown-item" data-action="archived-items">
+            <span>📦</span> <span>Archived items</span>
+        </div>
+        <div class="board-menu-dropdown-divider"></div>
+        <div class="board-menu-dropdown-item danger" data-action="close-board">
+            <span>📦</span> <span>Close board</span>
+        </div>
+    </div>
+
+    <!-- Archived Items Modal -->
+    <div id="archived-modal-overlay" class="modal-overlay hidden">
+        <div class="small-modal archived-modal">
+            <button class="modal-close-top" id="close-archived-modal">✕</button>
+            <h2 style="margin-bottom:16px;">📦 Archived Items</h2>
+            <div id="archived-lists-container" class="archived-section">
+                <h3>Archived Lists</h3>
+                <div id="archived-lists-list"></div>
+            </div>
+            <div id="archived-cards-container" class="archived-section">
+                <h3>Archived Cards</h3>
+                <div id="archived-cards-list"></div>
+            </div>
+            <button id="close-archived-modal-btn" class="btn-secondary" style="margin-top:16px;">Close</button>
+        </div>
+    </div>
 
     <!-- Share Board Modal -->
     <div id="share-modal-overlay" class="modal-overlay hidden">
@@ -72,6 +97,39 @@
                 </div>
                 <div class="share-section-content" id="join-requests-content"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- Change Background Modal (separate) -->
+    <div id="bg-modal-overlay-new" class="modal-overlay hidden">
+        <div class="small-modal" style="max-width:550px;">
+            <button class="modal-close-top" id="close-bg-modal-new">✕</button>
+            <h2>🎨 Change Background</h2>
+            <p style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin-bottom:8px;">Photos</p>
+            <div class="bg-photos-grid" id="bg-photos-grid-modal"></div>
+            <p style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);margin:12px 0 8px;">Colors</p>
+            <div class="bg-colors-grid" id="bg-colors-grid-modal"></div>
+            <div style="margin:12px 0;">
+                <label style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:6px;">Custom Color</label>
+                <input type="color" id="board-bg-custom-color-modal" value="#f0f2f5" style="width:100%;height:40px;border-radius:6px;cursor:pointer;" />
+            </div>
+            <button id="close-bg-modal-new-btn" class="btn-secondary" style="margin-top:8px;">Close</button>
+        </div>
+    </div>
+
+    <!-- Activity Modal (separate) -->
+    <div id="activity-modal-overlay" class="modal-overlay hidden">
+        <div class="small-modal" style="max-width:650px;">
+            <button class="modal-close-top" id="close-activity-modal">✕</button>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <h2>📋 Board Activity</h2>
+            </div>
+            <div class="activity-filter-tabs" style="margin-bottom:16px;">
+                <button class="activity-filter-tab active" data-activity-filter-modal="all">All</button>
+                <button class="activity-filter-tab" data-activity-filter-modal="comments">Comments</button>
+            </div>
+            <div id="board-activity-list-modal" style="max-height:60vh;overflow-y:auto;"></div>
+            <button id="close-activity-modal-btn" class="btn-secondary" style="margin-top:16px;">Close</button>
         </div>
     </div>
 
@@ -162,14 +220,17 @@
 
     <!-- Users Modal -->
     <div id="users-modal-overlay" class="modal-overlay hidden"><div class="small-modal"><button class="modal-close-top" id="close-users-modal-top">✕</button><h2>👥 Manage Users</h2><div id="users-list"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><input type="text" id="new-user-name" placeholder="User name..." /><input type="color" id="new-user-color" value="#0079bf" /><button id="add-user-btn" class="btn-primary small">Add User</button></div><button id="close-users-modal" class="btn-secondary" style="margin-top:12px;">Close</button></div></div>
+    
     <!-- Labels Modal -->
     <div id="labels-modal-overlay" class="modal-overlay hidden"><div class="small-modal"><button class="modal-close-top" id="close-labels-modal-top">✕</button><h2>🔖 Manage Labels</h2><div id="labels-list"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><input type="text" id="new-label-name" placeholder="Label name..." /><input type="color" id="new-label-color" value="#eb5a46" /><button id="add-label-btn" class="btn-primary small">Add Label</button></div><button id="close-labels-modal" class="btn-secondary" style="margin-top:12px;">Close</button></div></div>
-    <!-- Background Modal -->
+    
+    <!-- Background Modal (old, keep for compatibility) -->
     <div id="bg-modal-overlay" class="modal-overlay hidden"><div class="small-modal"><button class="modal-close-top" id="close-bg-modal-top">✕</button><h2>🎨 Board Background</h2><div class="bg-presets" id="bg-presets"><div class="bg-preset" data-bg="#f0f2f5" style="background:#f0f2f5"></div><div class="bg-preset" data-bg="#e4f0f6" style="background:#e4f0f6"></div><div class="bg-preset" data-bg="#fce4ec" style="background:#fce4ec"></div><div class="bg-preset" data-bg="#1a1a2e" style="background:#1a1a2e"></div><div class="bg-preset" data-bg="linear-gradient(135deg, #667eea, #764ba2)" style="background:linear-gradient(135deg, #667eea, #764ba2)"></div><div class="bg-preset" data-bg="linear-gradient(135deg, #4facfe, #00f2fe)" style="background:linear-gradient(135deg, #4facfe, #00f2fe)"></div></div><input type="color" id="custom-bg-color" value="#f0f2f5" /><button id="apply-bg-btn" class="btn-primary small">Apply</button><button id="close-bg-modal" class="btn-secondary">Close</button></div></div>
-    <!-- Board Activity Modal -->
+    
+    <!-- Board Activity Modal (old, keep for compatibility) -->
     <div id="board-activity-overlay" class="modal-overlay hidden"><div class="small-modal" style="max-width:650px;"><button class="modal-close-top" id="close-board-activity-btn-top">✕</button><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h2>📋 Board Activity</h2><button id="close-board-activity-btn" class="icon-btn">✕</button></div><div id="board-activity-list" style="max-height:60vh;overflow-y:auto;"></div></div></div>
-    <!-- Settings Modal -->
-    <div id="settings-overlay" class="modal-overlay hidden"><div class="small-modal" style="max-width:650px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h2>⚙️ Board Settings</h2><button id="close-settings-btn" class="icon-btn">✕</button></div><div class="settings-tabs"><div class="settings-tab active" data-tab="general">General</div><div class="settings-tab" data-tab="members">Members</div><div class="settings-tab" data-tab="labels">Labels</div><div class="settings-tab" data-tab="danger">Danger Zone</div></div><div class="settings-panel active" id="panel-general"><div class="modal-section"><label>Board Name</label><input type="text" id="settings-board-name" value="" /></div><div class="modal-section"><label>Background</label><div class="bg-presets" id="settings-bg-presets"><div class="bg-preset" data-bg="#f0f2f5" style="background:#f0f2f5"></div><div class="bg-preset" data-bg="#e4f0f6" style="background:#e4f0f6"></div><div class="bg-preset" data-bg="#fce4ec" style="background:#fce4ec"></div><div class="bg-preset" data-bg="#1a1a2e" style="background:#1a1a2e"></div><div class="bg-preset" data-bg="linear-gradient(135deg, #667eea, #764ba2)" style="background:linear-gradient(135deg, #667eea, #764ba2)"></div><div class="bg-preset" data-bg="linear-gradient(135deg, #4facfe, #00f2fe)" style="background:linear-gradient(135deg, #4facfe, #00f2fe)"></div></div><input type="color" id="settings-custom-bg" value="#f0f2f5" /><button id="apply-settings-bg-btn" class="btn-primary small" style="margin-top:6px;">Apply Background</button></div></div><div class="settings-panel" id="panel-members"><h3>Board Members</h3><div id="settings-users-list"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><input type="text" id="settings-new-user-name" placeholder="User name..." /><input type="color" id="settings-new-user-color" value="#0079bf" /><button id="settings-add-user-btn" class="btn-primary small">Add User</button></div></div><div class="settings-panel" id="panel-labels"><h3>Labels</h3><div id="settings-labels-list"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><input type="text" id="settings-new-label-name" placeholder="Label name..." /><input type="color" id="settings-new-label-color" value="#eb5a46" /><button id="settings-add-label-btn" class="btn-primary small">Add Label</button></div></div><div class="settings-panel" id="panel-danger"><h3>Delete Board</h3><p style="color:var(--text-secondary);margin-bottom:12px;">Once you delete a board, there is no going back. Please be certain.</p><button id="delete-board-settings-btn" class="btn-danger">🗑 Delete this board</button></div></div></div>
+
+
 {%endblock%}
 
 {%block script%}

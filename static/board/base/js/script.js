@@ -188,6 +188,18 @@ async function performSearch(query) {
     });
 }
 
+document.getElementById('search-clear-btn').addEventListener('click', () => {
+    document.getElementById(
+        'search-input').value = '';
+    applyFilters();
+    document.getElementById('search-clear-btn').classList.add('hidden');
+});
+document.getElementById('search-input').addEventListener('input', function() {
+    document.getElementById(
+        'search-clear-btn').classList.toggle('hidden', this.value === '');
+
+});
+
 searchInput.addEventListener('input', (e) => {
     performSearch(e.target.value);
 });
