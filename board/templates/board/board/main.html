@@ -16,7 +16,7 @@
 
                     <div class="board-member-avatars" id="board-member-avatars"></div>
                     <div class="dropdown-wrapper">
-                        <button class="visibility-badge" id="board-status-dots-btn">🌐 Public ▾</button>
+                        <button class="visibility-badge " id="visibility-badge-btn">🌐 Public ▾</button>
 
                         
                         <!-- Profile Dropdown -->
@@ -46,6 +46,130 @@
 
                 </div>
             </div>
+            <main id="board-container"><div id="lists-wrapper" class="lists-wrapper"></div><div class="add-list-container"><button id="add-list-btn" class="add-list-btn">+ Add List</button><div id="add-list-form" class="add-list-form hidden"><input type="text" id="new-list-title" placeholder="Enter list title..." maxlength="50" /><div class="add-list-actions"><button id="save-list-btn" class="btn-primary">Add</button><button id="cancel-list-btn" class="btn-secondary">✕</button></div></div></div>
+
+
+    <!-- Share Board Modal -->
+    <div id="share-modal-overlay" class="modal-overlay hidden">
+        <div class="small-modal share-modal">
+            <button class="modal-close-top" id="close-share-modal-btn">✕</button>
+            <h2 style="margin-bottom:16px;">🔗 Share Board</h2>
+            <div class="share-search-row">
+                <input type="text" id="share-search-input" placeholder="Search by name or email..." />
+                <button class="btn-primary" id="share-invite-btn">Share</button>
+            </div>
+            <div class="share-section">
+                <div class="share-section-header" id="board-members-toggle">
+                    <span>👥 Board members (<span id="board-members-count">0</span>)</span>
+                    <span>▾</span>
+                </div>
+                <div class="share-section-content" id="board-members-content"></div>
+            </div>
+            <div class="share-section">
+                <div class="share-section-header" id="join-requests-toggle">
+                    <span>📨 Join requests (<span id="join-requests-count">0</span>)</span>
+                    <span>▾</span>
+                </div>
+                <div class="share-section-content" id="join-requests-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card Modal -->
+    <div id="card-modal-overlay" class="modal-overlay hidden">
+        <div id="card-modal" class="card-modal">
+            <div class="modal-cover-area">
+                <div class="modal-cover" id="modal-cover"></div>
+                <div class="modal-cover-actions">
+                    <span id="watch-indicator-modal" class="watch-indicator-modal hidden">👀 Watching</span>
+                    <button id="modal-cover-btn" class="cover-action-btn" title="Cover">🖼️ Cover</button>
+                    <div style="position:relative;">
+                        <button id="three-dot-btn" class="cover-action-btn icon-only" title="More actions">⋯</button>
+                        <div id="three-dot-dropdown" class="dropdown-menu right-align hidden" style="position:absolute;top:100%;right:0;min-width:180px;">
+                            <div class="dropdown-item" data-action="move">↔️ Move</div>
+                            <div class="dropdown-item" data-action="copy">📄 Copy</div>
+                            <div class="dropdown-item" data-action="watch" id="watch-dropdown-item">👀 Watch</div>
+                            <div class="dropdown-divider"></div>
+                            <div class="dropdown-item" data-action="archive" id="archive-dropdown-item">📦 Archive</div>
+                            <div class="dropdown-item danger" data-action="delete">🗑 Delete</div>
+                        </div>
+                    </div>
+                    <button id="close-modal-btn" class="cover-action-btn icon-only">✕</button>
+                </div>
+            </div>
+            <div class="modal-title-row">
+                <input type="text" id="modal-card-title" class="modal-title-input" placeholder="Card title" />
+                <select id="modal-completion" class="completion-select">
+                    <option value="incomplete">⏳ Incomplete</option>
+                    <option value="complete">✅ Complete</option>
+                </select>
+            </div>
+            <div class="modal-info-row">
+                <div id="modal-labels-display" class="labels-display"></div>
+                <div id="modal-dates-display" class="dates-display"></div>
+                <div id="modal-members-display" class="members-display"></div>
+            </div>
+            <div class="modal-action-buttons" style="position:relative;">
+                <div style="position:relative;">
+                    <button id="add-dropdown-btn" class="action-btn">+ Add ▾</button>
+                    <div id="add-dropdown" class="dropdown-menu hidden" style="position:absolute;top:100%;left:0;">
+                        <div class="dropdown-item" data-add="label">🏷️ Label</div>
+                        <div class="dropdown-item" data-add="dates">📅 Dates</div>
+                        <div class="dropdown-item" data-add="checklist">✅ Checklist</div>
+                        <div class="dropdown-item" data-add="members">👤 Members</div>
+                        <div class="dropdown-item" data-add="attachments">📎 Attachments</div>
+                    </div>
+                </div>
+                <button id="modal-labels-btn" class="action-btn">🏷️ Labels</button>
+                <button id="modal-dates-btn" class="action-btn">📅 Dates</button>
+                <button id="modal-checklist-btn" class="action-btn">✅ Checklist</button>
+                <button id="modal-comment-btn" class="action-btn">💬 Comment</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-main">
+                    <section class="modal-section" id="description-section"><h3>📝 Description</h3><textarea id="modal-description" class="modal-description" placeholder="Add a description..."></textarea></section>
+                    <section class="modal-section" id="checklists-section"><h3>✅ Checklists</h3><div id="modal-checklists"></div></section>
+                    <section class="modal-section" id="attachments-section"><h3>📎 Attachments</h3><div id="modal-attachments"></div></section>
+                </div>
+                <div class="modal-sidebar-right" id="comment-sidebar">
+                    <h3 style="font-size:0.75rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">💬 Comments & Activity</h3>
+                    <div class="comment-input-area">
+                        <select id="comment-user-select" style="font-size:0.8rem;padding:6px;border-radius:4px;"><option value="">Post as...</option></select>
+                        <textarea id="new-comment-text" placeholder="Write a comment..." rows="2"></textarea>
+                        <div class="comment-input-actions"><button id="add-comment-btn" class="btn-primary small">Post Comment</button></div>
+                    </div>
+                    <div id="modal-comments-activity"></div>
+                </div>
+            </div>
+        </div>
+        <div id="cover-popover" class="popover popover-cover hidden">
+            <div class="popover-header"><h4>🖼️ Cover</h4><button class="popover-close-btn" data-close="cover-popover">✕</button></div>
+            <div class="cover-color-grid" id="cover-color-grid"></div><label style="font-size:0.75rem;font-weight:600;color:var(--text-secondary);display:block;margin:6px 0;">Custom Color</label><input type="color" id="cover-custom-color" value="#0079bf" style="width:100%;height:36px;border-radius:4px;cursor:pointer;" /><div class="cover-upload-area" id="cover-upload-area">📁 Upload image for cover<input type="file" id="cover-image-input" accept="image/*" hidden /></div><button id="remove-cover-btn-popover" class="btn-secondary small" style="width:100%;margin-top:8px;">Remove Cover</button>
+        </div>
+        <div id="labels-popover" class="popover popover-labels hidden">
+            <div class="popover-header"><h4>🏷️ Labels</h4><button class="popover-close-btn" data-close="labels-popover">✕</button></div><input type="text" id="labels-search-input" class="labels-search" placeholder="Search labels..." /><div id="labels-options-list"></div><div class="create-label-row"><input type="text" id="new-label-name-popover" placeholder="New label name" /><input type="color" id="new-label-color-popover" value="#eb5a46" /><button id="create-label-popover-btn" class="btn-primary small">Create</button></div>
+        </div>
+        <div id="dates-popover" class="popover popover-dates hidden">
+            <div class="popover-header"><h4>📅 Dates</h4><button class="popover-close-btn" data-close="dates-popover">✕</button></div><div class="date-input-group"><label>Start Date</label><input type="date" id="modal-start-date" /><label>Due Date & Time</label><input type="datetime-local" id="modal-due-datetime" /><div style="display:flex;gap:6px;margin-top:6px;"><button id="save-dates-btn" class="btn-primary small">Save</button><button id="clear-dates-btn" class="btn-secondary small">Clear</button></div></div>
+        </div>
+        <div id="members-popover" class="popover popover-members hidden">
+            <div class="popover-header"><h4>👤 Members</h4><button class="popover-close-btn" data-close="members-popover">✕</button></div><input type="text" id="members-search-input" class="member-search" placeholder="Search members..." /><div id="members-options-list"></div>
+        </div>
+        <div id="attach-popover" class="popover popover-attach hidden">
+            <div class="popover-header"><h4>📎 Attach File</h4><button class="popover-close-btn" data-close="attach-popover">✕</button></div><label class="btn-secondary" style="display:block;text-align:center;padding:14px;cursor:pointer;border-radius:8px;border:2px dashed var(--border-color);">📁 Choose File<input type="file" id="attachment-file-input" accept="*/*" hidden multiple /></label><div style="margin-top:10px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><input type="text" id="link-attachment-input-popover" placeholder="Or paste link URL..." style="flex:1;min-width:140px;" /><button id="add-link-attachment-btn-popover" class="btn-primary small">Attach</button></div>
+        </div>
+    </div>
+
+    <!-- Users Modal -->
+    <div id="users-modal-overlay" class="modal-overlay hidden"><div class="small-modal"><button class="modal-close-top" id="close-users-modal-top">✕</button><h2>👥 Manage Users</h2><div id="users-list"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><input type="text" id="new-user-name" placeholder="User name..." /><input type="color" id="new-user-color" value="#0079bf" /><button id="add-user-btn" class="btn-primary small">Add User</button></div><button id="close-users-modal" class="btn-secondary" style="margin-top:12px;">Close</button></div></div>
+    <!-- Labels Modal -->
+    <div id="labels-modal-overlay" class="modal-overlay hidden"><div class="small-modal"><button class="modal-close-top" id="close-labels-modal-top">✕</button><h2>🔖 Manage Labels</h2><div id="labels-list"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><input type="text" id="new-label-name" placeholder="Label name..." /><input type="color" id="new-label-color" value="#eb5a46" /><button id="add-label-btn" class="btn-primary small">Add Label</button></div><button id="close-labels-modal" class="btn-secondary" style="margin-top:12px;">Close</button></div></div>
+    <!-- Background Modal -->
+    <div id="bg-modal-overlay" class="modal-overlay hidden"><div class="small-modal"><button class="modal-close-top" id="close-bg-modal-top">✕</button><h2>🎨 Board Background</h2><div class="bg-presets" id="bg-presets"><div class="bg-preset" data-bg="#f0f2f5" style="background:#f0f2f5"></div><div class="bg-preset" data-bg="#e4f0f6" style="background:#e4f0f6"></div><div class="bg-preset" data-bg="#fce4ec" style="background:#fce4ec"></div><div class="bg-preset" data-bg="#1a1a2e" style="background:#1a1a2e"></div><div class="bg-preset" data-bg="linear-gradient(135deg, #667eea, #764ba2)" style="background:linear-gradient(135deg, #667eea, #764ba2)"></div><div class="bg-preset" data-bg="linear-gradient(135deg, #4facfe, #00f2fe)" style="background:linear-gradient(135deg, #4facfe, #00f2fe)"></div></div><input type="color" id="custom-bg-color" value="#f0f2f5" /><button id="apply-bg-btn" class="btn-primary small">Apply</button><button id="close-bg-modal" class="btn-secondary">Close</button></div></div>
+    <!-- Board Activity Modal -->
+    <div id="board-activity-overlay" class="modal-overlay hidden"><div class="small-modal" style="max-width:650px;"><button class="modal-close-top" id="close-board-activity-btn-top">✕</button><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h2>📋 Board Activity</h2><button id="close-board-activity-btn" class="icon-btn">✕</button></div><div id="board-activity-list" style="max-height:60vh;overflow-y:auto;"></div></div></div>
+    <!-- Settings Modal -->
+    <div id="settings-overlay" class="modal-overlay hidden"><div class="small-modal" style="max-width:650px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h2>⚙️ Board Settings</h2><button id="close-settings-btn" class="icon-btn">✕</button></div><div class="settings-tabs"><div class="settings-tab active" data-tab="general">General</div><div class="settings-tab" data-tab="members">Members</div><div class="settings-tab" data-tab="labels">Labels</div><div class="settings-tab" data-tab="danger">Danger Zone</div></div><div class="settings-panel active" id="panel-general"><div class="modal-section"><label>Board Name</label><input type="text" id="settings-board-name" value="" /></div><div class="modal-section"><label>Background</label><div class="bg-presets" id="settings-bg-presets"><div class="bg-preset" data-bg="#f0f2f5" style="background:#f0f2f5"></div><div class="bg-preset" data-bg="#e4f0f6" style="background:#e4f0f6"></div><div class="bg-preset" data-bg="#fce4ec" style="background:#fce4ec"></div><div class="bg-preset" data-bg="#1a1a2e" style="background:#1a1a2e"></div><div class="bg-preset" data-bg="linear-gradient(135deg, #667eea, #764ba2)" style="background:linear-gradient(135deg, #667eea, #764ba2)"></div><div class="bg-preset" data-bg="linear-gradient(135deg, #4facfe, #00f2fe)" style="background:linear-gradient(135deg, #4facfe, #00f2fe)"></div></div><input type="color" id="settings-custom-bg" value="#f0f2f5" /><button id="apply-settings-bg-btn" class="btn-primary small" style="margin-top:6px;">Apply Background</button></div></div><div class="settings-panel" id="panel-members"><h3>Board Members</h3><div id="settings-users-list"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><input type="text" id="settings-new-user-name" placeholder="User name..." /><input type="color" id="settings-new-user-color" value="#0079bf" /><button id="settings-add-user-btn" class="btn-primary small">Add User</button></div></div><div class="settings-panel" id="panel-labels"><h3>Labels</h3><div id="settings-labels-list"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><input type="text" id="settings-new-label-name" placeholder="Label name..." /><input type="color" id="settings-new-label-color" value="#eb5a46" /><button id="settings-add-label-btn" class="btn-primary small">Add Label</button></div></div><div class="settings-panel" id="panel-danger"><h3>Delete Board</h3><p style="color:var(--text-secondary);margin-bottom:12px;">Once you delete a board, there is no going back. Please be certain.</p><button id="delete-board-settings-btn" class="btn-danger">🗑 Delete this board</button></div></div></div>
 {%endblock%}
 
 {%block script%}

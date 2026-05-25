@@ -3,25 +3,34 @@ const searchInput = document.getElementById('search-input');
 const searchClearBtn = document.getElementById('search-clear-btn');
 const searchResults = document.getElementById('search-results');
 const searchResultsContent = document.getElementById('search-results-content');
-const userAvatarBtn = document.getElementById('user-avatar-btn');
+const profileAvatarBtn = document.getElementById('profile-avatar-btn');
 const profileDropdown = document.getElementById('profile-dropdown');
 const profileSettingsBtn = document.getElementById('profile-settings-btn');
 const profileLogoutBtn = document.getElementById('profile-logout-btn');
 
 
-// Profile Dropdown Toggle
-userAvatarBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    profileDropdown.classList.toggle('active');
-    searchResults.classList.remove('active');
-});
 
-// Close profile dropdown when clicking outside
-document.addEventListener('click', (e) => {
-    if (!profileDropdown.contains(e.target) && e.target !== userAvatarBtn) {
-        profileDropdown.classList.remove('active');
+// Profile avatar button - shows dropdown
+document.getElementById('profile-avatar-btn').onclick = (e) => {
+    e.stopPropagation();
+
+    const dropdown = document.getElementById('profile-dropdown');
+    dropdown.classList.toggle('hidden');
+    console.log(dropdown.width)
+    if (!dropdown.classList.contains('hidden')) {
+        const rect = e.target.getBoundingClientRect();
+        dropdown.style.position = 'fixed';
+        console.log(rect)
+        dropdown.style.top = rect.bottom + 4 + 'px';
+        dropdown.style.left = rect.left - dropdown.offsetWidth + 'px';
     }
-});
+};
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('#profile-avatar-btn') && !e.target.closest('#profile-dropdown')) {
+        document.getElementById('profile-dropdown').classList.add('hidden');
+    }
+})
 
 // Profile Dropdown Actions
 profileSettingsBtn.addEventListener('click', () => {
@@ -208,10 +217,10 @@ function renderUserInfo() {
     document.querySelector(".profile-email").innerText = userData.email
     if (userData.profile_image) {
         document.querySelector(".profile-avatar-lg").innerHTML = `<img src="${userData.profile_image}">`
-        document.getElementById("user-avatar-btn").innerHTML = `<img src="${userData.profile_image}">`
+        document.getElementById("profile-avatar-btn").innerHTML = `<img src="${userData.profile_image}">`
     } else {
         document.querySelector(".profile-avatar-lg").innerText = userData.username[0]
-        document.getElementById("user-avatar-btn").innerText = userData.username[0]
+        document.getElementById("profile-avatar-btn").innerText = userData.username[0]
     }
 
 }
