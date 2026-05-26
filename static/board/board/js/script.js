@@ -159,7 +159,7 @@
             const [listObjs, archivedList] = prepareListArray(data)
             const [boardMembers, memberRoles, joinRequests, users] = prepareMembershipArrays(data)
 
-            console.log("archivedList", archivedList)
+
             boardObj["archivedLists"] = archivedList
             boardObj["lists"] = listObjs
             boardObj["joinRequests"] = joinRequests

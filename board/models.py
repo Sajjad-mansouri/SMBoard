@@ -73,7 +73,7 @@ def list_cover_path(instance, file_name):
 
 	return "{owner}/{board}/list_files/{list}/{year}/{month}/{day}/{file_name}".format(
 										owner=instance.board.owner_id,
-										board=instance.name, 
+										board=instance.board.name, 
 										list=instance.name,
 										year = created.year ,
 										month = created.month,
@@ -97,7 +97,17 @@ class BoardList(DateAbstractModel):
 		verbose_name_plural = _("Lists")
 
 
+def card_cover_path(instance, file_name):
 
+	return "{owner}/{board}/{card}/card_cover/{list}/{year}/{month}/{day}/{file_name}".format(
+										owner=instance.board_list.board.owner_id,
+										board=instance.board_list.board.name, 
+										list=instance.board_list.name,
+										card=instance.name,
+										year = created.year ,
+										month = created.month,
+										day = created.day,
+										file_name = file_name)
 class Card(DateAbstractModel):
 	STATUS_CHOICES = [
 		("complete", "Complete"),
@@ -110,6 +120,8 @@ class Card(DateAbstractModel):
 	due_date = models.DateTimeField(_("Due Date"), null=True, blank=True)
 	status = models.CharField(_("Status"), choices=STATUS_CHOICES,default="incomplete")
 	archived = models.BooleanField(_("Archived"), default=False)
+	cover_image = models.ImageField(_("Conver Image"), upload_to=card_cover_path, null=True, blank=True)
+	cover_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
 
 
 
@@ -120,6 +132,16 @@ class Card(DateAbstractModel):
 		verbose_name = _("Card")
 		verbose_name_plural = _("Cards")
 
+class CardMembership(DateAbstractModel):
+	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="carduser_memberships")
+	card = models.ForeignKey(Card, on_delete=models.CASCADE, verbose_name=_("Card"), related_name="card_memberships")
+
+	def __str__(self):
+		return f"{self.user} is {self.card} card member"
+
+	class Meta:
+		verbose_name = _("Card Member")
+		verbose_name_plural = _("Cards Members")
 
 class CardLabel(DateAbstractModel):
 	card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="card_labels", verbose_name="Card")
