@@ -8,7 +8,7 @@
 {%block content%}
   <div class="board-menu-bar" id="board-menu-bar">
                 <div class="board-menu-bar-left">
-                    <h1 id="board-title" class="board-title" contenteditable="false">My Board</h1>
+                    <h1 id="board-title" class="board-title" contenteditable="false" data-board="{{object.id}}">{{object.name}}</h1>
                     <button id="edit-title-btn" class="icon-btn small">✎</button>
                 </div>
                 <div class="board-menu-bar-right">

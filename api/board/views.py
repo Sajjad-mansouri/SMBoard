@@ -56,3 +56,14 @@ class ClosedBoardView(ListAPIView):
 		q = Q(owner=self.request.user)
 		q = q & Q(closed=True)
 		return Board.objects.filter(q)
+
+
+
+class BoardRetrieveView(RetrieveAPIView):
+	serializer_class = serializers.BoardNestedSerializer
+
+	def get_queryset(self):
+		q = (Q(board_memberships__user=self.request.user) | Q(owner=self.request.user)) & Q(closed=False)
+
+		return Board.objects.filter(q).distinct()
+

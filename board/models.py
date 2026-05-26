@@ -57,6 +57,8 @@ class BoardMembership(DateAbstractModel):
 	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_memberships")
 	board = models.ForeignKey(Board, on_delete=models.CASCADE, verbose_name=_("Board"), related_name="board_memberships")
 	member_type = models.CharField(_("Member Type"), choices=MEMBER_TYPES, max_length=8)
+	accepted = models.BooleanField(_("Accepted"), default=False)
+
 
 
 	def __str__(self):
@@ -83,6 +85,8 @@ class BoardList(DateAbstractModel):
 	name = models.CharField(_("Name"), max_length=250)
 	cover_image = models.ImageField(_("Conver Image"), upload_to=list_cover_path, null=True, blank=True)
 	cover_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
+	archived = models.BooleanField(_("Archived"), default=False)
+
 
 
 	def __str__(self):
@@ -105,6 +109,8 @@ class Card(DateAbstractModel):
 	start_date = models.DateTimeField(_("Start Date"), null=True, blank=True)
 	due_date = models.DateTimeField(_("Due Date"), null=True, blank=True)
 	status = models.CharField(_("Status"), choices=STATUS_CHOICES,default="incomplete")
+	archived = models.BooleanField(_("Archived"), default=False)
+
 
 
 	def __str__(self):

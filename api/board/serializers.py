@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from board.models import Board, Card
+from board.models import Board, Card, BoardList, BoardMembership
 
 UserModel = get_user_model()
 
@@ -8,12 +8,17 @@ UserModel = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
 	profile_image = serializers.SerializerMethodField()
+	fullname = serializers.SerializerMethodField()
+
 	class Meta:
 		model = UserModel
-		fields = ["id", "username", "email", "profile_image"]
+		fields = ["id", "username", "email", "profile_image", "fullname"]
 
 	def get_profile_image(self, obj):
 		return obj.profile.profile_image.url if obj.profile.profile_image else ""
+
+	def get_fullname(self, obj):
+		return obj.get_full_name()
 
 class BoardSerializer(serializers.ModelSerializer):
 	# user = UserSerializer()
@@ -37,6 +42,7 @@ class BoardSerializer(serializers.ModelSerializer):
 		return super().to_internal_value(data)
 
 
+
 class CardSerializer(serializers.ModelSerializer):
 	board_list = serializers.SerializerMethodField()
 	board = serializers.SerializerMethodField()
@@ -55,3 +61,34 @@ class CardSerializer(serializers.ModelSerializer):
 
 	def get_labels(self, obj):
 		return obj.card_labels.values_list("name", flat=True)
+
+
+class CardNestedSerializer(CardSerializer):
+	class Meta(CardSerializer.Meta):
+
+		fields = CardSerializer.Meta.fields 
+
+class BoardMembership(serializers.ModelSerializer):
+	user = UserSerializer()
+
+	class Meta:
+		model = BoardMembership
+		fields = ["id", "user", "member_type", "accepted"]
+
+
+class BoardListSerializer(serializers.ModelSerializer):
+	list_cards = CardNestedSerializer(many=True)
+	class Meta:
+		model = BoardList
+		fields = ["id", "order", "name", "cover_image", "cover_color", "list_cards", "archived"]
+
+class BoardNestedSerializer(BoardSerializer):
+	board_lists = BoardListSerializer(many=True)
+	board_watched = serializers.SerializerMethodField()
+	board_memberships = BoardMembership(many=True)
+	class Meta(BoardSerializer.Meta):
+		fields = BoardSerializer.Meta.fields + ["board_lists", "board_watched", "board_memberships"]
+
+	def get_board_watched(self, obj):
+		request = self.context["request"]
+		return obj.board_boardwatchs.filter(user=request.user, watch=True).exists()

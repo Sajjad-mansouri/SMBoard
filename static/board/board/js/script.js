@@ -1,4 +1,5 @@
 (function() {
+    const auth = new Auth()
     const STORAGE_KEY = 'SM_board_data';
 
     const defaultData = {
@@ -31,124 +32,11 @@
                 cardIds: []
             }],
             cards: {
-                'card1': {
-                    id: 'card1',
-                    title: 'Research competitors',
-                    description: 'Look at top 5 competitors',
-                    labels: ['label1'],
-                    priority: 'medium',
-                    startDate: '',
-                    dueDate: '2026-06-15',
-                    assignedUsers: ['user1'],
-                    coverColor: '#c377e0',
-                    coverImage: '',
-                    watched: false,
-                    archived: false,
-                    completed: false,
-                    checklists: [{
-                        id: 'cl1',
-                        name: 'Competitor Analysis',
-                        items: [{
-                            id: 'chk1',
-                            text: 'Identify competitors',
-                            completed: true
-                        }, {
-                            id: 'chk2',
-                            text: 'Analyze features',
-                            completed: false
-                        }]
-                    }, {
-                        id: 'cl2',
-                        name: 'Market Research',
-                        items: [{
-                            id: 'chk3',
-                            text: 'Check pricing',
-                            completed: false
-                        }, {
-                            id: 'chk4',
-                            text: 'Review reviews',
-                            completed: false
-                        }]
-                    }],
-                    comments: [],
-                    attachments: [],
-                    activities: [{
-                        timestamp: Date.now() -
-                            86400000,
-                        text: 'Card created',
-                        user: 'user1'
-                    }]
-                },
-                'card2': {
-                    id: 'card2',
-                    title: 'Design landing page',
-                    description: 'Create wireframes',
-                    labels: ['label2'],
-                    priority: 'high',
-                    startDate: '2026-06-01',
-                    dueDate: '2026-06-10',
-                    assignedUsers: ['user2', 'user3'],
-                    coverColor: '',
-                    coverImage: '',
-                    watched: false,
-                    archived: false,
-                    completed: false,
-                    checklists: [{
-                        id: 'cl3',
-                        name: 'Design Tasks',
-                        items: [{
-                            id: 'chk5',
-                            text: 'Create wireframes',
-                            completed: true
-                        }, {
-                            id: 'chk6',
-                            text: 'Get feedback',
-                            completed: false
-                        }]
-                    }],
-                    comments: [],
-                    attachments: [],
-                    activities: [{
-                        timestamp: Date.now() -
-                            172800000,
-                        text: 'Card moved',
-                        user: 'user2'
-                    }]
-                }
+
             }
         }],
-        users: [{
-            id: 'user1',
-            name: 'Alice',
-            color: '#0079bf',
-            email: 'alice@example.com',
-            username: '@alice'
-        }, {
-            id: 'user2',
-            name: 'Bob',
-            color: '#eb5a46',
-            email: 'bob@example.com',
-            username: '@bob'
-        }, {
-            id: 'user3',
-            name: 'Charlie',
-            color: '#61bd4f',
-            email: 'charlie@example.com',
-            username: '@charlie'
-        }],
-        labels: [{
-            id: 'label1',
-            name: 'Frontend',
-            color: '#61bd4f'
-        }, {
-            id: 'label2',
-            name: 'Backend',
-            color: '#0079bf'
-        }, {
-            id: 'label3',
-            name: 'Bug',
-            color: '#eb5a46'
-        }]
+        users: [],
+        labels: []
     };
     let appState = JSON.parse(JSON.stringify(defaultData));
     let showArchived = false;
@@ -197,8 +85,101 @@
         return data;
     }
 
-    function loadData() {
+
+
+    function prepareBoardObject(data) {
+        const boardObj = {}
+        boardObj["id"] = data.id
+        boardObj["title"] = data.name
+        boardObj["background"] = data.background_color ? data.background_color : `url(${data.background_image}) center/cover no-repeat`
+
+        boardObj["boardVisibility"] = data.status
+        boardObj["boardWatched"] = data.board_watched
+        boardObj["boardClosed"] = data.closed
+        boardObj["cards"] = {}
+
+
+
+        return boardObj
+
+    }
+
+    function prepareListArray(data) {
+        const listObjs = []
+        const archivedList = []
+        data.board_lists.forEach(list => {
+            const newList = {
+                "id": list.id,
+                "title": list.name,
+                "cardIds": []
+            }
+            listObjs.push(newList)
+            if (list.archived == true) archivedList.push(list.id)
+        })
+
+        return [listObjs, archivedList]
+    }
+
+    function prepareMembershipArrays(data) {
+        const boardMembers = []
+        const memberRoles = {}
+        const joinRequests = []
+        const users = []
+        data.board_memberships.forEach(member => {
+            if (member.accepted) {
+                boardMembers.push(member.user.id)
+                memberRoles[`${member.user.id}`] = member.member_type
+            }
+            users.push({
+                id: member.user.id,
+                name: member.user.fullname ? member.user.fullname : member.user.username,
+                color: "#0079bf",
+                email: member.user.email,
+                username: member.user.username,
+                profileImage: member.user.profile_image
+            })
+            if (!member.accepted) joinRequests.push(member.user.id)
+
+
+        })
+
+        return [boardMembers, memberRoles, joinRequests, users]
+    }
+
+
+    async function fetchData() {
+        try {
+            const boardId = document.getElementById("board-title").dataset.board;
+            const url = origin + `/api/board/${boardId}`
+            const response = await auth.authenticatedRequest(url, null, "GET")
+            const data = await response.json()
+
+
+            const boardObj = prepareBoardObject(data)
+            const [listObjs, archivedList] = prepareListArray(data)
+            const [boardMembers, memberRoles, joinRequests, users] = prepareMembershipArrays(data)
+
+            console.log("archivedList", archivedList)
+            boardObj["archivedLists"] = archivedList
+            boardObj["lists"] = listObjs
+            boardObj["joinRequests"] = joinRequests
+            boardObj["boardMembers"] = boardMembers
+            boardObj["memberRoles"] = memberRoles
+            appState["activeBoardId"] = data.id
+            appState["boards"] = [boardObj]
+            appState["users"] = users
+            console.log("appState", appState)
+
+
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    async function loadData() {
+        await fetchData()
         const stored = localStorage.getItem(STORAGE_KEY);
+
         if (stored) {
             try {
                 appState = JSON.parse(stored);
@@ -213,10 +194,14 @@
                 saveData();
             } catch (e) {}
         }
+
+        renderBoard();
+        addEventListeners();
+
     }
-    loadData();
 
     function getActiveBoard() {
+
         return appState.boards.find(b => b.id === appState.activeBoardId) || appState
             .boards[0];
     }
@@ -323,9 +308,10 @@
             const u = getUserById(uid);
             if (u) {
                 const avatar = document.createElement('span');
+                const profileImage = u.profileImage ? `<img src="${u.profileImage}" alt="${u.name}">` : `${u.name[0]}`
                 avatar.className = 'board-member-avatar-small';
                 avatar.style.backgroundColor = u.color;
-                avatar.textContent = u.name[0];
+                avatar.innerHTML = profileImage;
                 avatar.title = u.name + (board.memberRoles[uid] === 'admin' ? ' (Admin)' : '');
                 avatarsContainer.appendChild(avatar);
             }
@@ -516,8 +502,7 @@
                 `<span class="card-user-avatar" style="background:${u.color}" title="${u.name}">${u.name[0]}</span>` :
                 '';
         }).join('');
-        let priorityIcon = card.priority === 'high' ? '🔴' : card.priority === 'medium' ? '🟡' : card.priority ===
-            'low' ? '🟢' : '';
+
         const coverStyle = card.coverImage ? `background-image:url(${card.coverImage});background-size:cover;` : (card
             .coverColor ? `background-color:${card.coverColor};` : '');
         let checklistMiniHTML = '';
@@ -530,7 +515,7 @@
                 .join('');
         }
         div.innerHTML =
-            `${(card.coverColor||card.coverImage)?`<div class="card-cover" style="${coverStyle}"></div>`:''}<div class="card-title">${escapeHtml(card.title)} ${card.archived?'<span class="archive-badge">ARCHIVED</span>':''} ${card.watched?'👀':''} ${card.completed?'✅':''}</div><div class="card-meta">${labelsHTML?`<div class="card-badges">${labelsHTML}</div>`:''}${priorityIcon?`<span class="priority-indicator">${priorityIcon}</span>`:''}${card.dueDate?`<span class="due-date ${overdue?'overdue':''}">📅 ${new Date(card.dueDate).toLocaleDateString()}</span>`:''}<div class="card-users">${usersHTML}</div></div>${checklistMiniHTML}${card.checklists&&card.checklists.length>0?`<div class="checklist-progress"><div class="checklist-progress-fill" style="width:${progress}%"></div></div><small style="font-size:0.7rem">${progress}%</small>`:''}`;
+            `${(card.coverColor||card.coverImage)?`<div class="card-cover" style="${coverStyle}"></div>`:''}<div class="card-title">${escapeHtml(card.title)} ${card.archived?'<span class="archive-badge">ARCHIVED</span>':''} ${card.watched?'👀':''} ${card.completed?'✅':''}</div><div class="card-meta">${labelsHTML?`<div class="card-badges">${labelsHTML}</div>`:''}${card.dueDate?`<span class="due-date ${overdue?'overdue':''}">📅 ${new Date(card.dueDate).toLocaleDateString()}</span>`:''}<div class="card-users">${usersHTML}</div></div>${checklistMiniHTML}${card.checklists&&card.checklists.length>0?`<div class="checklist-progress"><div class="checklist-progress-fill" style="width:${progress}%"></div></div><small style="font-size:0.7rem">${progress}%</small>`:''}`;
         return div;
     }
 
@@ -542,7 +527,6 @@
             title,
             description: '',
             labels: [],
-            priority: '',
             startDate: '',
             dueDate: '',
             assignedUsers: [],
@@ -1779,8 +1763,10 @@
             const role = board.memberRoles[uid] || 'member';
             const row = document.createElement('div');
             row.className = 'share-member-row';
+            const profileImage = u.profileImage ? `<img src="${u.profileImage}" alt="${u.name}">` : `${u.name[0]}`
+
             row.innerHTML = `
-                    <div class="member-avatar-sm" style="background:${u.color};">${u.name[0]}</div>
+                    <div class="member-avatar-sm" style="background:${u.color};">${profileImage}</div>
                     <div class="member-details">
                         <div class="member-name">${escapeHtml(u.name)} ${role==='admin'?'👑':''}</div>
                         <div class="member-username">${u.username||''}</div>
@@ -1829,8 +1815,10 @@
                 if (!u) return;
                 const row = document.createElement('div');
                 row.className = 'share-member-row';
+                const profileImage = u.profileImage ? `<img src="${u.profileImage}" alt="${u.name}">` : ""
+                console.log("u", u, u.name)
                 row.innerHTML = `
-                        <div class="member-avatar-sm" style="background:${u.color};">${u.name[0]}</div>
+                        <div class="member-avatar-sm" style="background:${u.color};">${profileImage}</div>
                         <div class="member-details"><div class="member-name">${escapeHtml(u.name)}</div><div class="member-username">${u.username||''}</div></div>
                         <button class="btn-primary small approve-join-btn" data-uid="${uid}">Approve</button>
                         <button class="btn-secondary small deny-join-btn" data-uid="${uid}">Deny</button>`;
@@ -2557,7 +2545,7 @@
         });
     }
 
-    renderBoard();
-    addEventListeners();
+    loadData();
+
 
 })();
