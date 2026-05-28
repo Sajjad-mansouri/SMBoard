@@ -1,6 +1,7 @@
+import mimetypes
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from board.models import Board, Card, BoardList, BoardMembership
+from board.models import Board, Card, BoardList, BoardMembership, CheckList, ChecklistItem, Comment, CardFile, CardImage
 
 UserModel = get_user_model()
 
@@ -62,11 +63,92 @@ class CardSerializer(serializers.ModelSerializer):
 	def get_labels(self, obj):
 		return obj.card_labels.values_list("name", flat=True)
 
+class CheckListItems(serializers.ModelSerializer):
+	class Meta:
+		model = ChecklistItem
+		fields = ["id", "name", "is_completed"]
+
+class CheckListSerializer(serializers.ModelSerializer):
+	checklist_items = CheckListItems(many=True)
+	class Meta:
+		model = CheckList
+		fields = ["id", "name", "checklist_items"]
+
+class CardCommentSerializer(serializers.ModelSerializer):
+	created_timestamp = serializers.SerializerMethodField()
+	updated_timestamp = serializers.SerializerMethodField()
+
+	class Meta:
+		model = Comment
+		fields = ["id", "user", "content", "created_timestamp", "updated_timestamp", "edited"]	
+
+	def get_created_timestamp(self, obj):
+		return obj.created.timestamp()
+
+	def get_updated_timestamp(self, obj):
+		return obj.updated.timestamp()
+
+class FileAttachments(serializers.ModelSerializer):
+	file_type = serializers.SerializerMethodField()
+	name = serializers.SerializerMethodField()
+	upload_at = serializers.SerializerMethodField()
+
+
+	class Meta:
+		model = CardFile
+		fields = ["id", "name", "description", "file", "file_type", "upload_at", "user"]
+
+	def get_file_type(self, obj):
+		mime_type, encoding = mimetypes.guess_type(obj.file.name)
+		return mime_type	
+
+	def get_name(self, obj):
+		name_loc = obj.file.name
+		name = name_loc.rsplit("/",1)[1]
+		return name
+
+	def get_upload_at(self, obj):
+		return obj.created.timestamp()
+
+class ImageAttachments(FileAttachments):
+	class Meta(FileAttachments.Meta):
+		pass
 
 class CardNestedSerializer(CardSerializer):
-	class Meta(CardSerializer.Meta):
+	members = serializers.SerializerMethodField()
+	card_checklists = CheckListSerializer(many=True)
+	card_comments = CardCommentSerializer(many=True)
+	start_date = serializers.DateField(
+		format="%Y-%m-%d", 
+		input_formats=['%Y-%m-%d']
+	)
+	
+	# For "2026-05-28T12:12"
+	due_date = serializers.DateTimeField(
+		format="%Y-%m-%dT%H:%M", 
+		input_formats=['%Y-%m-%dT%H:%M', 'iso-8601']
+	)
+	watched = serializers.SerializerMethodField()
+	cardfile_set = FileAttachments(many=True)
+	cardimage_set = ImageAttachments(many=True)
 
-		fields = CardSerializer.Meta.fields 
+	class Meta(CardSerializer.Meta):
+		extra_fields = [
+		"description", "start_date", 
+		"completed", "archived", "cover_image", 
+		"cover_color", "members", "card_checklists",
+		"card_comments", "watched", "cardfile_set",
+		"cardimage_set"
+
+		]
+		fields = CardSerializer.Meta.fields +  extra_fields
+
+	def get_members(self, obj):
+		return obj.card_memberships.values_list("user_id", flat=True)
+
+	def get_watched(self, obj):
+		request = self.context["request"]
+		return obj.card_cardwatchs.filter(user=request.user, watch=True).exists()
 
 class BoardMembership(serializers.ModelSerializer):
 	user = UserSerializer()

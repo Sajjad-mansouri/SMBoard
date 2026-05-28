@@ -109,19 +109,17 @@ def card_cover_path(instance, file_name):
 										day = created.day,
 										file_name = file_name)
 class Card(DateAbstractModel):
-	STATUS_CHOICES = [
-		("complete", "Complete"),
-		("incomplete", "Incomplete")
-	]
+
 	board_list = models.ForeignKey(BoardList, on_delete=models.CASCADE, related_name="list_cards", verbose_name="Board List")
 	name = models.CharField(_("Name"), max_length=250)
 	description = models.TextField(_("Description"), blank=True)
-	start_date = models.DateTimeField(_("Start Date"), null=True, blank=True)
+	start_date = models.DateField(_("Start Date"), null=True, blank=True)
 	due_date = models.DateTimeField(_("Due Date"), null=True, blank=True)
-	status = models.CharField(_("Status"), choices=STATUS_CHOICES,default="incomplete")
+	completed = models.BooleanField(_("Completed"),default=False)
 	archived = models.BooleanField(_("Archived"), default=False)
 	cover_image = models.ImageField(_("Conver Image"), upload_to=card_cover_path, null=True, blank=True)
 	cover_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
+
 
 
 
@@ -185,7 +183,7 @@ class ChecklistItem(DateAbstractModel):
 def attachment_path(instance, file_name):
 	created = timezone.now()
 	card = instance.card
-	board_list = card.list
+	board_list = card.board_list
 	board = board_list.board
 	user = board.owner_id
 	return "{owner}/{board}/{list}/{card}/card_attachments/{year}/{month}/{day}/{file_name}".format(
@@ -231,6 +229,7 @@ class Comment(DateAbstractModel):
 	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_comments")
 	card = models.ForeignKey(Card, on_delete=models.CASCADE, verbose_name="Card", related_name="card_comments")
 	content = models.TextField()
+	edited = models.BooleanField(_("Edited"), default=False)
 
 	def __str__(self):
 		return f"{self.user} comment {self.card}"

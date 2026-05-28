@@ -108,13 +108,15 @@
         const listObjs = []
         const archivedList = []
         data.board_lists.forEach(list => {
+
+            const cardIds = list.list_cards.map(item => item.id);
             const newList = {
                 "id": list.id,
                 "title": list.name,
-                "cardIds": []
+                "cardIds": cardIds
             }
             listObjs.push(newList)
-            if (list.archived == true) archivedList.push(list.id)
+            if (list.archived == true) archivedList.push(newList)
         })
 
         return [listObjs, archivedList]
@@ -146,7 +148,99 @@
         return [boardMembers, memberRoles, joinRequests, users]
     }
 
+    function prepareComments(cardData) {
+        const comments = []
+        cardData.card_comments.forEach(commentData => {
+            const comment = {}
+            comment["userId"] = commentData["user"]
+            comment["text"] = commentData["content"]
+            comment["timestamp"] = commentData["created_timestamp"]
+            comment["edited"] = commentData["edited"]
+            comments.push(comment)
+        })
+        return comments
+    }
 
+    function prepareChecklistItems(checklistData) {
+        const items = []
+        checklistData.checklist_items.forEach(itemData => {
+            const item = {}
+            item["id"] = itemData["id"]
+            item["text"] = itemData["name"]
+            item["completed"] = itemData["is_completed"]
+
+            items.push(item)
+        })
+        return items
+    }
+
+    function prepareCheckLists(cardData) {
+        const checklists = []
+        cardData.card_checklists.forEach(checklistData => {
+            const checklist = {}
+            const checklistItems = prepareChecklistItems(checklistData)
+            checklist["id"] = checklistData["id"]
+            checklist["name"] = checklistData["name"]
+            checklist["items"] = checklistItems
+            checklists.push(checklist)
+        })
+        return checklists
+    }
+
+    function prepareAttachments(cardData) {
+        const attachments = []
+        const allFiles = [...cardData.cardfile_set, ...cardData.cardimage_set]
+        allFiles.forEach(fileData => {
+            const attachment = {}
+            attachment["name"] = fileData["name"]
+            attachment["type"] = fileData["file_type"]
+            attachment["data"] = fileData["file"]
+            attachment["uploadedAt"] = fileData["upload_at"]
+            attachment["uploadedBy"] = fileData["user"]
+
+            attachments.push(attachment)
+        })
+        return attachments
+    }
+
+    function prepareCard(data) {
+        const cards = {}
+        data.board_lists.forEach(list => {
+            list.list_cards.forEach(cardData => {
+
+                const comments = prepareComments(cardData)
+                const checklists = prepareCheckLists(cardData)
+                const attachments = prepareAttachments(cardData)
+
+
+                const card = {}
+                card["id"] = cardData["id"]
+                card["title"] = cardData["name"]
+                card["description"] = cardData["description"]
+                card["labels"] = cardData["labels"]
+                card["startDate"] = cardData["start_date"]
+                card["dueDate"] = cardData["due_date"]
+                card["assignedUsers"] = cardData["members"]
+                card["coverColor"] = cardData["cover_color"]
+                card["coverImage"] = cardData["cover_image"]
+                card["watched"] = cardData["watched"]
+                card["archived"] = cardData["archived"]
+                card["completed"] = cardData["completed"]
+                card["checklists"] = checklists
+                card["comments"] = comments
+                card["attachments"] = attachments
+                card["activities"] = []
+
+
+
+                cards[`${cardData["id"]}`] = card
+
+            })
+
+        })
+
+        return cards
+    }
     async function fetchData() {
         try {
             const boardId = document.getElementById("board-title").dataset.board;
@@ -158,7 +252,7 @@
             const boardObj = prepareBoardObject(data)
             const [listObjs, archivedList] = prepareListArray(data)
             const [boardMembers, memberRoles, joinRequests, users] = prepareMembershipArrays(data)
-
+            const cards = prepareCard(data)
 
             boardObj["archivedLists"] = archivedList
             boardObj["lists"] = listObjs
@@ -166,9 +260,10 @@
             boardObj["boardMembers"] = boardMembers
             boardObj["memberRoles"] = memberRoles
             appState["activeBoardId"] = data.id
+            boardObj["cards"] = cards
             appState["boards"] = [boardObj]
             appState["users"] = users
-            console.log("appState", appState)
+
 
 
         } catch (error) {
@@ -353,6 +448,7 @@
             `<div class="list-header"><span class="drag-handle" draggable="true">⋮⋮</span><input type="text" class="list-title" value="${escapeHtml(list.title)}" data-list-id="${list.id}" /><div class="list-header-actions"><div style="position:relative;"><button class="icon-btn list-menu-btn" data-list-id="${list.id}" title="List actions">⋯</button><div class="list-menu-dropdown hidden" data-list-id="${list.id}"><div class="list-menu-dropdown-item" data-action="archive-list">📦 Archive List</div></div></div></div></div><div class="list-cards" data-list-id="${list.id}"></div><div class="list-actions"><button class="add-card-btn" data-list-id="${list.id}">+ Add Card</button></div>`;
         const cardsContainer = div.querySelector('.list-cards');
         list.cardIds.forEach(cid => {
+
             if (board.cards[cid]) {
                 if (!showArchived && board.cards[cid].archived)
                     return;
@@ -385,9 +481,9 @@
             document.querySelectorAll('.list-menu-dropdown').forEach(d => {
                 if (d !== menuDropdown) d.classList.add('hidden');
             });
-            console.log(menuDropdown)
+
             menuDropdown.classList.toggle('hidden');
-            console.log(menuDropdown)
+
 
             if (!menuDropdown.classList.contains('hidden')) {
                 const rect = menuBtn.getBoundingClientRect();
@@ -855,6 +951,7 @@
         editingCommentIndex = null;
         const c = getActiveBoard().cards[id];
         if (!c) return;
+
         document.getElementById('modal-card-title').value = c.title;
         document.getElementById('modal-card-title').classList.toggle('completed', c.completed);
         document.getElementById('modal-completion').value = c.completed ? 'complete' : 'incomplete';
@@ -1163,7 +1260,7 @@
                     minute: '2-digit'
                 }) : '';
             div.innerHTML =
-                `<div class="attachment-thumb">${thumbContent}</div><div class="attachment-info"><div class="attachment-name">${escapeHtml(att.name)}</div><div class="attachment-meta">${uploader?uploader.name:'Unknown'} · ${time}</div></div><div class="attachment-actions"><button class="attachment-dot-btn" data-attindex="${i}">⋯</button><div class="dropdown-menu right-align hidden attachment-dropdown" style="position:absolute;right:0;top:100%;min-width:160px;"><div class="dropdown-item att-edit" data-attindex="${i}">✏️ Edit</div><div class="dropdown-item att-comment" data-attindex="${i}">💬 Comment</div>${isImage?`<div class="dropdown-item att-set-cover" data-attindex="${i}">🖼️ Set as Cover</div>`:''}<div class="dropdown-item att-remove-cover" data-attindex="${i}" style="${card.coverImage===att.data?'':'display:none;'}">❌ Remove Cover</div><div class="dropdown-divider"></div><div class="dropdown-item danger att-remove" data-attindex="${i}">🗑 Remove</div></div></div>`;
+                `<div class="attachment-thumb">${thumbContent}</div><div class="attachment-info"><div class="attachment-name">${escapeHtml(att.name)}</div><div class="attachment-meta">${uploader?uploader.name:'Unknown'} · ${time}</div></div><div class="attachment-actions"><button class="attachment-dot-btn" data-attindex="${i}">⋯</button><div class="dropdown-menu right-align hidden attachment-dropdown" style="position:absolute;right:0;top:100%;min-width:160px;"><div class="dropdown-item att-edit" data-attindex="${i}">✏️ Edit</div><div class="dropdown-item att-download" data-attindex="${i}">Download</div><div class="dropdown-item att-comment" data-attindex="${i}">💬 Comment</div>${isImage?`<div class="dropdown-item att-set-cover" data-attindex="${i}">🖼️ Set as Cover</div>`:''}<div class="dropdown-item att-remove-cover" data-attindex="${i}" style="${card.coverImage===att.data?'':'display:none;'}">❌ Remove Cover</div><div class="dropdown-divider"></div><div class="dropdown-item danger att-remove" data-attindex="${i}">🗑 Remove</div></div></div>`;
             container.appendChild(div);
             const dotBtn = div.querySelector('.attachment-dot-btn');
             const dropdown =
@@ -1183,6 +1280,13 @@
                     saveData();
                     renderModalAttachments();
                 }
+            });
+            div.querySelector('.att-download')?.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const link = document.createElement('a');
+                link.href = att.data;
+                link.download = att.name; // Optional: custom filename
+                link.click();
             });
             div.querySelector('.att-comment')?.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1816,7 +1920,7 @@
                 const row = document.createElement('div');
                 row.className = 'share-member-row';
                 const profileImage = u.profileImage ? `<img src="${u.profileImage}" alt="${u.name}">` : ""
-                console.log("u", u, u.name)
+
                 row.innerHTML = `
                         <div class="member-avatar-sm" style="background:${u.color};">${profileImage}</div>
                         <div class="member-details"><div class="member-name">${escapeHtml(u.name)}</div><div class="member-username">${u.username||''}</div></div>
@@ -1856,6 +1960,7 @@
         if (archivedLists.length === 0) {
             archivedListsContainer.innerHTML = '<p style="color:var(--text-secondary);padding:8px;">No archived lists.</p>';
         } else {
+
             archivedLists.forEach(list => {
                 const div = document.createElement('div');
                 div.className = 'archived-item';
