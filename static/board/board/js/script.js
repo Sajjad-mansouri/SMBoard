@@ -43,8 +43,39 @@
     const CURRENT_USER_ID = 'user1';
     let currentActivityFilter = 'all';
 
-    function saveData() {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+    async function fetchUpdate(url, attr, val) {
+        const body = {}
+        body[`${attr}`] = val
+        try {
+            const bodyJSON = JSON.stringify(body)
+            const response = await auth.authenticatedRequest(url, body, "PATCH", {}, "application/json")
+            const data = await response.json()
+            console.log(data, body)
+
+
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    function saveData(model = null, attr = null, val = null, objId = null) {
+        // localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+
+
+        let path = "";
+        if (model == "Card") {
+            path = `card/${objId}/`
+            if (val == "complete") {
+                val = true
+            } else {
+                val = false
+            }
+
+        }
+        const url = origin + "/api/" + path
+        if (model) fetchUpdate(url, attr, val)
+
+        console.log(model, attr, val)
     }
 
     function migrateData(data) {
@@ -91,7 +122,10 @@
         const boardObj = {}
         boardObj["id"] = data.id
         boardObj["title"] = data.name
-        boardObj["background"] = data.background_color ? data.background_color : `url(${data.background_image}) center/cover no-repeat`
+        boardObj["background"] = data.background_color ? data.background_color : `
+                url($ {
+                    data.background_image
+                }) center / cover no - repeat`
 
         boardObj["boardVisibility"] = data.status
         boardObj["boardWatched"] = data.board_watched
@@ -130,7 +164,11 @@
         data.board_memberships.forEach(member => {
             if (member.accepted) {
                 boardMembers.push(member.user.id)
-                memberRoles[`${member.user.id}`] = member.member_type
+                memberRoles[`
+                $ {
+                    member.user.id
+                }
+                `] = member.member_type
             }
             users.push({
                 id: member.user.id,
@@ -233,7 +271,11 @@
 
 
 
-                cards[`${cardData["id"]}`] = card
+                cards[`
+                $ {
+                    cardData["id"]
+                }
+                `] = card
 
             })
 
@@ -360,7 +402,11 @@
         return text.replace(
             urlRegex, (match, md, mdText, mdUrl, rawUrl) => {
                 if (md)
-                    return `<a href="${escapeHtml(mdUrl)}" target="_blank" rel="noopener">${escapeHtml(mdText)}</a>`;
+                    return ` < a href = "${escapeHtml(mdUrl)}"
+                target = "_blank"
+                rel = "noopener" > $ {
+                    escapeHtml(mdText)
+                } < /a>`;
                 return `<a href="${escapeHtml(rawUrl)}" target="_blank" rel="noopener">${escapeHtml(rawUrl)}</a>`;
             });
     }
@@ -2253,7 +2299,7 @@
                 card.completed = this.value === 'complete';
                 document.getElementById('modal-card-title').classList.toggle('completed', card.completed);
                 addActivity(card, card.completed ? 'marked complete' : 'marked incomplete', CURRENT_USER_ID);
-                saveData();
+                saveData("Card", "completed", this.value, card.id);
                 renderModalDatesDisplay();
                 renderBoard();
             }

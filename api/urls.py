@@ -21,7 +21,9 @@ urlpatterns += [
 	path("search/card/", board_views.SearchCardView.as_view(), name="search_cards"),
 	path("closed/", board_views.ClosedBoardView.as_view(), name="closed_boards"),
 
-	path("board/<int:pk>", board_views.BoardRetrieveView.as_view(), name="board"),
+	path("board/<int:pk>/", board_views.BoardRetrieveView.as_view(), name="board"),
+	path("card/<int:pk>/", board_views.CardUpdateView.as_view(), name="card_update"),
+
 
 
 

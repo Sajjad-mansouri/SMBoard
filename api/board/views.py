@@ -1,9 +1,9 @@
 from django.db.models import Q
 from rest_framework import viewsets, mixins
-from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
 from board.models import Board, Card
 from . import serializers
-from .permissions import IsBoardOwner
+from .permissions import IsBoardOwner, IsBoardOwnerOrMemberOfCard
 
 class BoardViewSet(viewsets.ModelViewSet):
 
@@ -67,3 +67,12 @@ class BoardRetrieveView(RetrieveAPIView):
 
 		return Board.objects.filter(q).distinct()
 
+
+
+class CardUpdateView(UpdateAPIView):
+	serializer_class = serializers.CardSerializer
+	permission_classes = [IsBoardOwnerOrMemberOfCard]
+
+	def get_queryset(self):
+
+		return Card.objects.all()

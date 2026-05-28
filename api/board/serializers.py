@@ -52,7 +52,7 @@ class CardSerializer(serializers.ModelSerializer):
 
 	class Meta:
 		model = Card
-		fields = ["id", "board_list", "name", "due_date", "board", "labels"]
+		fields = ["id", "board_list", "name", "due_date", "board", "labels", "completed"]
 
 	def get_board_list(self, obj):
 		return obj.board_list.name
@@ -135,7 +135,7 @@ class CardNestedSerializer(CardSerializer):
 	class Meta(CardSerializer.Meta):
 		extra_fields = [
 		"description", "start_date", 
-		"completed", "archived", "cover_image", 
+		"archived", "cover_image", 
 		"cover_color", "members", "card_checklists",
 		"card_comments", "watched", "cardfile_set",
 		"cardimage_set"
