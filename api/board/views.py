@@ -1,9 +1,9 @@
 from django.db.models import Q
 from rest_framework import viewsets, mixins
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
-from board.models import Board, Card
+from board.models import Board, Card, CheckList
 from . import serializers
-from .permissions import IsBoardOwner, IsBoardOwnerOrMemberOfCard
+from .permissions import IsBoardOwner, IsBoardOwnerOrMember
 
 class BoardViewSet(viewsets.ModelViewSet):
 
@@ -71,8 +71,19 @@ class BoardRetrieveView(RetrieveAPIView):
 
 class CardUpdateView(UpdateAPIView):
 	serializer_class = serializers.CardNestedSerializer
-	permission_classes = [IsBoardOwnerOrMemberOfCard]
+	permission_classes = [IsBoardOwnerOrMember]
 
 	def get_queryset(self):
 
 		return Card.objects.all()
+
+
+class ChecklistViewSet(viewsets.ModelViewSet):
+
+	serializer_class = serializers.CheckListSerializer
+	permission_classes = [IsBoardOwnerOrMember]
+
+	def get_queryset(self):
+		print(self.request.user)
+		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
+		return CheckList.objects.filter(q)

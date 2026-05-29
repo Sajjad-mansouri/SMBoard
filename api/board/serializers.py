@@ -69,10 +69,11 @@ class CheckListItems(serializers.ModelSerializer):
 		fields = ["id", "name", "is_completed"]
 
 class CheckListSerializer(serializers.ModelSerializer):
-	checklist_items = CheckListItems(many=True)
+	checklist_items = CheckListItems(many=True, read_only=True)
 	class Meta:
 		model = CheckList
-		fields = ["id", "name", "checklist_items"]
+		fields = ["id", "name", "checklist_items", "card"]
+
 
 class CardCommentSerializer(serializers.ModelSerializer):
 	created_timestamp = serializers.SerializerMethodField()

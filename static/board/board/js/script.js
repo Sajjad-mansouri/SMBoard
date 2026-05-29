@@ -46,10 +46,11 @@
 
         try {
             const bodyJSON = JSON.stringify(body)
-            console.log(bodyJSON, url)
+
             const response = await auth.authenticatedRequest(url, body, "PATCH", {}, "multipart/form-data")
             const data = await response.json()
-            console.log(data, body)
+
+            return data
 
 
         } catch (error) {
@@ -62,10 +63,11 @@
 
         try {
             const bodyJSON = JSON.stringify(body)
-            console.log(bodyJSON, url)
+
             const response = await auth.authenticatedRequest(url, bodyJSON, "PATCH", {}, "application/json")
             const data = await response.json()
-            console.log(data, body)
+            return data
+
 
 
         } catch (error) {
@@ -74,24 +76,74 @@
 
     }
 
-    function saveData(model = null, body = null, objId = null, useFormData = false) {
+    async function fetchPost(url, body) {
+        try {
+            const bodyJSON = JSON.stringify(body)
+
+
+            const response = await auth.authenticatedRequest(url, bodyJSON, "POST")
+            const data = await response.json()
+            return data
+
+
+
+        } catch (error) {
+            console.log(error)
+        }
+    }
+
+    async function fetchDelete(url, body) {
+        try {
+            const bodyJSON = JSON.stringify(body)
+
+
+            const response = await auth.authenticatedRequest(url, bodyJSON, "DELETE", {})
+
+
+
+            return true
+        } catch (error) {
+            console.log(error)
+            return false
+        }
+    }
+
+    async function saveData(func = null, model = null, body = null, objId = null, useFormData = false) {
         // localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
 
 
         let path = "";
+        let result;
         if (model == "Card") {
             path = `card/${objId}/`
             const url = origin + "/api/" + path
 
             if (useFormData) {
-                fetchUpdateWithFormData(url, body)
+                result = await fetchUpdateWithFormData(url, body)
 
             } else {
-                fetchUpdate(url, body)
+                result = await fetchUpdate(url, body)
             }
 
 
+        } else if (model == "Checklist") {
+            if (func == "create") {
+                path = "checklists/"
+                const url = origin + "/api/" + path
+                result = await fetchPost(url, body)
+
+
+
+            } else if (func == "delete") {
+                path = `checklists/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchDelete(url, body)
+
+
+            }
+
         }
+        return result
     }
 
     function migrateData(data) {
@@ -279,7 +331,7 @@
                 card["attachments"] = attachments
                 card["activities"] = []
 
-                console.log("card data", card)
+
 
                 cards[`${cardData["id"]}`] = card
 
@@ -312,7 +364,7 @@
             appState["boards"] = [boardObj]
             appState["users"] = users
 
-            console.log("appstate fetch", appState)
+
 
         } catch (error) {
             console.log(error)
@@ -342,8 +394,7 @@
             }
 
         }
-        console.log("appstate", appState)
-        console.log("render")
+
 
         renderBoard();
         addEventListeners();
@@ -764,7 +815,7 @@
         const body = {
             "archived": card.archived ? true : false
         }
-        saveData("Card", body, card.id);
+        saveData("update", "Card", body, card.id);
         renderBoard();
     }
 
@@ -1023,7 +1074,7 @@
         document.getElementById('modal-start-date').value = c.startDate || '';
         document.getElementById('modal-due-datetime').value = c.dueDate || '';
         const coverDiv = document.getElementById('modal-cover');
-        console.log(c, c.coverImage, c.coverColor)
+
         if (c.coverImage) {
             coverDiv.style.backgroundImage =
                 `url(${c.coverImage})`;
@@ -1189,7 +1240,10 @@
                 '<p style="color:var(--text-secondary);font-size:0.85rem;">No checklists yet.</p>';
             return;
         }
-        card.checklists.forEach((checklist, clIndex) => {
+
+        card.checklists.forEach((checklist, Index) => {
+
+            const clIndex = checklist.id
             const progress = getSingleChecklistProgress(
                 checklist);
             const block = document.createElement('div');
@@ -1233,13 +1287,14 @@
                 saveData();
                 renderBoard();
             });
-            block.querySelector('.delete-checklist-block-btn').addEventListener('click', () => {
+            block.querySelector('.delete-checklist-block-btn').addEventListener('click', async () => {
                 if (confirm(
                         `Delete entire checklist "${checklist.name}"?`)) {
-                    card.checklists.splice(clIndex,
+                    card.checklists.splice(Index,
                         1);
+
+                    await saveData("delete", "Checklist", {}, clIndex);
                     addActivity(card, `deleted checklist "${checklist.name}"`, CURRENT_USER_ID);
-                    saveData();
                     renderModalChecklists();
                     renderBoard();
                 }
@@ -1525,7 +1580,7 @@
                     "cover_color": color,
                     "cover_image": null
                 }
-                saveData("Card", body, currentCardId);
+                saveData("update", "Card", body, currentCardId);
                 openCardModal(currentCardId);
                 popover.classList.add('hidden');
             });
@@ -1554,7 +1609,7 @@
                     const formData = new FormData()
                     formData.append("cover_image", file)
                     formData.append("cover_color", "")
-                    saveData("Card", formData, currentCardId, true);
+                    saveData("update", "Card", formData, currentCardId, true);
                     openCardModal(currentCardId);
                     popover.classList.add('hidden');
                 };
@@ -1668,7 +1723,7 @@
                 "start_date": startDateVal,
                 "due_date": dueDateVal
             }
-            saveData("Card", body, card.id);
+            saveData("update", "Card", body, card.id);
             renderModalDatesDisplay();
             renderBoard();
             popover.classList.add('hidden');
@@ -2323,7 +2378,7 @@
                 const body = {
                     "name": title
                 }
-                saveData("Card", body, currentCardId);
+                saveData("update", "Card", body, currentCardId);
             }
         });
         document.getElementById('modal-completion').addEventListener('change', function() {
@@ -2341,7 +2396,7 @@
                 const body = {
                     "completed": val
                 }
-                saveData("Card", body, card.id);
+                saveData("update", "Card", body, card.id);
                 renderModalDatesDisplay();
                 renderBoard();
             }
@@ -2352,7 +2407,7 @@
                 const body = {
                     "description": this.value
                 }
-                saveData("Card", body, currentCardId);
+                saveData("update", "Card", body, currentCardId);
             }
         });
         document.getElementById('modal-cover-btn').addEventListener('click', function(e) {
@@ -2430,7 +2485,7 @@
                 dd.style.right = 'auto';
             }
         });
-        document.getElementById('add-dropdown').addEventListener('click', function(e) {
+        document.getElementById('add-dropdown').addEventListener('click', async function(e) {
             const item = e.target
                 .closest('.dropdown-item');
             if (!item || !currentCardId) return;
@@ -2445,15 +2500,27 @@
                 const card = getActiveBoard().cards[currentCardId];
                 const clName = 'Checklist ' + ((card
                     .checklists?.length || 0) + 1);
-                card.checklists.push({
-                    id: generateId(),
-                    name: clName,
-                    items: []
-                });
-                addActivity(card, `added checklist "${clName}"`, CURRENT_USER_ID);
-                saveData();
-                renderModalChecklists();
-                renderBoard();
+
+                const body = {
+                    "name": clName,
+                    "card": currentCardId
+                }
+                const result = await saveData("create", "Checklist", body, currentCardId);
+                if (result) {
+
+                    card.checklists.push({
+                        id: result.id,
+                        name: result.name,
+                        items: []
+                    });
+
+
+                    addActivity(card, `added checklist "${clName}"`, CURRENT_USER_ID);
+
+                    renderModalChecklists();
+                    renderBoard();
+                }
+
             } else if (addType === 'members') openMembersPopover(document.getElementById(
                 'modal-members-display'));
             else if (addType === 'attachments') openAttachPopover(document
@@ -2469,21 +2536,30 @@
             closeAllPopovers();
             openDatesPopover(this);
         });
-        document.getElementById('modal-checklist-btn').addEventListener('click', function() {
+        document.getElementById('modal-checklist-btn').addEventListener('click', async function() {
             if (!currentCardId)
                 return;
             const card = getActiveBoard().cards[currentCardId];
             const clName = 'Checklist ' + ((card
                 .checklists?.length || 0) + 1);
-            card.checklists.push({
-                id: generateId(),
-                name: clName,
-                items: []
-            });
-            addActivity(card, `added checklist "${clName}"`, CURRENT_USER_ID);
-            saveData();
-            renderModalChecklists();
-            renderBoard();
+            const body = {
+                "name": clName,
+                "card": currentCardId
+            }
+            const result = await saveData("create", "Checklist", body, currentCardId);
+            if (result) {
+
+                card.checklists.push({
+                    id: result.id,
+                    name: result.name,
+                    items: []
+                });
+
+                addActivity(card, `added checklist "${clName}"`, CURRENT_USER_ID);
+
+                renderModalChecklists();
+                renderBoard();
+            }
         });
         document.getElementById('modal-comment-btn').addEventListener('click', function() {
             document.getElementById(
