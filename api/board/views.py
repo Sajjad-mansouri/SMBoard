@@ -85,5 +85,7 @@ class ChecklistViewSet(viewsets.ModelViewSet):
 
 	def get_queryset(self):
 		print(self.request.user)
+		print(CheckList.objects.filter(card__board_list__board__owner=self.request.user))
 		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
+		print(CheckList.objects.filter(q)[0].id)
 		return CheckList.objects.filter(q)

@@ -140,6 +140,10 @@
                 result = await fetchDelete(url, body)
 
 
+            } else if (func == "update") {
+                path = `checklists/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
             }
 
         }
@@ -1283,8 +1287,12 @@
                 });
             });
             block.querySelector('.checklist-block-title-input').addEventListener('input', function() {
-                checklist.name = this.value.trim() || 'Checklist';
-                saveData();
+                const name = this.value.trim() || 'Checklist';
+                checklist.name = name;
+                const body = {
+                    "name": name
+                }
+                saveData("update", "Checklist", body, clIndex);
                 renderBoard();
             });
             block.querySelector('.delete-checklist-block-btn').addEventListener('click', async () => {
