@@ -70,7 +70,7 @@ class BoardRetrieveView(RetrieveAPIView):
 
 
 class CardUpdateView(UpdateAPIView):
-	serializer_class = serializers.CardSerializer
+	serializer_class = serializers.CardNestedSerializer
 	permission_classes = [IsBoardOwnerOrMemberOfCard]
 
 	def get_queryset(self):

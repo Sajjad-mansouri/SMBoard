@@ -149,7 +149,10 @@ class CardNestedSerializer(CardSerializer):
 	def get_watched(self, obj):
 		request = self.context["request"]
 		return obj.card_cardwatchs.filter(user=request.user, watch=True).exists()
-
+	def is_valid(self, *, raise_exception=False):
+		err = super().is_valid(raise_exception=False)
+		print("error",err)
+		return err
 class BoardMembership(serializers.ModelSerializer):
 	user = UserSerializer()
 

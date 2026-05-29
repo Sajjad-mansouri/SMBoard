@@ -42,13 +42,12 @@
     let showArchived = false;
     const CURRENT_USER_ID = 'user1';
     let currentActivityFilter = 'all';
+    async function fetchUpdateWithFormData(url, body) {
 
-    async function fetchUpdate(url, attr, val) {
-        const body = {}
-        body[`${attr}`] = val
         try {
             const bodyJSON = JSON.stringify(body)
-            const response = await auth.authenticatedRequest(url, body, "PATCH", {}, "application/json")
+            console.log(bodyJSON, url)
+            const response = await auth.authenticatedRequest(url, body, "PATCH", {}, "multipart/form-data")
             const data = await response.json()
             console.log(data, body)
 
@@ -57,25 +56,42 @@
             console.log(error)
         }
     }
+    async function fetchUpdate(url, body) {
 
-    function saveData(model = null, attr = null, val = null, objId = null) {
+
+
+        try {
+            const bodyJSON = JSON.stringify(body)
+            console.log(bodyJSON, url)
+            const response = await auth.authenticatedRequest(url, bodyJSON, "PATCH", {}, "application/json")
+            const data = await response.json()
+            console.log(data, body)
+
+
+        } catch (error) {
+            console.log(error)
+        }
+
+    }
+
+    function saveData(model = null, body = null, objId = null, useFormData = false) {
         // localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
 
 
         let path = "";
         if (model == "Card") {
             path = `card/${objId}/`
-            if (val == "complete") {
-                val = true
+            const url = origin + "/api/" + path
+
+            if (useFormData) {
+                fetchUpdateWithFormData(url, body)
+
             } else {
-                val = false
+                fetchUpdate(url, body)
             }
 
-        }
-        const url = origin + "/api/" + path
-        if (model) fetchUpdate(url, attr, val)
 
-        console.log(model, attr, val)
+        }
     }
 
     function migrateData(data) {
@@ -122,10 +138,7 @@
         const boardObj = {}
         boardObj["id"] = data.id
         boardObj["title"] = data.name
-        boardObj["background"] = data.background_color ? data.background_color : `
-                url($ {
-                    data.background_image
-                }) center / cover no - repeat`
+        boardObj["background"] = data.background_color ? data.background_color : `url(${data.background_image}) center / cover no - repeat`
 
         boardObj["boardVisibility"] = data.status
         boardObj["boardWatched"] = data.board_watched
@@ -164,11 +177,7 @@
         data.board_memberships.forEach(member => {
             if (member.accepted) {
                 boardMembers.push(member.user.id)
-                memberRoles[`
-                $ {
-                    member.user.id
-                }
-                `] = member.member_type
+                memberRoles[`$ {member.user.id}`] = member.member_type
             }
             users.push({
                 id: member.user.id,
@@ -252,6 +261,7 @@
 
 
                 const card = {}
+
                 card["id"] = cardData["id"]
                 card["title"] = cardData["name"]
                 card["description"] = cardData["description"]
@@ -269,13 +279,9 @@
                 card["attachments"] = attachments
                 card["activities"] = []
 
+                console.log("card data", card)
 
-
-                cards[`
-                $ {
-                    cardData["id"]
-                }
-                `] = card
+                cards[`${cardData["id"]}`] = card
 
             })
 
@@ -306,7 +312,7 @@
             appState["boards"] = [boardObj]
             appState["users"] = users
 
-
+            console.log("appstate fetch", appState)
 
         } catch (error) {
             console.log(error)
@@ -321,7 +327,9 @@
             try {
                 appState = JSON.parse(stored);
                 appState = migrateData(appState);
-            } catch (e) {}
+            } catch (e) {
+                console.log(e)
+            }
         }
         const oldStored = localStorage.getItem('kanban_board_data_v4');
         if (oldStored && !stored) {
@@ -329,8 +337,13 @@
                 appState = JSON.parse(oldStored);
                 appState = migrateData(appState);
                 saveData();
-            } catch (e) {}
+            } catch (e) {
+                console.log(e)
+            }
+
         }
+        console.log("appstate", appState)
+        console.log("render")
 
         renderBoard();
         addEventListeners();
@@ -502,8 +515,10 @@
             }
         });
         div.querySelector('.list-title').addEventListener('change', () => {
-            list.title = div.querySelector(
+            const title = div.querySelector(
                 '.list-title').value.trim() || 'Untitled';
+            list.title = title
+
             saveData();
             renderBoard();
         });
@@ -746,7 +761,10 @@
         if (!card) return;
         card.archived = !card.archived;
         addActivity(card, card.archived ? 'archived card' : 'unarchived card', CURRENT_USER_ID);
-        saveData();
+        const body = {
+            "archived": card.archived ? true : false
+        }
+        saveData("Card", body, card.id);
         renderBoard();
     }
 
@@ -1004,8 +1022,8 @@
         document.getElementById('modal-description').value = c.description;
         document.getElementById('modal-start-date').value = c.startDate || '';
         document.getElementById('modal-due-datetime').value = c.dueDate || '';
-        const coverDiv = document
-            .getElementById('modal-cover');
+        const coverDiv = document.getElementById('modal-cover');
+        console.log(c, c.coverImage, c.coverColor)
         if (c.coverImage) {
             coverDiv.style.backgroundImage =
                 `url(${c.coverImage})`;
@@ -1503,7 +1521,11 @@
                 card.coverColor = color;
                 card.coverImage = '';
                 addActivity(card, 'changed cover color', CURRENT_USER_ID);
-                saveData();
+                const body = {
+                    "cover_color": color,
+                    "cover_image": null
+                }
+                saveData("Card", body, currentCardId);
                 openCardModal(currentCardId);
                 popover.classList.add('hidden');
             });
@@ -1522,15 +1544,17 @@
             .click();
         document.getElementById('cover-image-input').onchange = function(e) {
             const file = e.target.files[0];
-            if (
-                file) {
+            if (file) {
                 const reader = new FileReader();
                 reader.onload = ev => {
                     const card = getActiveBoard().cards[currentCardId];
                     card.coverImage = ev.target.result;
                     card.coverColor = '';
                     addActivity(card, 'uploaded cover image', CURRENT_USER_ID);
-                    saveData();
+                    const formData = new FormData()
+                    formData.append("cover_image", file)
+                    formData.append("cover_color", "")
+                    saveData("Card", formData, currentCardId, true);
                     openCardModal(currentCardId);
                     popover.classList.add('hidden');
                 };
@@ -1635,11 +1659,16 @@
         document.getElementById('modal-start-date').value = card.startDate || '';
         document.getElementById('modal-due-datetime').value = card.dueDate || '';
         document.getElementById('save-dates-btn').onclick = () => {
-            card.startDate = document.getElementById(
-                'modal-start-date').value;
+            const startDateVal = document.getElementById('modal-start-date').value;
+            card.startDate = startDateVal
+            const dueDateVal = document.getElementById('modal-due-datetime').value;
             card.dueDate = document.getElementById('modal-due-datetime').value;
             addActivity(card, `set dates: ${card.startDate||'none'} → ${card.dueDate||'none'}`, CURRENT_USER_ID);
-            saveData();
+            const body = {
+                "start_date": startDateVal,
+                "due_date": dueDateVal
+            }
+            saveData("Card", body, card.id);
             renderModalDatesDisplay();
             renderBoard();
             popover.classList.add('hidden');
@@ -2289,8 +2318,12 @@
         });
         document.getElementById('modal-card-title').addEventListener('input', function() {
             if (currentCardId) {
-                getActiveBoard().cards[currentCardId].title = this.value.trim() || 'Untitled';
-                saveData();
+                const title = this.value.trim() || 'Untitled';
+                getActiveBoard().cards[currentCardId].title = title;
+                const body = {
+                    "name": title
+                }
+                saveData("Card", body, currentCardId);
             }
         });
         document.getElementById('modal-completion').addEventListener('change', function() {
@@ -2299,7 +2332,16 @@
                 card.completed = this.value === 'complete';
                 document.getElementById('modal-card-title').classList.toggle('completed', card.completed);
                 addActivity(card, card.completed ? 'marked complete' : 'marked incomplete', CURRENT_USER_ID);
-                saveData("Card", "completed", this.value, card.id);
+                let val;
+                if (this.value == "complete") {
+                    val = true
+                } else {
+                    val = false
+                }
+                const body = {
+                    "completed": val
+                }
+                saveData("Card", body, card.id);
                 renderModalDatesDisplay();
                 renderBoard();
             }
@@ -2307,7 +2349,10 @@
         document.getElementById('modal-description').addEventListener('input', function() {
             if (currentCardId) {
                 getActiveBoard().cards[currentCardId].description = this.value;
-                saveData();
+                const body = {
+                    "description": this.value
+                }
+                saveData("Card", body, currentCardId);
             }
         });
         document.getElementById('modal-cover-btn').addEventListener('click', function(e) {

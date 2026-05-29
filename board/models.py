@@ -104,9 +104,9 @@ def card_cover_path(instance, file_name):
 										board=instance.board_list.board.name, 
 										list=instance.board_list.name,
 										card=instance.name,
-										year = created.year ,
-										month = created.month,
-										day = created.day,
+										year = instance.created.year ,
+										month = instance.created.month,
+										day = instance.created.day,
 										file_name = file_name)
 class Card(DateAbstractModel):
 
