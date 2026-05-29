@@ -63,13 +63,13 @@ class CardSerializer(serializers.ModelSerializer):
 	def get_labels(self, obj):
 		return obj.card_labels.values_list("name", flat=True)
 
-class CheckListItems(serializers.ModelSerializer):
+class CheckListItemSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = ChecklistItem
-		fields = ["id", "name", "is_completed"]
+		fields = ["id", "name", "is_completed", "checklist"]
 
 class CheckListSerializer(serializers.ModelSerializer):
-	checklist_items = CheckListItems(many=True, read_only=True)
+	checklist_items = CheckListItemSerializer(many=True, read_only=True)
 	class Meta:
 		model = CheckList
 		fields = ["id", "name", "checklist_items", "card"]

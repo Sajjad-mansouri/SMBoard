@@ -13,6 +13,8 @@ from .auth import views as api_auth_views
 router = DefaultRouter()
 router.register(r'boards', board_views.BoardViewSet, basename='board')
 router.register(r'checklists', board_views.ChecklistViewSet, basename='checklist')
+router.register(r'checklist-items', board_views.ChecklistItemViewSet, basename='checklist_items')
+
 
 urlpatterns = router.urls
 

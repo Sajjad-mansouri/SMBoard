@@ -48,13 +48,19 @@
             const bodyJSON = JSON.stringify(body)
 
             const response = await auth.authenticatedRequest(url, body, "PATCH", {}, "multipart/form-data")
-            const data = await response.json()
+            if (response.ok) {
 
-            return data
+                const data = await response.json()
+
+                return data
+            } else {
+                return false
+            }
 
 
         } catch (error) {
             console.log(error)
+            return false
         }
     }
     async function fetchUpdate(url, body) {
@@ -65,13 +71,19 @@
             const bodyJSON = JSON.stringify(body)
 
             const response = await auth.authenticatedRequest(url, bodyJSON, "PATCH", {}, "application/json")
-            const data = await response.json()
-            return data
+            if (response.ok) {
+
+                const data = await response.json()
+                return data
+            } else {
+                return false
+            }
 
 
 
         } catch (error) {
             console.log(error)
+            return false
         }
 
     }
@@ -80,15 +92,21 @@
         try {
             const bodyJSON = JSON.stringify(body)
 
-
+            console.log(url, bodyJSON)
             const response = await auth.authenticatedRequest(url, bodyJSON, "POST")
-            const data = await response.json()
-            return data
+            if (response.ok) {
+                const data = await response.json()
+                return data
+
+            } else {
+                return false
+            }
 
 
 
         } catch (error) {
             console.log(error)
+            return false
         }
     }
 
@@ -98,10 +116,14 @@
 
 
             const response = await auth.authenticatedRequest(url, bodyJSON, "DELETE", {})
+            console.log(response)
+            if (response.ok) {
 
+                return true
+            } else {
+                return false
+            }
 
-
-            return true
         } catch (error) {
             console.log(error)
             return false
@@ -146,6 +168,25 @@
                 result = await fetchUpdate(url, body)
             }
 
+        } else if (model == "ChecklistItem") {
+            if (func == "create") {
+                path = "checklist-items/"
+                const url = origin + "/api/" + path
+                result = await fetchPost(url, body)
+
+
+
+            } else if (func == "delete") {
+                path = `checklist-items/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchDelete(url, body)
+
+
+            } else if (func == "update") {
+                path = `checklist-items/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
+            }
         }
         return result
     }
@@ -1255,35 +1296,53 @@
             block.dataset.clIndex = clIndex;
             block.innerHTML = `<div class="checklist-block-header"><input type="text" class="checklist-block-title-input" value="${escapeHtml(checklist.name)}" data-clindex="${clIndex}" placeholder="Checklist name" /><span class="progress-text">${progress}%</span><button class="icon-btn small delete-checklist-block-btn" data-clindex="${clIndex}" title="Delete checklist">🗑</button></div><div class="checklist-progress-bar"><div class="checklist-progress-fill" style="width:${progress}%"></div></div><div class="checklist-items-container" data-clindex="${clIndex}"></div><div class="inline-add-item-area" data-clindex="${clIndex}"><button class="btn-secondary small show-add-item-form-btn" data-clindex="${clIndex}">+ Add item</button><div class="inline-add-item-form hidden" data-clindex="${clIndex}"><input type="text" class="inline-item-input" placeholder="Item text..." data-clindex="${clIndex}" /><button class="btn-primary small save-inline-item-btn" data-clindex="${clIndex}">Add</button><button class="btn-secondary small cancel-inline-item-btn" data-clindex="${clIndex}">✕</button></div></div>`;
             const itemsContainer = block.querySelector('.checklist-items-container');
-            checklist.items.forEach((item, i) => {
+            checklist.items.forEach((item, index) => {
+                const i = item.id
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'checklist-item';
                 itemDiv.innerHTML =
                     `<input type="checkbox" ${item.completed?'checked':''} data-clindex="${clIndex}" data-itemindex="${i}"><input type="text" class="checklist-item-text ${item.completed?'completed':''}" value="${escapeHtml(item.text)}" data-clindex="${clIndex}" data-itemindex="${i}" /><button class="icon-btn small delete-checklist-item" data-clindex="${clIndex}" data-itemindex="${i}">🗑</button>`;
                 itemsContainer.appendChild(itemDiv);
-                itemDiv.querySelector('input[type="checkbox"]').addEventListener('change', function() {
-                    checklist.items[i].completed = this.checked;
-                    addActivity(card,
-                        `${checklist.items[i].completed?'completed':'uncompleted'} "${checklist.items[i].text}" in "${checklist.name}"`,
-                        CURRENT_USER_ID);
-                    saveData();
-                    renderModalChecklists();
-                    renderBoard();
+                itemDiv.querySelector('input[type="checkbox"]').addEventListener('change', async function() {
+                    checklist.items[index].completed = this.checked;
+                    const body = {
+                        "is_completed": this.checked
+                    }
+                    const result = await saveData("update", "ChecklistItem", body, i);
+                    if (result) {
+
+                        addActivity(card,
+                            `${checklist.items[index].completed?'completed':'uncompleted'} "${checklist.items[index].text}" in "${checklist.name}"`,
+                            CURRENT_USER_ID);
+                        renderModalChecklists();
+                        renderBoard();
+                    }
                 });
-                itemDiv.querySelector('.checklist-item-text').addEventListener('input', function() {
-                    checklist.items[i].text = this.value;
-                    saveData();
+                itemDiv.querySelector('.checklist-item-text').addEventListener('input', async function() {
+                    const name = this.value.trim()
+                    const body = {
+                        "name": name,
+                        "checklist": checklist.id
+                    }
+                    const result = await saveData("update", "ChecklistItem", body, i);
+                    if (result) {
+                        console.log(result)
+                        checklist.items[index].text = result.name;
+                    }
                 });
-                itemDiv.querySelector('.delete-checklist-item').addEventListener('click', () => {
-                    const
-                        deletedText = checklist.items[i].text;
-                    checklist.items.splice(i, 1);
-                    addActivity(card,
-                        `deleted checklist item "${deletedText}" from "${checklist.name}"`,
-                        CURRENT_USER_ID);
-                    saveData();
-                    renderModalChecklists();
-                    renderBoard();
+                itemDiv.querySelector('.delete-checklist-item').addEventListener('click', async () => {
+                    const deletedText = checklist.items[index].text;
+                    const result = await saveData("delete", "ChecklistItem", {}, i);
+                    console.log("result", result)
+                    if (result) {
+                        checklist.items.splice(index, 1);
+                        addActivity(card,
+                            `deleted checklist item "${deletedText}" from "${checklist.name}"`,
+                            CURRENT_USER_ID);
+                        renderModalChecklists();
+                        renderBoard();
+
+                    }
                 });
             });
             block.querySelector('.checklist-block-title-input').addEventListener('input', function() {
@@ -1325,20 +1384,28 @@
                 showBtn.classList.remove('hidden');
                 inlineInput.value = '';
             });
-            const addItemFn = () => {
+            const addItemFn = async () => {
                 const txt = inlineInput.value
                     .trim();
                 if (txt) {
-                    checklist.items.push({
-                        id: generateId(),
-                        text: txt,
-                        completed: false
-                    });
-                    addActivity(card, `added checklist item "${txt}" to "${checklist.name}"`,
-                        CURRENT_USER_ID);
-                    saveData();
-                    renderModalChecklists();
-                    renderBoard();
+                    const body = {
+                        "name": txt,
+                        "checklist": checklist.id
+                    }
+                    const result = await saveData("create", "ChecklistItem", body, checklist.id);
+                    if (result) {
+                        checklist.items.push({
+                            id: result.id,
+                            text: result.name,
+                            completed: false
+                        });
+                        addActivity(card, `added checklist item "${txt}" to "${checklist.name}"`,
+                            CURRENT_USER_ID);
+
+                        renderModalChecklists();
+                        renderBoard();
+                    }
+
                 }
                 inlineForm.classList.add('hidden');
                 showBtn.classList.remove('hidden');
