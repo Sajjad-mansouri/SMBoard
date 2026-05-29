@@ -40,7 +40,7 @@
     };
     let appState = JSON.parse(JSON.stringify(defaultData));
     let showArchived = false;
-    const CURRENT_USER_ID = 'user1';
+    let CURRENT_USER_ID;
     let currentActivityFilter = 'all';
     async function fetchUpdateWithFormData(url, body) {
 
@@ -187,6 +187,25 @@
                 const url = origin + "/api/" + path
                 result = await fetchUpdate(url, body)
             }
+        } else if (model == "Comment") {
+            if (func == "create") {
+                path = "comments/"
+                const url = origin + "/api/" + path
+                result = await fetchPost(url, body)
+
+
+
+            } else if (func == "delete") {
+                path = `comments/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchDelete(url, body)
+
+
+            } else if (func == "update") {
+                path = `comments/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
+            }
         }
         return result
     }
@@ -298,8 +317,10 @@
             const comment = {}
             comment["userId"] = commentData["user"]
             comment["text"] = commentData["content"]
-            comment["timestamp"] = commentData["created_timestamp"]
+            comment["timestamp"] = commentData["timestamp"]
             comment["edited"] = commentData["edited"]
+            comment["id"] = commentData["id"]
+
             comments.push(comment)
         })
         return comments
@@ -386,12 +407,20 @@
 
         return cards
     }
+
+
     async function fetchData() {
         try {
             const boardId = document.getElementById("board-title").dataset.board;
             const url = origin + `/api/board/${boardId}`
             const response = await auth.authenticatedRequest(url, null, "GET")
             const data = await response.json()
+
+            const userUrl = origin + `/api/current-user/`
+            const userResponse = await auth.authenticatedRequest(userUrl, null, "GET")
+            const currentUserData = await userResponse.json()
+            CURRENT_USER_ID = currentUserData.user
+
 
 
             const boardObj = prepareBoardObject(data)
@@ -1326,14 +1355,14 @@
                     }
                     const result = await saveData("update", "ChecklistItem", body, i);
                     if (result) {
-                        console.log(result)
+
                         checklist.items[index].text = result.name;
                     }
                 });
                 itemDiv.querySelector('.delete-checklist-item').addEventListener('click', async () => {
                     const deletedText = checklist.items[index].text;
                     const result = await saveData("delete", "ChecklistItem", {}, i);
-                    console.log("result", result)
+
                     if (result) {
                         checklist.items.splice(index, 1);
                         addActivity(card,
@@ -1535,14 +1564,18 @@
         const card = getActiveBoard().cards[currentCardId];
         container.innerHTML = '';
         const allItems = [];
+
         card.comments.forEach((c, i) => {
+
             allItems.push({
                 type: 'comment',
                 data: c,
                 index: i,
                 timestamp: c.timestamp
             });
+
         });
+
         card.activities.forEach(a => {
             allItems.push({
                 type: 'activity',
@@ -1551,33 +1584,30 @@
                     .timestamp
             });
         });
-        allItems.sort((a, b) => a.timestamp - b.timestamp);
+        allItems.sort((a, b) => b.timestamp - a.timestamp);
         allItems.forEach(item => {
             if (item.type === 'comment') {
                 const c = item.data;
-                const u = getUserById(c
-                    .userId);
+                const u = getUserById(c.userId);
                 const div = document.createElement('div');
                 div.className = 'comment-item';
+
                 const canEdit = c.userId === CURRENT_USER_ID;
-                div.innerHTML =
-                    `<div class="comment-avatar" style="background:${u?.color||'#ccc'}">${u?.name?.[0]||'?'}</div><div class="comment-body"><div class="comment-header"><span class="comment-author">${u?.name||'Unknown'}</span><span class="comment-time">${new Date(c.timestamp).toLocaleString()}${c.edited?' <span class="comment-edited">(edited)</span>':''}</span></div><div class="comment-content">${linkify(c.text)}</div>${canEdit?`<div class="comment-actions"><button class="edit-comment-btn" data-commentindex="${item.index}">✏️ Edit</button><button class="delete-comment-btn" data-commentindex="${item.index}">🗑 Delete</button></div>`:''}</div>`;
+
+                div.innerHTML = `<div class="comment-avatar" style="background:${u?.color||'#ccc'}">${u?.name?.[0]||'?'}</div><div class="comment-body"><div class="comment-header"><span class="comment-author">${u?.name||'Unknown'}</span><span class="comment-time">${new Date(c.timestamp*1000).toLocaleString()}${c.edited?' <span class="comment-edited">(edited)</span>':''}</span></div><div class="comment-content">${linkify(c.text)}</div>${canEdit?`<div class="comment-actions"><button class="edit-comment-btn" data-commentindex="${item.index}">✏️ Edit</button><button class="delete-comment-btn" data-commentindex="${c.id}">🗑 Delete</button></div>`:''}</div>`;
                 container.appendChild(div);
                 div.querySelector('.edit-comment-btn')?.addEventListener('click', () => {
-                    editingCommentIndex =
-                        item.index;
+
+                    editingCommentIndex = item.index;
                     document.getElementById('new-comment-text').value = c.text;
                     document.getElementById('new-comment-text').focus();
                     document.getElementById('add-comment-btn').textContent = 'Save Changes';
-                    const
-                        discardBtn = document.createElement('button');
+                    const discardBtn = document.createElement('button');
                     discardBtn.className = 'btn-secondary small';
                     discardBtn.textContent = 'Discard';
                     discardBtn.id = 'discard-edit-btn';
-                    const actionsDiv = document.querySelector(
-                        '.comment-input-actions');
-                    const existingDiscard = document.getElementById(
-                        'discard-edit-btn');
+                    const actionsDiv = document.querySelector('.comment-input-actions');
+                    const existingDiscard = document.getElementById('discard-edit-btn');
                     if (existingDiscard) existingDiscard.remove();
                     actionsDiv.appendChild(discardBtn);
                     discardBtn.addEventListener('click', cancelEditComment);
@@ -1585,13 +1615,17 @@
                         behavior: 'smooth'
                     });
                 });
-                div.querySelector('.delete-comment-btn')?.addEventListener('click', () => {
+                div.querySelector('.delete-comment-btn')?.addEventListener('click', async () => {
                     if (confirm(
                             'Delete this comment?')) {
-                        card.comments.splice(item.index, 1);
-                        addActivity(card, 'deleted a comment', CURRENT_USER_ID);
-                        saveData();
-                        renderModalCommentsActivity();
+                        const commentId = div.querySelector('.delete-comment-btn').dataset.commentindex
+                        const result = await saveData("delete", "Comment", {}, commentId);
+                        if (result) {
+                            card.comments.splice(item.index, 1);
+                            addActivity(card, 'deleted a comment', CURRENT_USER_ID);
+                            renderModalCommentsActivity();
+
+                        }
                     }
                 });
             } else {
@@ -2643,49 +2677,63 @@
                 behavior: 'smooth'
             });
         });
-        document.getElementById('add-comment-btn').addEventListener('click', function() {
+        document.getElementById('add-comment-btn').addEventListener('click', async function() {
             if (!currentCardId)
                 return;
-            const uid = document.getElementById('comment-user-select').value;
-            const text = document
-                .getElementById('new-comment-text').value.trim();
-            if (!uid || !text) {
-                alert(
-                    'Select a user and write a comment');
+
+            const text = document.getElementById('new-comment-text').value.trim();
+            if (!text) {
+
                 return;
             }
-            const card = getActiveBoard().cards[
-                currentCardId];
+            const card = getActiveBoard().cards[currentCardId];
+            let result = false;
+
+
             if (editingCommentIndex !== null && card.comments[editingCommentIndex] && card
-                .comments[editingCommentIndex].userId === CURRENT_USER_ID) {
-                card.comments[editingCommentIndex]
-                    .text = text;
-                card.comments[editingCommentIndex].edited = true;
-                card.comments[editingCommentIndex].timestamp = Date.now();
-                addActivity(card, 'edited a comment', uid);
-                editingCommentIndex = null;
-                document.getElementById('add-comment-btn').textContent = 'Post Comment';
-                const discardBtn =
-                    document.getElementById('discard-edit-btn');
-                if (discardBtn) discardBtn.remove();
+                .comments?.[editingCommentIndex]?.userId === CURRENT_USER_ID) {
+                const body = {
+                    "content": text,
+                    "edited": true
+                }
+                result = await saveData("update", "Comment", body, card.comments[editingCommentIndex].id)
+                if (result) {
+
+                    card.comments[editingCommentIndex].text = text;
+                    card.comments[editingCommentIndex].edited = true;
+                    card.comments[editingCommentIndex].timestamp = result.timestamp;
+                    addActivity(card, 'edited a comment', 'uid');
+                    editingCommentIndex = null;
+                    document.getElementById('add-comment-btn').textContent = 'Post Comment';
+                    const discardBtn = document.getElementById('discard-edit-btn');
+                    if (discardBtn) discardBtn.remove();
+                }
             } else {
-                card
-                    .comments.push({
-                        userId: uid,
+                const body = {
+                    "content": text,
+                    "card": currentCardId
+                }
+                result = await saveData("create", "Comment", body, currentCardId);
+                if (result) {
+                    addActivity(card, 'commented', 'uid');
+                    card.comments.push({
+                        userId: result.user,
                         text,
-                        timestamp: Date.now(),
-                        edited: false
+                        timestamp: result.timestamp,
+                        edited: false,
+                        id: result.id
                     });
-                addActivity(card, 'commented', uid);
+                }
             }
-            saveData();
-            renderModalCommentsActivity();
-            document.getElementById('new-comment-text').value = '';
-            document.getElementById('add-comment-btn').textContent = 'Post Comment';
-            const discardBtn = document
-                .getElementById('discard-edit-btn');
-            if (discardBtn) discardBtn.remove();
-            editingCommentIndex = null;
+            if (result) {
+
+                renderModalCommentsActivity();
+                document.getElementById('new-comment-text').value = '';
+                document.getElementById('add-comment-btn').textContent = 'Post Comment';
+                const discardBtn = document.getElementById('discard-edit-btn');
+                if (discardBtn) discardBtn.remove();
+                editingCommentIndex = null;
+            }
         });
 
         document.getElementById('close-users-modal').onclick = () => document.getElementById('users-modal-overlay')

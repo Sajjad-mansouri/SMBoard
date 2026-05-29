@@ -76,18 +76,28 @@ class CheckListSerializer(serializers.ModelSerializer):
 
 
 class CardCommentSerializer(serializers.ModelSerializer):
-	created_timestamp = serializers.SerializerMethodField()
-	updated_timestamp = serializers.SerializerMethodField()
+	timestamp = serializers.SerializerMethodField()
+
 
 	class Meta:
 		model = Comment
-		fields = ["id", "user", "content", "created_timestamp", "updated_timestamp", "edited"]	
+		fields = ["id", "user", "content", "timestamp", "edited", "card"]	
 
-	def get_created_timestamp(self, obj):
-		return obj.created.timestamp()
+	def to_internal_value(self, data):
+		request = self.context["request"]
+		data["user"] = request.user.id
+		return super().to_internal_value(data)
 
-	def get_updated_timestamp(self, obj):
-		return obj.updated.timestamp()
+	def get_timestamp(self, obj):
+		print("created time", obj.created, obj.created.timestamp())
+		print("updated time", obj.updated)
+
+		if obj.updated:
+			return obj.updated.timestamp()
+		else:
+			obj.created.timestamp()
+
+
 
 class FileAttachments(serializers.ModelSerializer):
 	file_type = serializers.SerializerMethodField()

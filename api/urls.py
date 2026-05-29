@@ -14,6 +14,8 @@ router = DefaultRouter()
 router.register(r'boards', board_views.BoardViewSet, basename='board')
 router.register(r'checklists', board_views.ChecklistViewSet, basename='checklist')
 router.register(r'checklist-items', board_views.ChecklistItemViewSet, basename='checklist_items')
+router.register(r'comments', board_views.CommentViewSet, basename='comments')
+
 
 
 urlpatterns = router.urls
@@ -27,6 +29,9 @@ urlpatterns += [
 
 	path("board/<int:pk>/", board_views.BoardRetrieveView.as_view(), name="board"),
 	path("card/<int:pk>/", board_views.CardUpdateView.as_view(), name="card_update"),
+
+	path("current-user/", board_views.CurrentUser.as_view(), name="current_user"),
+
 
 
 
