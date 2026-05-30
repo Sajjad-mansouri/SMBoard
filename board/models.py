@@ -2,6 +2,8 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.contenttypes.fields import GenericForeignKey
 from .fields import OrderField
 
 UserModel = get_user_model()
@@ -212,6 +214,10 @@ class CardFile(AttachmentAbstractModel):
 	class Meta:
 		verbose_name = _("File Attachment")
 		verbose_name_plural = _("File Attachments")
+	def get_name(self):
+		name_loc = self.file.name
+		name = name_loc.rsplit("/",1)[1]
+		return name
 
 class CardImage(AttachmentAbstractModel):
 	file = models.ImageField(_("Image"), upload_to=attachment_path)
@@ -223,11 +229,17 @@ class CardImage(AttachmentAbstractModel):
 		verbose_name = _("Image Attachment")
 		verbose_name_plural = _("Image Attachments")
 
-
+	def get_name(self):
+		name_loc = self.file.name
+		name = name_loc.rsplit("/",1)[1]
+		return name
 
 class Comment(DateAbstractModel):
 	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_comments")
 	card = models.ForeignKey(Card, on_delete=models.CASCADE, verbose_name="Card", related_name="card_comments")
+	reply_content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
+	reply_object_id = models.PositiveIntegerField(null=True)
+	reply_content_object = GenericForeignKey('reply_content_type', 'reply_object_id')
 	content = models.TextField()
 	edited = models.BooleanField(_("Edited"), default=False)
 

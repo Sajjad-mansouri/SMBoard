@@ -2,6 +2,7 @@ import mimetypes
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from board.models import Board, Card, BoardList, BoardMembership, CheckList, ChecklistItem, Comment, CardFile, CardImage
+from rest_framework.generics import get_object_or_404
 
 UserModel = get_user_model()
 
@@ -77,25 +78,56 @@ class CheckListSerializer(serializers.ModelSerializer):
 
 class CardCommentSerializer(serializers.ModelSerializer):
 	timestamp = serializers.SerializerMethodField()
+	reply = serializers.SerializerMethodField()
+
 
 
 	class Meta:
 		model = Comment
-		fields = ["id", "user", "content", "timestamp", "edited", "card"]	
+		fields = ["id", "user", "content", "timestamp", "edited", "card", "reply"]	
 
 	def to_internal_value(self, data):
 		request = self.context["request"]
 		data["user"] = request.user.id
 		return super().to_internal_value(data)
+	def create(self, validated_data):
+		reply_type = self.initial_data.get("reply_type")
+		reply_id = self.initial_data.get("reply_id")
+		image_types = ["image", "png", "jpeg"]
+		file_types = ["text", "plain", "csv","zip", "rar","file"]
+
+		reply_img_attachment = False
+		reply_file_attachment = False
+		reply_content_object = None
+		if reply_type:
+			types = reply_type.split("/")
+			reply_img_attachment = any(item in image_types for item in types)
+			reply_file_attachment = any(item in file_types for item in types)
+
+		if reply_img_attachment:
+			reply_content_object = get_object_or_404(CardImage, id=int(reply_id))
+		elif reply_file_attachment:
+			reply_content_object = get_object_or_404(CardFile, id=int(reply_id))
+
+		obj = Comment.objects.create(reply_content_object=reply_content_object, **validated_data)
+
+
+		return obj
 
 	def get_timestamp(self, obj):
-		print("created time", obj.created, obj.created.timestamp())
-		print("updated time", obj.updated)
 
 		if obj.updated:
 			return obj.updated.timestamp()
 		else:
 			obj.created.timestamp()
+
+	def get_reply(self, obj):
+
+		if obj.reply_content_object:
+			mime_type, encoding = mimetypes.guess_type(obj.reply_content_object.file.name)
+			return {"name":obj.reply_content_object.get_name(), "id":obj.reply_content_object.id, "type":mime_type}
+		else:
+			return None
 
 
 

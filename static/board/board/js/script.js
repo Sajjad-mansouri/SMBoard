@@ -96,6 +96,7 @@
             const response = await auth.authenticatedRequest(url, bodyJSON, "POST")
             if (response.ok) {
                 const data = await response.json()
+                console.log("fetch post data", data)
                 return data
 
             } else {
@@ -320,6 +321,8 @@
             comment["timestamp"] = commentData["timestamp"]
             comment["edited"] = commentData["edited"]
             comment["id"] = commentData["id"]
+            comment["reply"] = commentData["reply"]
+
 
             comments.push(comment)
         })
@@ -357,6 +360,8 @@
         const allFiles = [...cardData.cardfile_set, ...cardData.cardimage_set]
         allFiles.forEach(fileData => {
             const attachment = {}
+            attachment["id"] = fileData["id"]
+
             attachment["name"] = fileData["name"]
             attachment["type"] = fileData["file_type"]
             attachment["data"] = fileData["file"]
@@ -535,16 +540,21 @@
         });
     }
 
-    function linkify(text) {
+    function linkify(comment) {
+
+
+        if (comment.reply) {
+
+
+            return `<a href="" data-reply-id="${comment.reply.id}" data-reply-type="${comment.reply.type}">${comment.reply.name}</a> ${comment.text}`
+        } else {
+            return comment.text
+        }
         const urlRegex = /(\[([^\]]+)\]\(([^)]+)\))|(https?:\/\/[^\s]+)/g;
         return text.replace(
             urlRegex, (match, md, mdText, mdUrl, rawUrl) => {
                 if (md)
-                    return ` < a href = "${escapeHtml(mdUrl)}"
-                target = "_blank"
-                rel = "noopener" > $ {
-                    escapeHtml(mdText)
-                } < /a>`;
+                    return ` <a href="${escapeHtml(mdUrl)}" target="_blank" rel="noopener" >${escapeHtml(mdText)}</a>`;
                 return `<a href="${escapeHtml(rawUrl)}" target="_blank" rel="noopener">${escapeHtml(rawUrl)}</a>`;
             });
     }
@@ -1457,6 +1467,11 @@
         });
     }
 
+    function extractMainText(text) {
+        // ^ means start of string
+        return text.replace(/^\[.*?\]\s*/, '');
+    }
+
     function renderModalAttachments() {
         const container = document.getElementById('modal-attachments');
         const card =
@@ -1470,6 +1485,10 @@
         card.attachments.forEach((att, i) => {
             const div = document.createElement('div');
             div.className = 'attachment-card';
+
+            div.setAttribute("data-attid", att.id)
+            div.setAttribute("data-type", att.type)
+
             const isImage = att.type && att.type.startsWith('image/');
             const
                 thumbContent = isImage ? `<img src="${att.data}" alt="${escapeHtml(att.name)}" />` : (att.type ===
@@ -1514,9 +1533,14 @@
             div.querySelector('.att-comment')?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 dropdown.classList.add('hidden');
-                const linkText = att.type === 'link' ? att.data : att
-                    .name;
-                document.getElementById('new-comment-text').value = `[${att.name}](${linkText})`;
+                const linkText = att.type === 'link' ? att.data : att.name;
+
+                const newCommentText = document.getElementById('new-comment-text')
+                newCommentText.value = `[${att.name}]`
+                newCommentText.setAttribute("data-reply-type", att.type)
+                newCommentText.setAttribute("data-reply-id", att.id)
+
+                // document.getElementById('new-comment-text').value = `[${att.name}](${linkText})`;
                 document.getElementById('new-comment-text').focus();
                 document.getElementById('comment-sidebar').scrollIntoView({
                     behavior: 'smooth'
@@ -1556,6 +1580,32 @@
                 }
             });
         });
+        document.getElementById("focus-element").addEventListener("click", () => {
+            const element = document.querySelector('[data-attid="1"][data-type="text/csv"]');
+            if (element) {
+                element.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center'
+                });
+
+                // Store original styles
+                const originalBg = element.style.backgroundColor;
+                const originalBorder = element.style.border;
+
+                // Apply beautiful highlight
+                element.style.transition = 'all 0.3s ease';
+                element.style.backgroundColor = '#fff3cd'; // Soft yellow
+                element.style.border = '1px solid #ffc107'; // Gold border
+                element.style.boxShadow = '0 0 5px rgba(0,0,0,0.1)';
+
+                setTimeout(() => {
+                    element.style.backgroundColor = originalBg;
+                    element.style.border = originalBorder;
+                    element.style.boxShadow = '';
+                }, 5000);
+            }
+
+        })
     }
 
     function renderModalCommentsActivity() {
@@ -1594,7 +1644,38 @@
 
                 const canEdit = c.userId === CURRENT_USER_ID;
 
-                div.innerHTML = `<div class="comment-avatar" style="background:${u?.color||'#ccc'}">${u?.name?.[0]||'?'}</div><div class="comment-body"><div class="comment-header"><span class="comment-author">${u?.name||'Unknown'}</span><span class="comment-time">${new Date(c.timestamp*1000).toLocaleString()}${c.edited?' <span class="comment-edited">(edited)</span>':''}</span></div><div class="comment-content">${linkify(c.text)}</div>${canEdit?`<div class="comment-actions"><button class="edit-comment-btn" data-commentindex="${item.index}">✏️ Edit</button><button class="delete-comment-btn" data-commentindex="${c.id}">🗑 Delete</button></div>`:''}</div>`;
+                div.innerHTML = `<div class="comment-avatar" style="background:${u?.color||'#ccc'}">${u?.name?.[0]||'?'}</div><div class="comment-body"><div class="comment-header"><span class="comment-author">${u?.name||'Unknown'}</span><span class="comment-time">${new Date(c.timestamp*1000).toLocaleString()}${c.edited?' <span class="comment-edited">(edited)</span>':''}</span></div><div class="comment-content">${linkify(c)}</div>${canEdit?`<div class="comment-actions"><button class="edit-comment-btn" data-commentindex="${item.index}">✏️ Edit</button><button class="delete-comment-btn" data-commentindex="${c.id}">🗑 Delete</button></div>`:''}</div>`;
+                div.querySelector("a")?.addEventListener("click", () => {
+                    event.preventDefault()
+                    const attId = event.target.dataset.replyId
+                    const type = event.target.dataset.replyType
+
+
+                    const element = document.querySelector(`[data-attid="${attId}"][data-type="${type}"]`);
+
+                    if (element) {
+                        element.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'center'
+                        });
+
+                        // Store original styles
+                        const originalBg = element.style.backgroundColor;
+                        const originalBorder = element.style.border;
+
+                        // Apply beautiful highlight
+                        element.style.transition = 'all 0.3s ease';
+                        element.style.backgroundColor = '#fff3cd'; // Soft yellow
+                        element.style.border = '1px solid #ffc107'; // Gold border
+                        element.style.boxShadow = '0 0 5px rgba(0,0,0,0.1)';
+
+                        setTimeout(() => {
+                            element.style.backgroundColor = originalBg;
+                            element.style.border = originalBorder;
+                            element.style.boxShadow = '';
+                        }, 5000);
+                    }
+                })
                 container.appendChild(div);
                 div.querySelector('.edit-comment-btn')?.addEventListener('click', () => {
 
@@ -2680,8 +2761,8 @@
         document.getElementById('add-comment-btn').addEventListener('click', async function() {
             if (!currentCardId)
                 return;
-
-            const text = document.getElementById('new-comment-text').value.trim();
+            const newCommentText = document.getElementById('new-comment-text');
+            const text = newCommentText.value.trim();
             if (!text) {
 
                 return;
@@ -2709,19 +2790,27 @@
                     if (discardBtn) discardBtn.remove();
                 }
             } else {
+                const mainText = extractMainText(text);
+                replyType = newCommentText.dataset.replyType
+                replyId = newCommentText.dataset.replyId
+
                 const body = {
-                    "content": text,
-                    "card": currentCardId
+                    "content": mainText,
+                    "card": currentCardId,
+                    "reply_type": replyType,
+                    "reply_id": replyId
                 }
                 result = await saveData("create", "Comment", body, currentCardId);
+
                 if (result) {
                     addActivity(card, 'commented', 'uid');
                     card.comments.push({
                         userId: result.user,
-                        text,
+                        text: mainText,
                         timestamp: result.timestamp,
                         edited: false,
-                        id: result.id
+                        id: result.id,
+                        reply: result.reply
                     });
                 }
             }
@@ -2734,6 +2823,9 @@
                 if (discardBtn) discardBtn.remove();
                 editingCommentIndex = null;
             }
+            newCommentText.setAttribute("data-reply-type", "")
+            newCommentText.setAttribute("data-reply-id", "")
+
         });
 
         document.getElementById('close-users-modal').onclick = () => document.getElementById('users-modal-overlay')
