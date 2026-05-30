@@ -151,7 +151,7 @@ class Auth {
 			fetchObject = this.fetchGET
 		} else if (fetchType == "DELETE") {
 			fetchObject = this.fetchDELETE
-		} else if (fetchType == "PATCH") {
+		} else if (fetchType == "PATCH" || fetchType == "POST") {
 			if (contentType == "multipart/form-data") {
 
 				fetchObject = this.fetchFormPost

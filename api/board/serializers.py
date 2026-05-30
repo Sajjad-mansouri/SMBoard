@@ -131,31 +131,39 @@ class CardCommentSerializer(serializers.ModelSerializer):
 
 
 
-class FileAttachments(serializers.ModelSerializer):
+class FileAttachmentSerializer(serializers.ModelSerializer):
 	file_type = serializers.SerializerMethodField()
-	name = serializers.SerializerMethodField()
+	display_name = serializers.SerializerMethodField()
 	upload_at = serializers.SerializerMethodField()
 
 
 	class Meta:
 		model = CardFile
-		fields = ["id", "name", "description", "file", "file_type", "upload_at", "user"]
+		fields = ["id", "name", "display_name","description", "file", "file_type", "upload_at", "user", "card"]
+
+	def to_internal_value(self, data):
+		request = self.context["request"]
+		data["user"] = request.user.id
+		return super().to_internal_value(data)
 
 	def get_file_type(self, obj):
 		mime_type, encoding = mimetypes.guess_type(obj.file.name)
 		return mime_type	
 
-	def get_name(self, obj):
+	def get_display_name(self, obj):
 		name_loc = obj.file.name
 		name = name_loc.rsplit("/",1)[1]
+		extension = name.split(".")[1]
+		if obj.name:
+			return ".".join([obj.name, extension])
 		return name
 
 	def get_upload_at(self, obj):
 		return obj.created.timestamp()
 
-class ImageAttachments(FileAttachments):
-	class Meta(FileAttachments.Meta):
-		pass
+class ImageAttachmentSerializer(FileAttachmentSerializer):
+	class Meta(FileAttachmentSerializer.Meta):
+		model = CardImage
 
 class CardNestedSerializer(CardSerializer):
 	members = serializers.SerializerMethodField()
@@ -172,8 +180,8 @@ class CardNestedSerializer(CardSerializer):
 		input_formats=['%Y-%m-%dT%H:%M', 'iso-8601']
 	)
 	watched = serializers.SerializerMethodField()
-	cardfile_set = FileAttachments(many=True)
-	cardimage_set = ImageAttachments(many=True)
+	cardfile_set = FileAttachmentSerializer(many=True)
+	cardimage_set = ImageAttachmentSerializer(many=True)
 
 	class Meta(CardSerializer.Meta):
 		extra_fields = [

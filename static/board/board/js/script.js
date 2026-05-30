@@ -42,12 +42,12 @@
     let showArchived = false;
     let CURRENT_USER_ID;
     let currentActivityFilter = 'all';
-    async function fetchUpdateWithFormData(url, body) {
+    async function fetchPostWithFormData(url, body, fetchType) {
 
         try {
-            const bodyJSON = JSON.stringify(body)
 
-            const response = await auth.authenticatedRequest(url, body, "PATCH", {}, "multipart/form-data")
+
+            const response = await auth.authenticatedRequest(url, body, fetchType, {}, "multipart/form-data")
             if (response.ok) {
 
                 const data = await response.json()
@@ -62,6 +62,16 @@
             console.log(error)
             return false
         }
+    }
+
+    function checkAttachmentClass(type) {
+        const image_types = ["image", "png", "jpeg"];
+        const file_types = ["text", "plain", "csv", "zip", "rar", "file"];
+
+        const typeList = type.split("/");
+        const imageType = image_types.some(item => typeList.includes(item));
+        const fileType = file_types.some(item => typeList.includes(item));
+        return [imageType, fileType]
     }
     async function fetchUpdate(url, body) {
 
@@ -142,7 +152,7 @@
             const url = origin + "/api/" + path
 
             if (useFormData) {
-                result = await fetchUpdateWithFormData(url, body)
+                result = await fetchPostWithFormData(url, body, "PATCH")
 
             } else {
                 result = await fetchUpdate(url, body)
@@ -204,6 +214,45 @@
 
             } else if (func == "update") {
                 path = `comments/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
+            }
+        } else if (model == "CardImage") {
+            if (func == "create") {
+                path = "card-images/"
+                const url = origin + "/api/" + path
+                console.log(url, body)
+                result = await fetchPostWithFormData(url, body)
+
+
+
+            } else if (func == "delete") {
+                path = `card-images/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchDelete(url, body)
+
+
+            } else if (func == "update") {
+                path = `card-images/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
+            }
+        } else if (model == "CardFile") {
+            if (func == "create") {
+                path = "card-files/"
+                const url = origin + "/api/" + path
+                result = await fetchPostWithFormData(url, body)
+
+
+
+            } else if (func == "delete") {
+                path = `card-files/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchDelete(url, body)
+
+
+            } else if (func == "update") {
+                path = `card-files/${objId}/`
                 const url = origin + "/api/" + path
                 result = await fetchUpdate(url, body)
             }
@@ -362,7 +411,7 @@
             const attachment = {}
             attachment["id"] = fileData["id"]
 
-            attachment["name"] = fileData["name"]
+            attachment["name"] = fileData["display_name"]
             attachment["type"] = fileData["file_type"]
             attachment["data"] = fileData["file"]
             attachment["uploadedAt"] = fileData["upload_at"]
@@ -1482,10 +1531,11 @@
                 '<p style="color:var(--text-secondary);font-size:0.85rem;">No attachments yet.</p>';
             return;
         }
-        card.attachments.forEach((att, i) => {
+        card.attachments.forEach((att, index) => {
             const div = document.createElement('div');
             div.className = 'attachment-card';
 
+            const i = att.id
             div.setAttribute("data-attid", att.id)
             div.setAttribute("data-type", att.type)
 
@@ -1502,7 +1552,7 @@
                     minute: '2-digit'
                 }) : '';
             div.innerHTML =
-                `<div class="attachment-thumb">${thumbContent}</div><div class="attachment-info"><div class="attachment-name">${escapeHtml(att.name)}</div><div class="attachment-meta">${uploader?uploader.name:'Unknown'} · ${time}</div></div><div class="attachment-actions"><button class="attachment-dot-btn" data-attindex="${i}">⋯</button><div class="dropdown-menu right-align hidden attachment-dropdown" style="position:absolute;right:0;top:100%;min-width:160px;"><div class="dropdown-item att-edit" data-attindex="${i}">✏️ Edit</div><div class="dropdown-item att-download" data-attindex="${i}">Download</div><div class="dropdown-item att-comment" data-attindex="${i}">💬 Comment</div>${isImage?`<div class="dropdown-item att-set-cover" data-attindex="${i}">🖼️ Set as Cover</div>`:''}<div class="dropdown-item att-remove-cover" data-attindex="${i}" style="${card.coverImage===att.data?'':'display:none;'}">❌ Remove Cover</div><div class="dropdown-divider"></div><div class="dropdown-item danger att-remove" data-attindex="${i}">🗑 Remove</div></div></div>`;
+                `<div class="attachment-thumb">${thumbContent}</div><div class="attachment-info"><div class="attachment-name">${escapeHtml(att.name)}</div><div class="attachment-meta">${uploader?uploader.name:'Unknown'} · ${time}</div></div><div class="attachment-actions"><button class="attachment-dot-btn" data-attindex="${i}">⋯</button><div class="dropdown-menu right-align hidden attachment-dropdown" style="position:absolute;right:0;top:100%;min-width:160px;"><div class="dropdown-item att-download" data-attindex="${i}">Download</div><div class="dropdown-item att-comment" data-attindex="${i}">💬 Comment</div>${isImage?`<div class="dropdown-item att-set-cover" data-attindex="${i}">🖼️ Set as Cover</div>`:''}<div class="dropdown-item att-remove-cover" data-attindex="${i}" style="${card.coverImage===att.data?'':'display:none;'}">❌ Remove Cover</div><div class="dropdown-divider"></div><div class="dropdown-item danger att-remove" data-attindex="${i}">🗑 Remove</div></div></div>`;
             container.appendChild(div);
             const dotBtn = div.querySelector('.attachment-dot-btn');
             const dropdown =
@@ -1512,15 +1562,32 @@
                 document.querySelectorAll('.attachment-dropdown').forEach(d => d.classList.add('hidden'));
                 dropdown.classList.toggle('hidden');
             });
-            div.querySelector('.att-edit')?.addEventListener('click', (e) => {
+            div.querySelector('.att-edit')?.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 dropdown.classList.add('hidden');
-                const newName = prompt('Edit attachment name:', att
-                    .name);
+                const newName = prompt('Edit attachment name:', att.name);
                 if (newName?.trim()) {
-                    att.name = newName.trim();
-                    saveData();
-                    renderModalAttachments();
+                    const fileId = div.dataset.attid
+                    const type = div.dataset.type
+                    const [imageType, fileType] = checkAttachmentClass(type)
+
+                    let result;
+                    const body = {
+                        "name": newName.trim()
+                    }
+                    if (imageType) {
+                        result = await saveData("update", "CardImage", body, fileId);
+
+                    } else if (fileType) {
+                        result = await saveData("update", "CardFile", body, fileId);
+
+                    }
+                    console.log(result)
+                    if (result) {
+                        att.name = result.display_name;
+                        renderModalAttachments();
+                    }
+
                 }
             });
             div.querySelector('.att-download')?.addEventListener('click', (e) => {
@@ -1566,17 +1633,29 @@
                     openCardModal(currentCardId);
                 }
             });
-            div.querySelector('.att-remove')?.addEventListener('click', (e) => {
+            div.querySelector('.att-remove')?.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 dropdown.classList.add('hidden');
                 if (confirm('Remove this attachment?')) {
-                    const deleted =
-                        card.attachments[i];
-                    card.attachments.splice(i, 1);
-                    addActivity(card, `removed attachment "${deleted.name}"`, CURRENT_USER_ID);
-                    saveData();
-                    renderModalAttachments();
-                    renderModalCommentsActivity();
+                    const fileId = div.dataset.attid
+                    const type = div.dataset.type
+                    const [imageType, fileType] = checkAttachmentClass(type)
+                    let result;
+                    if (imageType) {
+                        result = await saveData("delete", "CardImage", {}, fileId);
+
+                    } else if (fileType) {
+                        result = await saveData("delete", "CardFile", {}, fileId);
+
+                    }
+                    if (result) {
+                        const deleted = card.attachments[index];
+                        card.attachments.splice(index, 1);
+                        addActivity(card, `removed attachment "${deleted.name}"`, CURRENT_USER_ID);
+                        renderModalAttachments();
+                        renderModalCommentsActivity();
+
+                    }
                 }
             });
         });
@@ -1980,30 +2059,45 @@
 
     function openAttachPopover(anchorEl) {
         closeAllPopovers();
-        const popover = document.getElementById(
-            'attach-popover');
+        const popover = document.getElementById('attach-popover');
         document.getElementById('attachment-file-input').value = '';
         document.getElementById('link-attachment-input-popover').value = '';
         document.getElementById('attachment-file-input').onchange = function(e) {
             const files = e.target.files;
             const card = getActiveBoard().cards[currentCardId];
-            Array.from(files).forEach(f => {
-                const reader = new FileReader();
-                reader.onload = ev => {
+            Array.from(files).forEach(async (f) => {
+                console.log(f.name)
+                console.log(f.type)
+
+                const formData = new FormData()
+                formData.append("file", f)
+                formData.append("card", currentCardId)
+                const [imageType, fileType] = checkAttachmentClass(f.type)
+
+                let result;
+                console.log(imageType, fileType, f.type)
+                if (imageType) {
+                    result = await saveData("create", "CardImage", formData, currentCardId, true);
+                } else if (fileType) {
+                    result = await saveData("create", "CardFile", formData, currentCardId, true);
+
+                }
+                console.log(result)
+                if (result) {
                     card.attachments.push({
-                        name: f.name,
-                        type: f.type,
-                        data: ev.target
-                            .result,
-                        uploadedAt: Date.now(),
+                        id: result.id,
+                        name: result.name,
+                        type: result.file_type,
+                        data: result.file,
+                        uploadedAt: result.upload_at,
                         uploadedBy: CURRENT_USER_ID
                     });
                     addActivity(card, `attached file "${f.name}"`, CURRENT_USER_ID);
                     saveData();
                     renderModalAttachments();
                     renderModalCommentsActivity();
-                };
-                reader.readAsDataURL(f);
+                }
+
             });
             this.value = '';
             popover.classList.add('hidden');

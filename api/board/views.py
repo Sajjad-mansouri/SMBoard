@@ -2,7 +2,7 @@ from django.db.models import Q
 from rest_framework import viewsets, mixins, views
 from rest_framework.response import Response
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
-from board.models import Board, Card, CheckList, ChecklistItem, Comment
+from board.models import Board, Card, CheckList, ChecklistItem, Comment, CardFile, CardImage
 from . import serializers
 from .permissions import IsBoardOwner, IsBoardOwnerOrMember
 
@@ -109,20 +109,6 @@ class CommentViewSet(viewsets.ModelViewSet):
 	serializer_class = serializers.CardCommentSerializer
 	permission_classes = [IsBoardOwnerOrMember]
 
-	def create(self, request, *args, **kwargs):
-		# Debug: Try to create manually to see errors
-		serializer = self.get_serializer(data=request.data)
-		
-		if not serializer.is_valid():
-			print(f"Validation errors: {serializer.errors}")
-			# Return actual errors instead of default 400
-			return Response({
-				'detail': serializer.errors,
-				'received_data': request.data
-			}, status=400)
-		
-		return super().create(request, *args, **kwargs)
-
 	def get_queryset(self):
 
 		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
@@ -136,3 +122,25 @@ class CurrentUser(views.APIView):
 			"""
 			
 			return Response({"user":request.user.id})
+
+
+class CardFileViewSet(viewsets.ModelViewSet):
+
+	serializer_class = serializers.FileAttachmentSerializer
+	permission_classes = [IsBoardOwnerOrMember]
+
+	def get_queryset(self):
+
+		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
+
+		return CardFile.objects.filter(q)
+
+class CardImageViewSet(viewsets.ModelViewSet):
+
+	serializer_class = serializers.ImageAttachmentSerializer
+	permission_classes = [IsBoardOwnerOrMember]
+
+	def get_queryset(self):
+
+		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
+		return CardImage.objects.filter(q)
