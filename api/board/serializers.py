@@ -179,14 +179,16 @@ class CardNestedSerializer(CardSerializer):
 		format="%Y-%m-%dT%H:%M", 
 		input_formats=['%Y-%m-%dT%H:%M', 'iso-8601']
 	)
+	cover_img = serializers.SerializerMethodField()
 	watched = serializers.SerializerMethodField()
+
 	cardfile_set = FileAttachmentSerializer(many=True)
 	cardimage_set = ImageAttachmentSerializer(many=True)
 
 	class Meta(CardSerializer.Meta):
 		extra_fields = [
 		"description", "start_date", 
-		"archived", "cover_image", 
+		"archived", "cover_image","cover_image_fk","cover_img",
 		"cover_color", "members", "card_checklists",
 		"card_comments", "watched", "cardfile_set",
 		"cardimage_set"
@@ -194,6 +196,14 @@ class CardNestedSerializer(CardSerializer):
 		]
 		fields = CardSerializer.Meta.fields +  extra_fields
 
+	def get_cover_img(self, obj):
+		if obj.cover_image:
+			return obj.cover_image.url
+		elif obj.cover_image_fk:
+
+			return obj.cover_image_fk.file.url
+		else:
+			return ""
 	def get_members(self, obj):
 		return obj.card_memberships.values_list("user_id", flat=True)
 
@@ -202,7 +212,7 @@ class CardNestedSerializer(CardSerializer):
 		return obj.card_cardwatchs.filter(user=request.user, watch=True).exists()
 	def is_valid(self, *, raise_exception=False):
 		err = super().is_valid(raise_exception=False)
-		print("error",err)
+		print("error",err, self._errors)
 		return err
 class BoardMembership(serializers.ModelSerializer):
 	user = UserSerializer()

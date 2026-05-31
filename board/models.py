@@ -120,6 +120,7 @@ class Card(DateAbstractModel):
 	completed = models.BooleanField(_("Completed"),default=False)
 	archived = models.BooleanField(_("Archived"), default=False)
 	cover_image = models.ImageField(_("Conver Image"), upload_to=card_cover_path, null=True, blank=True)
+	cover_image_fk = models.ForeignKey("CardImage", on_delete=models.SET_NULL, null=True, blank=True, related_name="cards")
 	cover_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
 
 

@@ -442,7 +442,7 @@
                 card["dueDate"] = cardData["due_date"]
                 card["assignedUsers"] = cardData["members"]
                 card["coverColor"] = cardData["cover_color"]
-                card["coverImage"] = cardData["cover_image"]
+                card["coverImage"] = cardData["cover_img"]
                 card["watched"] = cardData["watched"]
                 card["archived"] = cardData["archived"]
                 card["completed"] = cardData["completed"]
@@ -1613,14 +1613,26 @@
                     behavior: 'smooth'
                 });
             });
-            div.querySelector('.att-set-cover')?.addEventListener('click', (e) => {
+            div.querySelector('.att-set-cover')?.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 dropdown.classList.add('hidden');
-                card.coverImage = att.data;
-                card.coverColor = '';
-                addActivity(card, `set cover from attachment "${att.name}"`, CURRENT_USER_ID);
-                saveData();
-                openCardModal(currentCardId);
+                console.log(att)
+                body = {
+                    "cover_image_fk": att.id,
+                    "cover_color": "",
+                    "cover_image": null
+                }
+                const result = await saveData("update", "Card", body, currentCardId);
+                if (result) {
+                    card.coverImage = att.cover_img;
+                    card.coverColor = '';
+                    addActivity(card, `set cover from attachment "${att.name}"`, CURRENT_USER_ID);
+                    saveData();
+                    openCardModal(currentCardId);
+
+                }
+
+
             });
             div.querySelector('.att-remove-cover')?.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1840,18 +1852,22 @@
             const swatch = document.createElement('div');
             swatch.className = 'cover-color-swatch';
             swatch.style.backgroundColor = color;
-            swatch.addEventListener('click', () => {
+            swatch.addEventListener('click', async () => {
                 const card = getActiveBoard().cards[currentCardId];
                 card.coverColor = color;
                 card.coverImage = '';
                 addActivity(card, 'changed cover color', CURRENT_USER_ID);
                 const body = {
                     "cover_color": color,
-                    "cover_image": null
+                    "cover_image": null,
+                    "cover_image_fk": null
                 }
-                saveData("update", "Card", body, currentCardId);
-                openCardModal(currentCardId);
-                popover.classList.add('hidden');
+                const result = await saveData("update", "Card", body, currentCardId);
+                if (result) {
+                    openCardModal(currentCardId);
+                    popover.classList.add('hidden');
+
+                }
             });
             colorGrid.appendChild(swatch);
         });
@@ -1866,23 +1882,27 @@
         };
         document.getElementById('cover-upload-area').onclick = () => document.getElementById('cover-image-input')
             .click();
-        document.getElementById('cover-image-input').onchange = function(e) {
+        document.getElementById('cover-image-input').onchange = async function(e) {
             const file = e.target.files[0];
             if (file) {
-                const reader = new FileReader();
-                reader.onload = ev => {
+                const formData = new FormData()
+                formData.append("cover_image", file)
+                formData.append("cover_color", "")
+
+
+                const result = await saveData("update", "Card", formData, currentCardId, true);
+                console.log(result)
+                if (result) {
+
                     const card = getActiveBoard().cards[currentCardId];
-                    card.coverImage = ev.target.result;
+                    card.coverImage = result.cover_img;
                     card.coverColor = '';
                     addActivity(card, 'uploaded cover image', CURRENT_USER_ID);
-                    const formData = new FormData()
-                    formData.append("cover_image", file)
-                    formData.append("cover_color", "")
-                    saveData("update", "Card", formData, currentCardId, true);
+
                     openCardModal(currentCardId);
                     popover.classList.add('hidden');
-                };
-                reader.readAsDataURL(file);
+                }
+
             }
             this.value = '';
         };
