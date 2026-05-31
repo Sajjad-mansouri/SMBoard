@@ -27,7 +27,7 @@ class CardAdmin(admin.ModelAdmin):
 
 @admin.register(CardLabel)
 class CardLabelAdmin(admin.ModelAdmin):
-	list_display = ["name", "card", "label", "created"]
+	list_display = ["name", "card", "color", "created"]
 
 @admin.register(CheckList)
 class CheckListAdmin(admin.ModelAdmin):

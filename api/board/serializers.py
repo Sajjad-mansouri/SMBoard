@@ -1,7 +1,7 @@
 import mimetypes
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from board.models import Board, Card, BoardList, BoardMembership, CheckList, ChecklistItem, Comment, CardFile, CardImage
+from board.models import Board, Card, BoardList, BoardMembership, CheckList, ChecklistItem, Comment, CardFile, CardImage, CardLabel
 from rest_framework.generics import get_object_or_404
 
 UserModel = get_user_model()
@@ -43,17 +43,21 @@ class BoardSerializer(serializers.ModelSerializer):
 		data["owner"] = request.user.id
 		return super().to_internal_value(data)
 
-
+class CardLabelSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = CardLabel
+		fields = ["id", "name", "color", "card"]
 
 class CardSerializer(serializers.ModelSerializer):
 	board_list = serializers.SerializerMethodField()
 	board = serializers.SerializerMethodField()
+	card_labels = CardLabelSerializer(many=True)
 	labels = serializers.SerializerMethodField()
 
 
 	class Meta:
 		model = Card
-		fields = ["id", "board_list", "name", "due_date", "board", "labels", "completed"]
+		fields = ["id", "board_list", "name", "due_date", "board", "labels", "card_labels", "completed"]
 
 	def get_board_list(self, obj):
 		return obj.board_list.name
@@ -62,7 +66,7 @@ class CardSerializer(serializers.ModelSerializer):
 		return obj.board_list.board.name
 
 	def get_labels(self, obj):
-		return obj.card_labels.values_list("name", flat=True)
+		return obj.card_labels.values_list("id", flat=True)
 
 class CheckListItemSerializer(serializers.ModelSerializer):
 	class Meta:
@@ -238,3 +242,4 @@ class BoardNestedSerializer(BoardSerializer):
 	def get_board_watched(self, obj):
 		request = self.context["request"]
 		return obj.board_boardwatchs.filter(user=request.user, watch=True).exists()
+

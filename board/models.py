@@ -147,7 +147,7 @@ class CardMembership(DateAbstractModel):
 class CardLabel(DateAbstractModel):
 	card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="card_labels", verbose_name="Card")
 	name = models.CharField(_("Name"), max_length=250)
-	label = models.CharField(_("Label"), max_length=7, help_text="format:#00fca8")
+	color = models.CharField(_("Color"), max_length=7, help_text="format:#00fca8")
 
 
 	def __str__(self):

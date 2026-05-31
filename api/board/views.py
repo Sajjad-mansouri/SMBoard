@@ -2,7 +2,7 @@ from django.db.models import Q
 from rest_framework import viewsets, mixins, views
 from rest_framework.response import Response
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
-from board.models import Board, Card, CheckList, ChecklistItem, Comment, CardFile, CardImage
+from board.models import Board, Card, CheckList, ChecklistItem, Comment, CardFile, CardImage, CardLabel
 from . import serializers
 from .permissions import IsBoardOwner, IsBoardOwnerOrMember
 
@@ -144,3 +144,14 @@ class CardImageViewSet(viewsets.ModelViewSet):
 
 		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
 		return CardImage.objects.filter(q)
+
+
+class CardLabelViewSet(viewsets.ModelViewSet):
+
+	serializer_class = serializers.CardLabelSerializer
+	permission_classes = [IsBoardOwnerOrMember]
+
+	def get_queryset(self):
+
+		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
+		return CardLabel.objects.filter(q)

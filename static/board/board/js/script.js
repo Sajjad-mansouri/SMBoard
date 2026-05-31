@@ -256,6 +256,25 @@
                 const url = origin + "/api/" + path
                 result = await fetchUpdate(url, body)
             }
+        } else if (model == "CardLabel") {
+            if (func == "create") {
+                path = "card-labels/"
+                const url = origin + "/api/" + path
+                result = await fetchPost(url, body)
+
+
+
+            } else if (func == "delete") {
+                path = `card-labels/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchDelete(url, body)
+
+
+            } else if (func == "update") {
+                path = `card-labels/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
+            }
         }
         return result
     }
@@ -424,6 +443,7 @@
 
     function prepareCard(data) {
         const cards = {}
+        const labels = []
         data.board_lists.forEach(list => {
             list.list_cards.forEach(cardData => {
 
@@ -451,7 +471,7 @@
                 card["attachments"] = attachments
                 card["activities"] = []
 
-
+                labels.push(...cardData["card_labels"])
 
                 cards[`${cardData["id"]}`] = card
 
@@ -459,7 +479,7 @@
 
         })
 
-        return cards
+        return [cards, labels]
     }
 
 
@@ -480,7 +500,9 @@
             const boardObj = prepareBoardObject(data)
             const [listObjs, archivedList] = prepareListArray(data)
             const [boardMembers, memberRoles, joinRequests, users] = prepareMembershipArrays(data)
-            const cards = prepareCard(data)
+            const [cards, labels] = prepareCard(data)
+
+
 
             boardObj["archivedLists"] = archivedList
             boardObj["lists"] = listObjs
@@ -491,6 +513,8 @@
             boardObj["cards"] = cards
             appState["boards"] = [boardObj]
             appState["users"] = users
+            appState["labels"] = labels
+            console.log("all labels", labels)
 
 
 
@@ -1258,7 +1282,9 @@
         const
             card = getActiveBoard().cards[currentCardId];
         container.innerHTML = '';
+        console.log("card.labels", card.labels)
         card.labels.forEach(lid => {
+            console.log(appState.labels)
             const l = getLabelById(lid);
             if (l) {
                 const span = document.createElement(
@@ -1267,12 +1293,15 @@
                 span.style.backgroundColor = l.color;
                 span.textContent = l.name;
                 span.title = 'Click to remove';
-                span.addEventListener('click', () => {
-                    card.labels = card.labels.filter(id => id !== lid);
-                    addActivity(card, `removed label "${l.name}"`, CURRENT_USER_ID);
-                    saveData();
-                    renderModalLabelsDisplay();
-                    renderBoard();
+                span.addEventListener('click', async () => {
+                    const result = await saveData("delete", "CardLabel", {}, lid);
+                    if (result) {
+                        card.labels = card.labels.filter(id => id !== lid);
+                        addActivity(card, `removed label "${l.name}"`, CURRENT_USER_ID);
+                        renderModalLabelsDisplay();
+                        renderBoard();
+
+                    }
                 });
                 container.appendChild(span);
             }
@@ -1671,32 +1700,7 @@
                 }
             });
         });
-        document.getElementById("focus-element").addEventListener("click", () => {
-            const element = document.querySelector('[data-attid="1"][data-type="text/csv"]');
-            if (element) {
-                element.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center'
-                });
 
-                // Store original styles
-                const originalBg = element.style.backgroundColor;
-                const originalBorder = element.style.border;
-
-                // Apply beautiful highlight
-                element.style.transition = 'all 0.3s ease';
-                element.style.backgroundColor = '#fff3cd'; // Soft yellow
-                element.style.border = '1px solid #ffc107'; // Gold border
-                element.style.boxShadow = '0 0 5px rgba(0,0,0,0.1)';
-
-                setTimeout(() => {
-                    element.style.backgroundColor = originalBg;
-                    element.style.border = originalBorder;
-                    element.style.boxShadow = '';
-                }, 5000);
-            }
-
-        })
     }
 
     function renderModalCommentsActivity() {
@@ -1933,28 +1937,28 @@
 
         function renderLabelOptions(filter = '') {
             optionsList.innerHTML = '';
-            const filtered = appState.labels
-                .filter(l => l.name.toLowerCase().includes(filter.toLowerCase()));
+            const filtered = appState.labels.filter(l => l.name.toLowerCase().includes(filter.toLowerCase()));
             filtered.forEach(l => {
                 const div = document.createElement('div');
                 div.className = 'label-option';
                 const isSelected = card.labels.includes(l.id);
                 div.innerHTML =
                     `<span class="label-color-dot" style="background:${l.color};"></span><span class="label-option-name">${escapeHtml(l.name)}</span>${isSelected?'<span class="label-option-check">✓</span>':''}`;
-                div.addEventListener('click', () => {
-                    if (isSelected) {
-                        card.labels = card.labels.filter(
-                            id => id !== l.id);
+                div.addEventListener('click', async (event) => {
+                    const result = await saveData("delete", "CardLabel", {}, l.id);
+                    if (result) {
                         addActivity(card, `removed label "${l.name}"`, CURRENT_USER_ID);
-                    } else {
-                        card
-                            .labels.push(l.id);
-                        addActivity(card, `added label "${l.name}"`, CURRENT_USER_ID);
+
+                        card.labels = card.labels.filter(id => id !== l.id);
+                        console.log("appState.labels", appState.labels, l.id)
+                        appState.labels = appState.labels.filter(label => label.id !== l.id)
+
+                        renderModalLabelsDisplay();
+                        renderBoard();
+                        renderLabelOptions(searchInput.value);
+
                     }
-                    saveData();
-                    renderModalLabelsDisplay();
-                    renderBoard();
-                    renderLabelOptions(searchInput.value);
+
                 });
                 optionsList.appendChild(div);
             });
@@ -1967,25 +1971,31 @@
         renderLabelOptions();
         searchInput.addEventListener('input', () => renderLabelOptions(searchInput.value));
         document.getElementById('new-label-name-popover').value = '';
-        document.getElementById('create-label-popover-btn').onclick = () => {
-            const name = document.getElementById(
-                'new-label-name-popover').value.trim();
-            const color = document.getElementById(
-                'new-label-color-popover').value;
+        document.getElementById('create-label-popover-btn').onclick = async () => {
+            const name = document.getElementById('new-label-name-popover').value.trim();
+            const color = document.getElementById('new-label-color-popover').value;
             if (name) {
-                const newLabel = {
-                    id: generateId(),
-                    name,
-                    color
-                };
-                appState.labels.push(newLabel);
-                card.labels.push(newLabel.id);
-                addActivity(card, `created and added label "${name}"`, CURRENT_USER_ID);
-                saveData();
-                renderModalLabelsDisplay();
-                renderBoard();
-                updateFilterDropdowns();
-                renderLabelOptions(searchInput.value);
+                const body = {
+                    name: name,
+                    color: color,
+                    card: currentCardId
+                }
+                const result = await saveData("create", "CardLabel", body, currentCardId);
+                if (result) {
+
+                    const newLabel = {
+                        id: result.id,
+                        name: result.name,
+                        color: result.color
+                    };
+                    appState.labels.push(newLabel);
+                    card.labels.push(newLabel.id);
+                    addActivity(card, `created and added label "${name}"`, CURRENT_USER_ID);
+                    renderModalLabelsDisplay();
+                    renderBoard();
+                    updateFilterDropdowns();
+                    renderLabelOptions(searchInput.value);
+                }
                 document.getElementById('new-label-name-popover').value = '';
             }
         };
