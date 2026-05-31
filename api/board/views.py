@@ -20,7 +20,7 @@ class GuestBoardListView(ListAPIView):
 	serializer_class = serializers.BoardSerializer
 	def get_queryset(self):
 		q = Q(board_memberships__user=self.request.user) & ~Q(owner=self.request.user) & Q(closed=False)
-		return Board.objects.filter(q)
+		return Board.objects.filter(q).distinct()
 
 
 class UserRetrieveView(RetrieveAPIView):
@@ -36,7 +36,7 @@ class SearchBoardView(ListAPIView):
 		search = self.request.query_params["search"]
 		q = Q(board_memberships__user=self.request.user) | Q(owner=self.request.user)
 		q = q & Q(name__icontains=search)
-		return Board.objects.filter(q)
+		return Board.objects.filter(q).distinct()
 
 
 class SearchCardView(ListAPIView):
@@ -46,7 +46,7 @@ class SearchCardView(ListAPIView):
 
 		q = Q(board_list__board__board_memberships__user=self.request.user) | Q(board_list__board__owner=self.request.user)
 		q = q & Q(name__icontains=search)
-		return Card.objects.filter(q)
+		return Card.objects.filter(q).distinct()
 
 
 class ClosedBoardView(ListAPIView):
@@ -56,7 +56,7 @@ class ClosedBoardView(ListAPIView):
 
 		q = Q(owner=self.request.user)
 		q = q & Q(closed=True)
-		return Board.objects.filter(q)
+		return Board.objects.filter(q).distinct()
 
 
 
@@ -89,7 +89,7 @@ class ChecklistViewSet(viewsets.ModelViewSet):
 		print(CheckList.objects.filter(card__board_list__board__owner=self.request.user))
 		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
 		print(CheckList.objects.filter(q)[0].id)
-		return CheckList.objects.filter(q)
+		return CheckList.objects.filter(q).distinct()
 
 
 class ChecklistItemViewSet(viewsets.ModelViewSet):
@@ -101,7 +101,7 @@ class ChecklistItemViewSet(viewsets.ModelViewSet):
 
 		q = Q(checklist__card__board_list__board__owner=self.request.user) | Q(checklist__card__card_memberships__user=self.request.user)
 		print(ChecklistItem.objects.filter(q)[0].id)
-		return ChecklistItem.objects.filter(q)
+		return ChecklistItem.objects.filter(q).distinct()
 
 
 class CommentViewSet(viewsets.ModelViewSet):
@@ -113,7 +113,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 
 		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
 		print(Comment.objects.filter(q)[0].id)
-		return Comment.objects.filter(q)
+		return Comment.objects.filter(q).distinct()
 
 class CurrentUser(views.APIView):
 	def get(self, request, format=None):
@@ -133,7 +133,7 @@ class CardFileViewSet(viewsets.ModelViewSet):
 
 		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
 
-		return CardFile.objects.filter(q)
+		return CardFile.objects.filter(q).distinct()
 
 class CardImageViewSet(viewsets.ModelViewSet):
 
@@ -143,7 +143,7 @@ class CardImageViewSet(viewsets.ModelViewSet):
 	def get_queryset(self):
 
 		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
-		return CardImage.objects.filter(q)
+		return CardImage.objects.filter(q).distinct()
 
 
 class CardLabelViewSet(viewsets.ModelViewSet):
@@ -154,7 +154,7 @@ class CardLabelViewSet(viewsets.ModelViewSet):
 	def get_queryset(self):
 
 		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
-		return CardLabel.objects.filter(q)
+		return CardLabel.objects.filter(q).distinct()
 
 class BoardListViewSet(viewsets.ModelViewSet):
 
@@ -163,5 +163,5 @@ class BoardListViewSet(viewsets.ModelViewSet):
 
 	def get_queryset(self):
 
-		q = Q(board__owner=self.request.user) | Q(board_memberships__user=self.request.user)
-		return BoardList.objects.filter(q)
+		q = Q(board__owner=self.request.user) | Q(board__board_memberships__user=self.request.user)
+		return BoardList.objects.filter(q).distinct()

@@ -79,7 +79,7 @@
 
         try {
             const bodyJSON = JSON.stringify(body)
-
+            console.log("bodyjson", bodyJSON, url)
             const response = await auth.authenticatedRequest(url, bodyJSON, "PATCH", {}, "application/json")
             if (response.ok) {
 
@@ -366,7 +366,7 @@
                 "title": list.name,
                 "cardIds": cardIds
             }
-            listObjs.push(newList)
+            if (list.archived == false) listObjs.push(newList)
             if (list.archived == true) archivedList.push(newList)
         })
 
@@ -781,10 +781,17 @@
                 menuDropdown.style.left = 'auto';
             }
         });
-        menuDropdown.querySelector('[data-action="archive-list"]').addEventListener('click', () => {
+        menuDropdown.querySelector('[data-action="archive-list"]').addEventListener('click', async () => {
             menuDropdown.classList.add('hidden');
             if (confirm(`Archive list "${list.title}"? All cards in this list will also be archived.`)) {
-                archiveList(list.id);
+                const body = {
+                    archived: true
+                }
+                const result = await saveData("update", "BoardList", body, list.id);
+                if (result) {
+
+                    archiveList(list.id);
+                }
             }
         });
 
@@ -797,6 +804,7 @@
         if (listIndex === -1) return;
         const archivedList = board.lists[listIndex];
         if (!board.archivedLists) board.archivedLists = [];
+        console.log("board.archivedLists", board.archivedLists)
         board.archivedLists.push(JSON.parse(JSON.stringify(archivedList)));
         archivedList.cardIds.forEach(cardId => {
             if (board.cards[cardId]) {
@@ -805,7 +813,7 @@
             }
         });
         board.lists.splice(listIndex, 1);
-        saveData();
+
         renderBoard();
     }
 
@@ -824,7 +832,7 @@
                 addActivity(board.cards[cardId], `restored from archive`, CURRENT_USER_ID);
             }
         });
-        saveData();
+
         renderBoard();
         renderArchivedModal();
     }
@@ -834,7 +842,7 @@
         if (board.archivedLists) {
             board.archivedLists = board.archivedLists.filter(l => l.id !== listId);
         }
-        saveData();
+
         renderArchivedModal();
     }
 
@@ -2437,12 +2445,23 @@
                                 <button class="btn-danger small delete-list-permanent-btn" data-list-id="${list.id}">🗑 Delete</button>
                             </div>
                         `;
-                div.querySelector('.unarchive-list-btn').addEventListener('click', () => {
-                    unarchiveList(list.id, list);
+                div.querySelector('.unarchive-list-btn').addEventListener('click', async () => {
+                    const body = {
+                        archived: false
+                    }
+                    const result = await saveData("update", "BoardList", body, list.id);
+                    if (result) {
+
+                        unarchiveList(list.id, list);
+                    }
                 });
-                div.querySelector('.delete-list-permanent-btn').addEventListener('click', () => {
+                div.querySelector('.delete-list-permanent-btn').addEventListener('click', async () => {
                     if (confirm(`Permanently delete list "${list.title}"? This cannot be undone.`)) {
-                        permanentlyDeleteList(list.id);
+                        const result = await saveData("delete", "BoardList", {}, list.id);
+                        if (result) {
+
+                            permanentlyDeleteList(list.id);
+                        }
                     }
                 });
                 archivedListsContainer.appendChild(div);
