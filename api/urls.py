@@ -18,6 +18,8 @@ router.register(r'comments', board_views.CommentViewSet, basename='comments')
 router.register(r'card-files', board_views.CardFileViewSet, basename='card_file')
 router.register(r'card-images', board_views.CardImageViewSet, basename='card_image')
 router.register(r'card-labels', board_views.CardLabelViewSet, basename='card_label')
+router.register(r'board-lists', board_views.BoardListViewSet, basename='board_list')
+
 
 
 

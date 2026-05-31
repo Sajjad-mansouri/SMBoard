@@ -227,10 +227,11 @@ class BoardMembership(serializers.ModelSerializer):
 
 
 class BoardListSerializer(serializers.ModelSerializer):
-	list_cards = CardNestedSerializer(many=True)
+	list_cards = CardNestedSerializer(many=True, read_only=True)
 	class Meta:
 		model = BoardList
-		fields = ["id", "order", "name", "cover_image", "cover_color", "list_cards", "archived"]
+		fields = ["id", "order", "name", "cover_image", "cover_color", "list_cards", "archived","board"]
+
 
 class BoardNestedSerializer(BoardSerializer):
 	board_lists = BoardListSerializer(many=True)

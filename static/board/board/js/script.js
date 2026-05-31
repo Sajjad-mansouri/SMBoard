@@ -275,6 +275,25 @@
                 const url = origin + "/api/" + path
                 result = await fetchUpdate(url, body)
             }
+        } else if (model == "BoardList") {
+            if (func == "create") {
+                path = "board-lists/"
+                const url = origin + "/api/" + path
+                result = await fetchPost(url, body)
+
+
+
+            } else if (func == "delete") {
+                path = `board-lists/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchDelete(url, body)
+
+
+            } else if (func == "update") {
+                path = `board-lists/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
+            }
         }
         return result
     }
@@ -2470,13 +2489,6 @@
         // Profile avatar button
 
 
-        document.getElementById('brand-logo-btn').onclick = () => {
-            appState.activeBoardId = appState.boards[0]
-                ?.id || appState.activeBoardId;
-            saveData();
-            renderBoard();
-        };
-
 
         document.getElementById('profile-logout-btn').onclick = () => {
             document.getElementById(
@@ -2487,8 +2499,7 @@
 
 
         document.getElementById('add-list-btn').onclick = () => {
-            document.getElementById('add-list-btn')
-                .classList.add('hidden');
+            document.getElementById('add-list-btn').classList.add('hidden');
             document.getElementById('add-list-form').classList.remove('hidden');
         };
         document.getElementById('cancel-list-btn').onclick = () => {
@@ -2496,17 +2507,23 @@
                 .classList.remove('hidden');
             document.getElementById('add-list-form').classList.add('hidden');
         };
-        document.getElementById('save-list-btn').onclick = () => {
-            const t = document.getElementById(
-                'new-list-title').value.trim();
+        document.getElementById('save-list-btn').onclick = async () => {
+            const t = document.getElementById('new-list-title').value.trim();
             if (t) {
-                getActiveBoard().lists.push({
-                    id: generateId(),
-                    title: t,
-                    cardIds: []
-                });
-                saveData();
-                renderBoard();
+                const body = {
+                    "name": t,
+                    "board": appState.activeBoardId
+                }
+                const result = await saveData("create", "BoardList", body, appState.activeBoardId);
+                if (result) {
+
+                    getActiveBoard().lists.push({
+                        id: result.id,
+                        title: result.name,
+                        cardIds: []
+                    });
+                    renderBoard();
+                }
             }
             document.getElementById('new-list-title').value = '';
             document.getElementById('add-list-btn').classList.remove('hidden');
