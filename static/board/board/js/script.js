@@ -2484,6 +2484,12 @@
                             if (result) {
                                 delete board.memberRoles[uid];
                                 delete appState.boardMembership[uid];
+
+                                Object.entries(getActiveBoard().cards).forEach(([key, card]) => {
+
+                                    card.assignedUsers = card.assignedUsers.filter(member => member.user !== uid);
+                                })
+
                                 appState["users"] = appState["users"].filter(user => user.id != uid)
 
 
