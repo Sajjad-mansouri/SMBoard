@@ -1,6 +1,7 @@
 from django.db.models import Q
 from rest_framework import viewsets, mixins, views
 from rest_framework.response import Response
+from rest_framework import status
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
 from board.models import Board, Card, CheckList, ChecklistItem, Comment, CardFile, CardImage, CardLabel, BoardList
 from . import serializers
@@ -165,3 +166,24 @@ class BoardListViewSet(viewsets.ModelViewSet):
 
 		q = Q(board__owner=self.request.user) | Q(board__board_memberships__user=self.request.user)
 		return BoardList.objects.filter(q).distinct()
+
+
+class BoardListOrderUpdating(views.APIView):
+	permission_classes = [IsBoardOwnerOrMember]
+	def patch(self, request, *args, **kwargs):
+		ids = [item["id"] for item in request.data]
+
+		queryset = BoardList.objects.filter(id__in=ids)
+
+		serializer = serializers.BoardListOrderSerializer(
+			queryset,
+			data=request.data,
+			many=True,
+			partial=True,
+			context={"request":request}
+			)
+
+		if serializer.is_valid():
+			serializer.save()
+			return Response(serializer.data, status=status.HTTP_200_OK)
+		return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

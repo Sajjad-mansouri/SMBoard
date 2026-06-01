@@ -294,6 +294,12 @@
                 const url = origin + "/api/" + path
                 result = await fetchUpdate(url, body)
             }
+        } else if (model == "BoardListOrder") {
+            if (func == "update") {
+                path = `board-list/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
+            }
         }
         return result
     }
@@ -787,6 +793,7 @@
                 const body = {
                     archived: true
                 }
+
                 const result = await saveData("update", "BoardList", body, list.id);
                 if (result) {
 
@@ -948,17 +955,15 @@
 
     function moveCard(cardId, targetListId, targetIndex) {
         const b = getActiveBoard();
-        const oldList = b.lists.find(
-            l => l.cardIds.includes(cardId));
-        b.lists.forEach(l => l.cardIds = l.cardIds.filter(id => id !== cardId));
-        const tl = b.lists.find(l => l
-            .id === targetListId);
+        const oldList = b.lists.find(l => l.cardIds.includes(cardId));
+        b.lists.forEach(l => l.cardIds = l.cardIds.filter(id => id != cardId));
+        const tl = b.lists.find(l => l.id == targetListId);
         if (tl) {
-            if (targetIndex !== undefined) tl.cardIds.splice(targetIndex, 0,
+            if (targetIndex != undefined) tl.cardIds.splice(targetIndex, 0,
                 cardId);
             else tl.cardIds.push(cardId);
         }
-        if (oldList && tl && oldList.id !== tl.id) addActivity(b
+        if (oldList && tl && oldList.id != tl.id) addActivity(b
             .cards[cardId], `moved from ${oldList.title} to ${tl.title}`, null);
         saveData();
         renderBoard();
@@ -1013,9 +1018,10 @@
             handle.addEventListener('dragstart', onListDragStart);
             handle.removeEventListener('dragend', onListDragEnd);
             handle.addEventListener('dragend', onListDragEnd);
+
+
         });
-        const wrapper = document.getElementById(
-            'lists-wrapper');
+        const wrapper = document.getElementById('lists-wrapper');
         wrapper.removeEventListener('dragover', onWrapperDragOver);
         wrapper.addEventListener('dragover', onWrapperDragOver);
         wrapper.removeEventListener('drop', onWrapperDrop);
@@ -1023,10 +1029,10 @@
     }
 
     function onListDragStart(e) {
+        console.log("drag list start")
         const handle = e.target.closest('.drag-handle');
         if (!handle) return;
-        const
-            listEl = handle.closest('.list');
+        const listEl = handle.closest('.list');
         if (!listEl) return;
         draggedList = listEl;
         e.dataTransfer.setData('text/plain', listEl.dataset.listId);
@@ -1038,46 +1044,51 @@
     }
 
     function onListDragEnd(e) {
+        console.log("drag list end")
         if (draggedList) draggedList.style.opacity = '1';
-        if (listPlaceholder.parentNode)
-            listPlaceholder.remove();
+        if (listPlaceholder.parentNode) listPlaceholder.remove();
         draggedList = null;
     }
 
+
+
     function onWrapperDragOver(e) {
+        console.log("drag over")
         if (!draggedList) return;
         e.preventDefault();
         const targetList = e.target.closest('.list');
-        if (!targetList || targetList ===
-            draggedList) {
+        if (!targetList || targetList === draggedList) {
+            console.log("returned in dragover")
             if (listPlaceholder.parentNode) listPlaceholder.remove();
             return;
         }
-        const wrapper =
-            document.getElementById('lists-wrapper');
+        const wrapper = document.getElementById('lists-wrapper');
         const rect = targetList.getBoundingClientRect();
-        const
-            middle = rect.left + rect.width / 2;
-        if (e.clientX < middle) wrapper.insertBefore(listPlaceholder,
-            targetList);
-        else wrapper.insertBefore(listPlaceholder, targetList.nextSibling);
+        const middle = rect.left + rect.width / 2;
+        console.log(e.clientX < middle, e.clientX, middle)
+        console.log(listPlaceholder, targetList)
+        if (e.clientX < middle) {
+            wrapper.insertBefore(listPlaceholder, targetList);
+            console.log("insertated")
+        } else {
+            wrapper.insertBefore(listPlaceholder, targetList.nextSibling);
+        }
     }
 
-    function onWrapperDrop(e) {
+    async function onWrapperDrop(e) {
+
         e.preventDefault();
         if (!draggedList || !listPlaceholder.parentNode) return;
+
         const wrapper = document.getElementById('lists-wrapper');
-        const placeholderIdx = Array.from(wrapper
-            .children).indexOf(listPlaceholder);
+        const placeholderIdx = Array.from(wrapper.children).indexOf(listPlaceholder);
         if (placeholderIdx === -1) return;
-        const children = Array.from(
-            wrapper.children);
+        const children = Array.from(wrapper.children);
         let targetIndex = 0;
         let prevList = null,
             nextList = null;
         for (let i = placeholderIdx - 1; i >= 0; i--) {
-            if (children[i].classList && children[
-                    i].classList.contains('list')) {
+            if (children[i].classList && children[i].classList.contains('list')) {
                 prevList = children[i];
                 break;
             }
@@ -1089,31 +1100,47 @@
                 break;
             }
         }
+
+
         const board = getActiveBoard();
         const fromId = draggedList.dataset.listId;
-        const
-            fromIndex = board.lists.findIndex(l => l.id === fromId);
+
+        const fromIndex = board.lists.findIndex(l => l.id == fromId);
+
         if (fromIndex === -1) return;
         if (prevList) {
-            const
-                prevId = prevList.dataset.listId;
-            targetIndex = board.lists.findIndex(l => l.id === prevId) + 1;
+            const prevId = prevList.dataset.listId;
+            targetIndex = board.lists.findIndex(l => l.id == prevId) + 1;
         } else if (nextList) {
-            const nextId =
-                nextList.dataset.listId;
-            targetIndex = board.lists.findIndex(l => l.id === nextId);
+            const nextId = nextList.dataset.listId;
+            targetIndex = board.lists.findIndex(l => l.id == nextId);
         } else {
-            targetIndex = board.lists
-                .length;
+            targetIndex = board.lists.length;
         }
-        const [moved] = board.lists.splice(fromIndex, 1);
-        board.lists.splice(targetIndex, 0, moved);
-        saveData();
-        if (listPlaceholder.parentNode) listPlaceholder.remove();
-        draggedList.style.opacity = '1';
-        draggedList = null;
-        renderBoard();
+        const boardList = [...board.lists]
+        const [moved] = boardList.splice(fromIndex, 1);
+
+        boardList.splice(targetIndex, 0, moved);
+        boardList.forEach((list, index) => {
+            list.order = index;
+        });
+        const body = boardList.map(list => ({
+            id: list.id,
+            order: list.order
+        }))
+
+        const result = await saveData("update", "BoardListOrder", body);
+        if (result) {
+            board.lists = boardList
+            if (listPlaceholder.parentNode) listPlaceholder.remove();
+
+
+            if (draggedList) draggedList.style.opacity = '1';
+            draggedList = null;
+            renderBoard();
+        }
     }
+
 
     function attachCardDragEvents() {
         if (cardPlaceholder) cardPlaceholder.remove();
@@ -1152,31 +1179,33 @@
     function onCardDragOver(e) {
         e.preventDefault();
         const container = e.target.closest('.list-cards');
-        if (!
-            container) return;
+        if (!container) return;
         const afterEl = getDragAfterElement(container, e.clientY);
-        if (afterEl) container
-            .insertBefore(cardPlaceholder, afterEl);
-        else container.appendChild(cardPlaceholder);
+        console.log("afterEl", afterEl)
+        if (afterEl) {
+            container.insertBefore(cardPlaceholder, afterEl);
+        } else {
+            console.log("else")
+            container.appendChild(cardPlaceholder)
+        };
     }
 
     function onCardDrop(e) {
         e.preventDefault();
         if (cardPlaceholder.parentNode) cardPlaceholder.remove();
-        const
-            cardId = e.dataTransfer.getData('text/plain');
+        const cardId = e.dataTransfer.getData('text/plain');
         const targetList = e.target.closest('.list-cards');
-        if (
-            !targetList) return;
+        if (!targetList) return;
         const listId = targetList.dataset.listId;
-        const afterElement =
-            getDragAfterElement(targetList, e.clientY);
+        const afterElement = getDragAfterElement(targetList, e.clientY);
         let index = undefined;
+        console.log("afterElement", afterElement)
         if (afterElement) {
             const cards = [
                 ...targetList.querySelectorAll('.card:not(.dragging)')
             ];
             index = cards.indexOf(afterElement);
+            console.log(cards, index)
         }
         moveCard(cardId, listId, index);
     }
@@ -1683,7 +1712,7 @@
                     card.coverImage = att.cover_img;
                     card.coverColor = '';
                     addActivity(card, `set cover from attachment "${att.name}"`, CURRENT_USER_ID);
-                    saveData();
+
                     openCardModal(currentCardId);
 
                 }

@@ -97,6 +97,7 @@ class BoardList(DateAbstractModel):
 	class Meta:
 		verbose_name = _("List")
 		verbose_name_plural = _("Lists")
+		ordering = ["order"]
 
 
 def card_cover_path(instance, file_name):

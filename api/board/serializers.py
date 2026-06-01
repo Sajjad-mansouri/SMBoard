@@ -225,13 +225,28 @@ class BoardMembership(serializers.ModelSerializer):
 		model = BoardMembership
 		fields = ["id", "user", "member_type", "accepted"]
 
-
+class CustomListSerializer(serializers.ListSerializer):
+	def update(self, instance, validated_data):
+		list_mapping = {board_list.id: board_list for board_list in instance}
+		data_mapping = {item['id']: item for item in validated_data}
+		# Perform creations and updates.
+		ret = []
+		for list_id, data in data_mapping.items():
+			board_list = list_mapping.get(list_id, None)
+			if board_list :
+				ret.append(self.child.update(board_list, data))
+		return ret
 class BoardListSerializer(serializers.ModelSerializer):
 	list_cards = CardNestedSerializer(many=True, read_only=True)
 	class Meta:
 		model = BoardList
 		fields = ["id", "order", "name", "cover_image", "cover_color", "list_cards", "archived","board"]
 
+
+class BoardListOrderSerializer(BoardListSerializer):
+	id = serializers.IntegerField()
+	class Meta(BoardListSerializer.Meta):
+		list_serializer_class = CustomListSerializer
 
 class BoardNestedSerializer(BoardSerializer):
 	board_lists = BoardListSerializer(many=True)
