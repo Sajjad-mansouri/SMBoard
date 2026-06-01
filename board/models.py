@@ -58,7 +58,7 @@ class BoardMembership(DateAbstractModel):
 	]
 	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_memberships")
 	board = models.ForeignKey(Board, on_delete=models.CASCADE, verbose_name=_("Board"), related_name="board_memberships")
-	member_type = models.CharField(_("Member Type"), choices=MEMBER_TYPES, max_length=8)
+	member_type = models.CharField(_("Member Type"), choices=MEMBER_TYPES, max_length=8, default="observer")
 	accepted = models.BooleanField(_("Accepted"), default=False)
 
 

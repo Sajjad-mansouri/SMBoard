@@ -228,7 +228,7 @@
             let boardData = await boardResponse.json()
             let guestBoardData = await guestBoardResponse.json()
 
-
+            console.log(boardData)
             boardData = [...boardData.filter(b => b.closed == false)]
 
             if (boardResponse.ok && guestBoardResponse.ok) {

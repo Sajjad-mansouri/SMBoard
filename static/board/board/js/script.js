@@ -104,12 +104,14 @@
 
             console.log(url, bodyJSON)
             const response = await auth.authenticatedRequest(url, bodyJSON, "POST")
+            const data = await response.json()
             if (response.ok) {
-                const data = await response.json()
+
                 console.log("fetch post data", data)
                 return data
 
             } else {
+                console.log(data)
                 return false
             }
 
@@ -317,6 +319,25 @@
                 result = await fetchDelete(url, body)
 
 
+            }
+        } else if (model == "BoardMember") {
+            if (func == "create") {
+                path = "board-members/"
+                const url = origin + "/api/" + path
+                result = await fetchPost(url, body)
+
+
+
+            } else if (func == "delete") {
+                path = `board-members/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchDelete(url, body)
+
+
+            } else if (func == "update") {
+                path = `board-members/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
             }
         }
         return result
@@ -558,7 +579,6 @@
             appState["boards"] = [boardObj]
             appState["users"] = users
             appState["labels"] = labels
-            console.log("all labels", labels)
 
 
 
@@ -608,6 +628,7 @@
     }
 
     function getUserById(id) {
+        console.log("appState.users", appState.users)
         return appState.users.find(u => u.id === id);
     }
 
@@ -830,7 +851,7 @@
         if (listIndex === -1) return;
         const archivedList = board.lists[listIndex];
         if (!board.archivedLists) board.archivedLists = [];
-        console.log("board.archivedLists", board.archivedLists)
+
         board.archivedLists.push(JSON.parse(JSON.stringify(archivedList)));
         archivedList.cardIds.forEach(cardId => {
             if (board.cards[cardId]) {
@@ -914,7 +935,7 @@
                 `<span class="card-label" style="background:${l.color}" title="${l.name}"></span>` : '';
         }).join(
             '');
-        console.log(card.assignedUsers)
+
         const usersHTML = card.assignedUsers.map(member => {
             const u = getUserById(member.user);
             return u ?
@@ -1063,7 +1084,7 @@
     }
 
     function onListDragStart(e) {
-        console.log("drag list start")
+
         const handle = e.target.closest('.drag-handle');
         if (!handle) return;
         const listEl = handle.closest('.list');
@@ -1078,7 +1099,7 @@
     }
 
     function onListDragEnd(e) {
-        console.log("drag list end")
+
         if (draggedList) draggedList.style.opacity = '1';
         if (listPlaceholder.parentNode) listPlaceholder.remove();
         draggedList = null;
@@ -1087,23 +1108,22 @@
 
 
     function onWrapperDragOver(e) {
-        console.log("drag over")
+
         if (!draggedList) return;
         e.preventDefault();
         const targetList = e.target.closest('.list');
         if (!targetList || targetList === draggedList) {
-            console.log("returned in dragover")
+
             if (listPlaceholder.parentNode) listPlaceholder.remove();
             return;
         }
         const wrapper = document.getElementById('lists-wrapper');
         const rect = targetList.getBoundingClientRect();
         const middle = rect.left + rect.width / 2;
-        console.log(e.clientX < middle, e.clientX, middle)
-        console.log(listPlaceholder, targetList)
+
         if (e.clientX < middle) {
             wrapper.insertBefore(listPlaceholder, targetList);
-            console.log("insertated")
+
         } else {
             wrapper.insertBefore(listPlaceholder, targetList.nextSibling);
         }
@@ -1215,11 +1235,11 @@
         const container = e.target.closest('.list-cards');
         if (!container) return;
         const afterEl = getDragAfterElement(container, e.clientY);
-        console.log("afterEl", afterEl)
+
         if (afterEl) {
             container.insertBefore(cardPlaceholder, afterEl);
         } else {
-            console.log("else")
+
             container.appendChild(cardPlaceholder)
         };
     }
@@ -1233,13 +1253,13 @@
         const listId = targetList.dataset.listId;
         const afterElement = getDragAfterElement(targetList, e.clientY);
         let index = undefined;
-        console.log("afterElement", afterElement)
+
         if (afterElement) {
             const cards = [
                 ...targetList.querySelectorAll('.card:not(.dragging)')
             ];
             index = cards.indexOf(afterElement);
-            console.log(cards, index)
+
         }
         moveCard(cardId, listId, index);
     }
@@ -1372,9 +1392,9 @@
         const
             card = getActiveBoard().cards[currentCardId];
         container.innerHTML = '';
-        console.log("card.labels", card.labels)
+
         card.labels.forEach(lid => {
-            console.log(appState.labels)
+
             const l = getLabelById(lid);
             if (l) {
                 const span = document.createElement(
@@ -2416,8 +2436,10 @@
         document.getElementById('join-requests-count').textContent = board.joinRequests.length;
         const membersContent = document.getElementById('board-members-content');
         membersContent.innerHTML = '';
+        console.log("befor loop", board.boardMembers)
         board.boardMembers.forEach(uid => {
             const u = getUserById(uid);
+            console.log("u", u)
             if (!u) return;
             const role = board.memberRoles[uid] || 'member';
             const row = document.createElement('div');
@@ -2677,28 +2699,31 @@
             if (e.target === e
                 .currentTarget) closeShareModal();
         });
-        document.getElementById('share-invite-btn').onclick = () => {
+        document.getElementById('share-invite-btn').onclick = async () => {
             const searchVal = document.getElementById(
                 'share-search-input').value.trim().toLowerCase();
             if (searchVal) {
-                const found = appState.users
-                    .find(u => u.name.toLowerCase().includes(searchVal) || (u.email || '').toLowerCase()
-                        .includes(searchVal) || (u.username || '').toLowerCase().includes(searchVal));
-                if (
-                    found) {
-                    const board = getActiveBoard();
-                    if (!board.boardMembers.includes(found.id)) {
-                        board.boardMembers.push(found.id);
-                        board.memberRoles[found.id] = 'member';
-                        saveData();
-                        renderShareModalContent();
-                        renderBoardMenuBar();
-                        document.getElementById('share-search-input').value = '';
-                        alert(`${found.name} added to board!`);
-                    } else {
-                        alert(
-                            'User is already a board member.');
-                    }
+                const board = getActiveBoard();
+                const body = {
+                    "board": board.id,
+                    "search": searchVal
+                }
+                const result = await saveData("create", "BoardMember", body);
+                if (result) {
+                    board.boardMembers.push(result.user.id);
+                    board.memberRoles[result.user.id] = result.member_type;
+                    appState["users"].push({
+                        id: result.user.id,
+                        name: result.user.fullname ? result.user.fullname : result.user.username,
+                        color: "#0079bf",
+                        email: result.user.email,
+                        username: result.user.username,
+                        profileImage: result.user.profile_image
+                    })
+                    renderShareModalContent();
+                    renderBoardMenuBar();
+                    document.getElementById('share-search-input').value = '';
+                    alert(`${result.user.username} added to board!`);
                 } else {
                     alert('User not found.');
                 }

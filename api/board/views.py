@@ -1,12 +1,15 @@
 from django.db.models import Q
+from django.contrib.auth import get_user_model
 from rest_framework import viewsets, mixins, views
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView, get_object_or_404
 from board.models import Board, Card, CheckList, ChecklistItem, Comment, CardFile, CardImage, CardLabel, BoardList, CardMembership
 from . import serializers
-from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission
+from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission, BoardMembershipPermission
 
+
+UserModel = get_user_model()
 class BoardViewSet(viewsets.ModelViewSet):
 
 	serializer_class = serializers.BoardSerializer
@@ -220,3 +223,34 @@ class CardMemberViewSet(viewsets.ModelViewSet):
 
 		q = Q(card__board_list__board__owner=self.request.user)
 		return CardMembership.objects.filter(q).distinct()
+
+
+class BoardMemberViewSet(viewsets.ModelViewSet):
+
+	serializer_class = serializers.BoardMembershipSerializer
+	permission_classes = [BoardMembershipPermission]
+	def get_queryset(self):
+
+		q = Q(owner=self.request.user)
+		return BoardMembership.objects.filter(q)
+
+	def create(self, request, *args, **kwargs):
+		search = request.data.get("search")
+		if not search:
+			return Response({"error": "Search parameter is required"},status=status.HTTP_400_BAD_REQUEST)
+
+		user = get_object_or_404(UserModel, username=search)
+
+		data = {
+		"board": request.data.get("board"),
+		"user_id":user.id,
+		"accepted":True
+
+		}
+		serializer = self.get_serializer(data=data)
+		if serializer.is_valid(raise_exception=False):
+			self.perform_create(serializer)
+			return Response(serializer.data, status=status.HTTP_201_CREATED)
+		else:
+			return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
+			

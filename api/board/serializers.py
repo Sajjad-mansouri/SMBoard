@@ -224,13 +224,20 @@ class CardNestedSerializer(CardSerializer):
 		err = super().is_valid(raise_exception=False)
 
 		return err
-class BoardMembership(serializers.ModelSerializer):
-	user = UserSerializer()
-
+class BoardMembershipSerializer(serializers.ModelSerializer):
+	user = UserSerializer(read_only=True)
+	user_id = serializers.PrimaryKeyRelatedField(queryset=UserModel.objects.all(), source="user",write_only=True)
 	class Meta:
 		model = BoardMembership
-		fields = ["id", "user", "member_type", "accepted"]
+		fields = ["id", "user", "member_type", "accepted", "board", "user_id"]
 
+	def to_internal_value(self, data):
+		print("data", data)
+		return super().to_internal_value(data)
+	def is_valid(self, *, raise_exception=False):
+		err = super().is_valid(raise_exception=False)
+		print(self._errors)
+		return err
 class CustomListSerializer(serializers.ListSerializer):
 	def update(self, instance, validated_data):
 
@@ -258,7 +265,7 @@ class BoardListOrderSerializer(BoardListSerializer):
 class BoardNestedSerializer(BoardSerializer):
 	board_lists = BoardListSerializer(many=True)
 	board_watched = serializers.SerializerMethodField()
-	board_memberships = BoardMembership(many=True)
+	board_memberships = BoardMembershipSerializer(many=True)
 	class Meta(BoardSerializer.Meta):
 		fields = BoardSerializer.Meta.fields + ["board_lists", "board_watched", "board_memberships"]
 

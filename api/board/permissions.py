@@ -1,4 +1,5 @@
 from rest_framework import permissions
+from rest_framework.permissions import SAFE_METHODS
 from django.db.models import Q
 from board import models
 
@@ -8,6 +9,14 @@ class IsBoardOwner(permissions.BasePermission):
 
 		return obj.owner == request.user
 
+	def has_permission(self, request, view):
+		if request.method in SAFE_METHODS:
+			q = Q(owner=request.user)
+			return models.Board.objects.filter(q).exists()
+		else:
+			obj_id = request.data.get("board")
+			q = Q(id=obj_id)& Q(owner=request.user)
+			return models.Board.objects.filter(q).exists()
 
 class IsBoardOwnerOrMember(permissions.BasePermission):
 
@@ -54,3 +63,18 @@ class CardMembershipPermission(permissions.BasePermission):
 			return models.Card.objects.filter(q).exists()
 		else:
 			return True
+
+class BoardMembershipPermission(permissions.BasePermission):
+	"""
+	Allow create based on the data being submitted
+	"""
+	def has_object_permission(self, request, view, obj):
+		return (obj.board.owner == request.user)
+
+	def has_permission(self, request, view):
+		obj_id = request.data.get("board")
+		q = Q(board_id=obj_id)& Q(board__owner=request.user)
+		print(models.BoardMembership.objects.filter(Q(board_id=obj_id)).exists())
+		print(models.BoardMembership.objects.filter(Q(board__owner=request.user)).exists())
+
+		return models.BoardMembership.objects.filter(q).exists()
