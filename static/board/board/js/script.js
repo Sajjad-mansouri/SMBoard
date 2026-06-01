@@ -2475,18 +2475,27 @@
                 dropdown.querySelectorAll('.dropdown-item').forEach(item => {
                     item.addEventListener('click', async () => {
                         const r = item.dataset.role;
+                        let result;
+                        const membershipId = appState["boardMembership"][uid].id
                         if (r === 'remove') {
                             board.boardMembers = board.boardMembers.filter(
                                 id => id !== uid);
-                            delete board.memberRoles[uid];
+                            result = await saveData("delete", "BoardMember", {}, membershipId);
+                            if (result) {
+                                delete board.memberRoles[uid];
+                                delete appState.boardMembership[uid];
+                                appState["users"] = appState["users"].filter(user => user.id != uid)
+
+
+                            }
                         } else {
                             board.memberRoles[uid] = r;
+                            const body = {
+                                "member_type": r
+                            }
+
+                            result = await saveData("update", "BoardMember", body, membershipId);
                         }
-                        const body = {
-                            "member_type": r
-                        }
-                        const membershipId = appState["boardMembership"][uid].id
-                        const result = await saveData("update", "BoardMember", body, membershipId);
                         if (result) {
 
                             renderShareModalContent();
