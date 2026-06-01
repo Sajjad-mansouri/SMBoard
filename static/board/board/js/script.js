@@ -420,10 +420,14 @@
 
     function prepareMembershipArrays(data) {
         const boardMembers = []
+        const boardMembership = {}
         const memberRoles = {}
         const joinRequests = []
         const users = []
         data.board_memberships.forEach(member => {
+            boardMembership[member.user.id] = {
+                "id": member.id
+            }
             if (member.accepted) {
                 boardMembers.push(member.user.id)
                 memberRoles[`$ {member.user.id}`] = member.member_type
@@ -441,7 +445,7 @@
 
         })
 
-        return [boardMembers, memberRoles, joinRequests, users]
+        return [boardMembers, memberRoles, joinRequests, users, boardMembership]
     }
 
     function prepareComments(cardData) {
@@ -564,7 +568,7 @@
 
             const boardObj = prepareBoardObject(data)
             const [listObjs, archivedList] = prepareListArray(data)
-            const [boardMembers, memberRoles, joinRequests, users] = prepareMembershipArrays(data)
+            const [boardMembers, memberRoles, joinRequests, users, boardMembership] = prepareMembershipArrays(data)
             const [cards, labels] = prepareCard(data)
 
 
@@ -579,6 +583,7 @@
             appState["boards"] = [boardObj]
             appState["users"] = users
             appState["labels"] = labels
+            appState["boardMembership"] = boardMembership
 
 
 
@@ -2431,6 +2436,7 @@
     }
 
     function renderShareModalContent() {
+        console.log(appState)
         const board = getActiveBoard();
         document.getElementById('board-members-count').textContent = board.boardMembers.length;
         document.getElementById('join-requests-count').textContent = board.joinRequests.length;
@@ -2467,7 +2473,7 @@
                             <div class="dropdown-item danger" data-role="remove">🗑 Remove from board</div>`;
                 roleBadge.appendChild(dropdown);
                 dropdown.querySelectorAll('.dropdown-item').forEach(item => {
-                    item.addEventListener('click', () => {
+                    item.addEventListener('click', async () => {
                         const r = item.dataset.role;
                         if (r === 'remove') {
                             board.boardMembers = board.boardMembers.filter(
@@ -2476,10 +2482,18 @@
                         } else {
                             board.memberRoles[uid] = r;
                         }
-                        saveData();
-                        renderShareModalContent();
-                        renderBoardMenuBar();
-                        dropdown.remove();
+                        const body = {
+                            "member_type": r
+                        }
+                        const membershipId = appState["boardMembership"][uid].id
+                        const result = await saveData("update", "BoardMember", body, membershipId);
+                        if (result) {
+
+                            renderShareModalContent();
+                            renderBoardMenuBar();
+                            dropdown.remove();
+
+                        }
                     });
                 });
             });
@@ -2712,6 +2726,9 @@
                 if (result) {
                     board.boardMembers.push(result.user.id);
                     board.memberRoles[result.user.id] = result.member_type;
+                    appState["boardMembership"][result.user.id] = {
+                        "id": result.id
+                    }
                     appState["users"].push({
                         id: result.user.id,
                         name: result.user.fullname ? result.user.fullname : result.user.username,

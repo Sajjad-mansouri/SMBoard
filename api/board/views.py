@@ -4,7 +4,13 @@ from rest_framework import viewsets, mixins, views
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView, get_object_or_404
-from board.models import Board, Card, CheckList, ChecklistItem, Comment, CardFile, CardImage, CardLabel, BoardList, CardMembership
+from board.models import (
+	Board, Card, CheckList, 
+	ChecklistItem, Comment, 
+	CardFile, CardImage, 
+	CardLabel, BoardList, 
+	CardMembership,BoardMembership
+	)
 from . import serializers
 from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission, BoardMembershipPermission
 
@@ -231,7 +237,7 @@ class BoardMemberViewSet(viewsets.ModelViewSet):
 	permission_classes = [BoardMembershipPermission]
 	def get_queryset(self):
 
-		q = Q(owner=self.request.user)
+		q = Q(board__owner=self.request.user)
 		return BoardMembership.objects.filter(q)
 
 	def create(self, request, *args, **kwargs):

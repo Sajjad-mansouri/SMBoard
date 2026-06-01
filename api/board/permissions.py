@@ -73,8 +73,11 @@ class BoardMembershipPermission(permissions.BasePermission):
 
 	def has_permission(self, request, view):
 		obj_id = request.data.get("board")
-		q = Q(board_id=obj_id)& Q(board__owner=request.user)
-		print(models.BoardMembership.objects.filter(Q(board_id=obj_id)).exists())
-		print(models.BoardMembership.objects.filter(Q(board__owner=request.user)).exists())
+		if request.method == "POST":
+			q = Q(board_id=obj_id)& Q(board__owner=request.user)
+			print(models.BoardMembership.objects.filter(Q(board_id=obj_id)).exists())
+			print(models.BoardMembership.objects.filter(Q(board__owner=request.user)).exists())
 
-		return models.BoardMembership.objects.filter(q).exists()
+			return models.BoardMembership.objects.filter(q).exists()
+		else:
+			return True
