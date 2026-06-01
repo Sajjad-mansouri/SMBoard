@@ -112,6 +112,7 @@ def card_cover_path(instance, file_name):
 										day = instance.created.day,
 										file_name = file_name)
 class Card(DateAbstractModel):
+	order = OrderField(_("Order"), blank=True)
 
 	board_list = models.ForeignKey(BoardList, on_delete=models.CASCADE, related_name="list_cards", verbose_name="Board List")
 	name = models.CharField(_("Name"), max_length=250)
@@ -133,6 +134,7 @@ class Card(DateAbstractModel):
 	class Meta:
 		verbose_name = _("Card")
 		verbose_name_plural = _("Cards")
+		ordering = ["order"]
 
 class CardMembership(DateAbstractModel):
 	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="carduser_memberships")

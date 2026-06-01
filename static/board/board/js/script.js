@@ -296,7 +296,13 @@
             }
         } else if (model == "BoardListOrder") {
             if (func == "update") {
-                path = `board-list/`
+                path = `board-list-order/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
+            }
+        } else if (model == "CardOrder") {
+            if (func == "update") {
+                path = `card-order/`
                 const url = origin + "/api/" + path
                 result = await fetchUpdate(url, body)
             }
@@ -953,20 +959,34 @@
         renderBoard();
     }
 
-    function moveCard(cardId, targetListId, targetIndex) {
+    async function moveCard(cardId, targetListId, targetIndex) {
         const b = getActiveBoard();
         const oldList = b.lists.find(l => l.cardIds.includes(cardId));
         b.lists.forEach(l => l.cardIds = l.cardIds.filter(id => id != cardId));
         const tl = b.lists.find(l => l.id == targetListId);
+        const cardIdList = [...tl.cardIds]
         if (tl) {
-            if (targetIndex != undefined) tl.cardIds.splice(targetIndex, 0,
+            if (targetIndex != undefined) cardIdList.splice(targetIndex, 0,
                 cardId);
-            else tl.cardIds.push(cardId);
+            else cardIdList.push(cardId);
         }
         if (oldList && tl && oldList.id != tl.id) addActivity(b
             .cards[cardId], `moved from ${oldList.title} to ${tl.title}`, null);
-        saveData();
-        renderBoard();
+
+
+        const body = []
+        cardIdList.forEach((cardId, index) => {
+            body.push({
+                "id": cardId,
+                "order": index
+            })
+        })
+
+        const result = await saveData("update", "CardOrder", body);
+        if (result) {
+            tl.cardIds = cardIdList
+            renderBoard();
+        }
     }
 
     function copyCard(cardId) {

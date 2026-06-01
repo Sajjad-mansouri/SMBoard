@@ -23,7 +23,7 @@ class BoardListAdmin(admin.ModelAdmin):
 
 @admin.register(Card)
 class CardAdmin(admin.ModelAdmin):
-	list_display = ["name", "board_list", "created"]
+	list_display = ["name", "board_list", "order", "created"]
 
 @admin.register(CardLabel)
 class CardLabelAdmin(admin.ModelAdmin):

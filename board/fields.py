@@ -6,7 +6,11 @@ class OrderField(models.PositiveIntegerField):
 	def pre_save(self, model_instance, add):
 		if getattr(model_instance, self.attname) is None:
 			try:
-				qs = self.model.objects.filter(board__owner=model_instance.board.owner)
+				if hasattr(self.model, "board"):
+					qs = self.model.objects.filter(board__owner=model_instance.board.owner)
+				elif hasattr(self.model, "board_list"):
+					qs = self.model.objects.filter(board_list__board__owner=model_instance.board.owner)
+
 				last_item = qs.latest(self.attname)
 				value = last_item.order + 1
 			except ObjectDoesNotExist:

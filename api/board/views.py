@@ -187,3 +187,25 @@ class BoardListOrderUpdating(views.APIView):
 			serializer.save()
 			return Response(serializer.data, status=status.HTTP_200_OK)
 		return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CardOrderUpdating(views.APIView):
+	permission_classes = [IsBoardOwnerOrMember]
+	def patch(self, request, *args, **kwargs):
+
+		ids = [item["id"] for item in request.data]
+
+		queryset = Card.objects.filter(id__in=ids)
+
+		serializer = serializers.CardOrderSerializer(
+			queryset,
+			data=request.data,
+			many=True,
+			partial=True,
+			context={"request":request}
+			)
+
+		if serializer.is_valid():
+			serializer.save()
+			return Response(serializer.data, status=status.HTTP_200_OK)
+		return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

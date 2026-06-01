@@ -57,7 +57,7 @@ class CardSerializer(serializers.ModelSerializer):
 
 	class Meta:
 		model = Card
-		fields = ["id", "board_list", "name", "due_date", "board", "labels", "card_labels", "completed"]
+		fields = ["id", "board_list", "name", "due_date", "board", "labels", "card_labels", "completed", "order"]
 
 	def get_board_list(self, obj):
 		return obj.board_list.name
@@ -67,6 +67,7 @@ class CardSerializer(serializers.ModelSerializer):
 
 	def get_labels(self, obj):
 		return obj.card_labels.values_list("id", flat=True)
+
 
 class CheckListItemSerializer(serializers.ModelSerializer):
 	class Meta:
@@ -216,7 +217,7 @@ class CardNestedSerializer(CardSerializer):
 		return obj.card_cardwatchs.filter(user=request.user, watch=True).exists()
 	def is_valid(self, *, raise_exception=False):
 		err = super().is_valid(raise_exception=False)
-		print("error",err, self._errors)
+
 		return err
 class BoardMembership(serializers.ModelSerializer):
 	user = UserSerializer()
@@ -227,6 +228,7 @@ class BoardMembership(serializers.ModelSerializer):
 
 class CustomListSerializer(serializers.ListSerializer):
 	def update(self, instance, validated_data):
+
 		list_mapping = {board_list.id: board_list for board_list in instance}
 		data_mapping = {item['id']: item for item in validated_data}
 		# Perform creations and updates.
@@ -259,3 +261,11 @@ class BoardNestedSerializer(BoardSerializer):
 		request = self.context["request"]
 		return obj.board_boardwatchs.filter(user=request.user, watch=True).exists()
 
+
+
+
+
+class CardOrderSerializer(CardSerializer):
+	id = serializers.IntegerField()
+	class Meta(CardSerializer.Meta):
+		list_serializer_class = CustomListSerializer
