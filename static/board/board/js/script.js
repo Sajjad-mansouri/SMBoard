@@ -306,6 +306,18 @@
                 const url = origin + "/api/" + path
                 result = await fetchUpdate(url, body)
             }
+        } else if (model == "CardMember") {
+            if (func == "create") {
+                path = `card-members/`
+                const url = origin + "/api/" + path
+                result = await fetchPost(url, body)
+            } else if (func == "delete") {
+                path = `card-members/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchDelete(url, body)
+
+
+            }
         }
         return result
     }
@@ -491,7 +503,8 @@
                 card["labels"] = cardData["labels"]
                 card["startDate"] = cardData["start_date"]
                 card["dueDate"] = cardData["due_date"]
-                card["assignedUsers"] = cardData["members"]
+
+                card["assignedUsers"] = cardData["card_memberships"]
                 card["coverColor"] = cardData["cover_color"]
                 card["coverImage"] = cardData["cover_img"]
                 card["watched"] = cardData["watched"]
@@ -901,8 +914,9 @@
                 `<span class="card-label" style="background:${l.color}" title="${l.name}"></span>` : '';
         }).join(
             '');
-        const usersHTML = card.assignedUsers.map(uid => {
-            const u = getUserById(uid);
+        console.log(card.assignedUsers)
+        const usersHTML = card.assignedUsers.map(member => {
+            const u = getUserById(member.user);
             return u ?
                 `<span class="card-user-avatar" style="background:${u.color}" title="${u.name}">${u.name[0]}</span>` :
                 '';
@@ -1437,8 +1451,8 @@
         const container = document.getElementById('modal-members-display');
         const card = getActiveBoard().cards[currentCardId];
         container.innerHTML = '';
-        card.assignedUsers.forEach(uid => {
-            const u = getUserById(uid);
+        card.assignedUsers.forEach(member => {
+            const u = getUserById(member.user);
             if (u) {
                 const avatar = document.createElement(
                     'span');
@@ -1446,13 +1460,16 @@
                 avatar.style.backgroundColor = u.color;
                 avatar.textContent = u.name[0];
                 avatar.title = u.name + ' (click to remove)';
-                avatar.addEventListener('click', () => {
-                    card.assignedUsers = card.assignedUsers.filter(id => id !==
-                        uid);
-                    addActivity(card, `removed user ${u.name}`, CURRENT_USER_ID);
-                    saveData();
-                    renderModalMembersDisplay();
-                    renderBoard();
+                avatar.addEventListener('click', async () => {
+                    card.assignedUsers = card.assignedUsers.filter(m => m.user !== member.user);
+
+                    const result = await saveData("delete", "CardMember", {}, member.id);
+                    if (result) {
+
+                        addActivity(card, `removed user ${u.name}`, CURRENT_USER_ID);
+                        renderModalMembersDisplay();
+                        renderBoard();
+                    }
                 });
                 container.appendChild(avatar);
             }
@@ -2136,23 +2153,41 @@
             filtered.forEach(u => {
                 const div = document.createElement('div');
                 div.className = 'member-option';
-                const isAssigned = card.assignedUsers.includes(u.id);
+
+                const assignedMember = card.assignedUsers.find(member => member.user == u.id);
+                if (assignedMember) div.setAttribute("data-member-id", assignedMember.id)
+
                 div.innerHTML =
-                    `<span class="member-option-avatar" style="background:${u.color};">${u.name[0]}</span><span>${escapeHtml(u.name)}</span>${isAssigned?' <span style="color:var(--success-color);">✓</span>':''}`;
-                div.addEventListener('click', () => {
-                    if (isAssigned) {
-                        card.assignedUsers = card
-                            .assignedUsers.filter(id => id !== u.id);
-                        addActivity(card, `removed user ${u.name}`, CURRENT_USER_ID);
+                    `<span class="member-option-avatar" style="background:${u.color};">${u.name[0]}</span><span>${escapeHtml(u.name)}</span>${assignedMember?' <span style="color:var(--success-color);">✓</span>':''}`;
+                div.addEventListener('click', async () => {
+                    let result;
+                    if (assignedMember) {
+                        result = await saveData("delete", "CardMember", {}, assignedMember.id)
+                        if (result) {
+                            card.assignedUsers = card.assignedUsers.filter(member => member.user !== u.id);
+                            addActivity(card, `removed user ${u.name}`, CURRENT_USER_ID);
+
+                        }
                     } else {
-                        card
-                            .assignedUsers.push(u.id);
-                        addActivity(card, `added user ${u.name}`, CURRENT_USER_ID);
+                        const body = {
+                            "card": card.id,
+                            "user": u.id
+                        }
+                        result = await saveData("create", "CardMember", body)
+                        if (result) {
+                            card.assignedUsers.push(result);
+                            addActivity(card, `added user ${u.name}`, CURRENT_USER_ID);
+
+                        }
+
                     }
-                    saveData();
-                    renderModalMembersDisplay();
-                    renderBoard();
-                    renderMemberOptions(searchInput.value);
+                    console.log("result", result)
+                    if (result) {
+
+                        renderModalMembersDisplay();
+                        renderBoard();
+                        renderMemberOptions(searchInput.value);
+                    }
                 });
                 optionsList.appendChild(div);
             });
@@ -3208,7 +3243,7 @@
                     delete b.memberRoles[u.id];
                     b.joinRequests = b.joinRequests.filter(uid => uid !== u.id);
                     Object.values(b.cards).forEach(c => c.assignedUsers = c.assignedUsers.filter(
-                        uid => uid !== u.id));
+                        member => member.user !== u.id));
                 });
                 saveData();
                 renderUsersModal();

@@ -69,6 +69,12 @@ class BoardMembership(DateAbstractModel):
 	class Meta:
 		verbose_name = _("Board Member")
 		verbose_name_plural = _("Boards Members")
+		constraints = [
+			models.UniqueConstraint(
+				fields = ["user", "board"],
+				name = "user_board_unique"
+				)
+		]
 
 
 def list_cover_path(instance, file_name):
@@ -136,6 +142,7 @@ class Card(DateAbstractModel):
 		verbose_name_plural = _("Cards")
 		ordering = ["order"]
 
+
 class CardMembership(DateAbstractModel):
 	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="carduser_memberships")
 	card = models.ForeignKey(Card, on_delete=models.CASCADE, verbose_name=_("Card"), related_name="card_memberships")
@@ -146,7 +153,12 @@ class CardMembership(DateAbstractModel):
 	class Meta:
 		verbose_name = _("Card Member")
 		verbose_name_plural = _("Cards Members")
-
+		constraints = [
+			models.UniqueConstraint(
+				fields = ["user", "card"],
+				name = "user_card_unique"
+				)
+		]
 class CardLabel(DateAbstractModel):
 	card = models.ForeignKey(Card, on_delete=models.CASCADE, related_name="card_labels", verbose_name="Card")
 	name = models.CharField(_("Name"), max_length=250)

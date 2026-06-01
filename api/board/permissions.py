@@ -1,4 +1,5 @@
 from rest_framework import permissions
+from django.db.models import Q
 from board import models
 
 class IsBoardOwner(permissions.BasePermission):
@@ -28,8 +29,28 @@ class IsBoardOwnerOrMember(permissions.BasePermission):
 			isinstance(obj,models.CardImage)| 
 			isinstance(obj,models.Comment) |
 			isinstance(obj,models.CardWatch)
+			
+
 			):
 			return (obj.card.board_list.board.owner == request.user) | obj.card.card_memberships.filter(user=request.user).exists()
 
 
 
+
+class CardMembershipPermission(permissions.BasePermission):
+	"""
+	Allow create based on the data being submitted
+	"""
+	def has_object_permission(self, request, view, obj):
+		return (obj.card.board_list.board.owner == request.user)
+
+	def has_permission(self, request, view):
+		print(request.data)
+
+		obj_id = request.data.get("card")
+		user_id = request.data.get("user")
+		if obj_id and user_id:
+			q = Q(id=obj_id) & Q(board_list__board__owner=request.user) & Q(board_list__board__board_memberships__user_id=user_id)
+			return models.Card.objects.filter(q).exists()
+		else:
+			return True

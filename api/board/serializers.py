@@ -1,7 +1,7 @@
 import mimetypes
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from board.models import Board, Card, BoardList, BoardMembership, CheckList, ChecklistItem, Comment, CardFile, CardImage, CardLabel
+from board.models import Board, Card, BoardList, BoardMembership, CheckList, ChecklistItem, Comment, CardFile, CardImage, CardLabel,CardMembership
 from rest_framework.generics import get_object_or_404
 
 UserModel = get_user_model()
@@ -170,8 +170,14 @@ class ImageAttachmentSerializer(FileAttachmentSerializer):
 	class Meta(FileAttachmentSerializer.Meta):
 		model = CardImage
 
+class CardMembershipSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = CardMembership
+		fields = ["id", "user", "card"]
+
+
 class CardNestedSerializer(CardSerializer):
-	members = serializers.SerializerMethodField()
+	card_memberships = CardMembershipSerializer(many=True)
 	card_checklists = CheckListSerializer(many=True)
 	card_comments = CardCommentSerializer(many=True)
 	start_date = serializers.DateField(
@@ -194,7 +200,7 @@ class CardNestedSerializer(CardSerializer):
 		extra_fields = [
 		"description", "start_date", 
 		"archived", "cover_image","cover_image_fk","cover_img",
-		"cover_color", "members", "card_checklists",
+		"cover_color", "card_memberships", "card_checklists",
 		"card_comments", "watched", "cardfile_set",
 		"cardimage_set"
 
@@ -209,8 +215,7 @@ class CardNestedSerializer(CardSerializer):
 			return obj.cover_image_fk.file.url
 		else:
 			return ""
-	def get_members(self, obj):
-		return obj.card_memberships.values_list("user_id", flat=True)
+
 
 	def get_watched(self, obj):
 		request = self.context["request"]

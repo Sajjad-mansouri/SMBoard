@@ -3,7 +3,7 @@ from .models import (
 	Board, BoardMembership, BoardList, 
 	Card, CardLabel, CheckList, ChecklistItem, 
 	CardFile, CardImage, Comment,
-	CardWatch, BoardWatch
+	CardWatch, BoardWatch,CardMembership
 	)
 
 @admin.register(Board)
@@ -60,3 +60,8 @@ class CardWatchAdmin(admin.ModelAdmin):
 @admin.register(BoardWatch)
 class BoardWatchAdmin(admin.ModelAdmin):
 	list_display = ["user", "board", "watch"]
+
+
+@admin.register(CardMembership)
+class BoardMembershipAdmin(admin.ModelAdmin):
+	list_display = ["user", "card", "created"]

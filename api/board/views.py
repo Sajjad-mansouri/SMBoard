@@ -3,9 +3,9 @@ from rest_framework import viewsets, mixins, views
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView
-from board.models import Board, Card, CheckList, ChecklistItem, Comment, CardFile, CardImage, CardLabel, BoardList
+from board.models import Board, Card, CheckList, ChecklistItem, Comment, CardFile, CardImage, CardLabel, BoardList, CardMembership
 from . import serializers
-from .permissions import IsBoardOwner, IsBoardOwnerOrMember
+from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission
 
 class BoardViewSet(viewsets.ModelViewSet):
 
@@ -209,3 +209,14 @@ class CardOrderUpdating(views.APIView):
 			serializer.save()
 			return Response(serializer.data, status=status.HTTP_200_OK)
 		return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class CardMemberViewSet(viewsets.ModelViewSet):
+
+	serializer_class = serializers.CardMembershipSerializer
+	permission_classes = [CardMembershipPermission]
+	http_method_names = ['delete', 'post']
+	def get_queryset(self):
+
+		q = Q(card__board_list__board__owner=self.request.user)
+		return CardMembership.objects.filter(q).distinct()
