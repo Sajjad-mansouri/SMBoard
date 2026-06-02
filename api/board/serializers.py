@@ -182,14 +182,16 @@ class CardNestedSerializer(CardSerializer):
 	start_date = serializers.DateField(
 		format="%Y-%m-%d", 
 		input_formats=['%Y-%m-%d'],
-		required=False
+		required=False,
+		allow_null=True
 	)
 	
 	# For "2026-05-28T12:12"
 	due_date = serializers.DateTimeField(
 		format="%Y-%m-%dT%H:%M", 
 		input_formats=['%Y-%m-%dT%H:%M', 'iso-8601'],
-		required=False
+		required=False,
+		allow_null=True
 	)
 	cover_img = serializers.SerializerMethodField()
 	watched = serializers.SerializerMethodField()

@@ -2071,13 +2071,13 @@
                 "cover_image": null
             }
             const result = await saveData("update", "Card", body, currentCardId);
-            if(result){
-                
+            if (result) {
+
                 card.coverColor = '';
                 card.coverImage = '';
-            addActivity(card, 'removed cover', CURRENT_USER_ID);
-            openCardModal(currentCardId);
-            popover.classList.add('hidden');
+                addActivity(card, 'removed cover', CURRENT_USER_ID);
+                openCardModal(currentCardId);
+                popover.classList.add('hidden');
             }
         };
         popover.classList.remove('hidden');
@@ -2173,11 +2173,15 @@
         document.getElementById('modal-start-date').value = card.startDate || '';
         document.getElementById('modal-due-datetime').value = card.dueDate || '';
         document.getElementById('save-dates-btn').onclick = () => {
-            const startDateVal = document.getElementById('modal-start-date').value;
+            let startDateVal = document.getElementById('modal-start-date').value;
+            startDateVal = startDateVal == "" ? null : startDateVal
             card.startDate = startDateVal
-            const dueDateVal = document.getElementById('modal-due-datetime').value;
+            let dueDateVal = document.getElementById('modal-due-datetime').value;
+            dueDateVal = dueDateVal == "" ? null : dueDateVal
+
             card.dueDate = document.getElementById('modal-due-datetime').value;
             addActivity(card, `set dates: ${card.startDate||'none'} → ${card.dueDate||'none'}`, CURRENT_USER_ID);
+            console.log(startDateVal, dueDateVal)
             const body = {
                 "start_date": startDateVal,
                 "due_date": dueDateVal
@@ -2187,16 +2191,23 @@
             renderBoard();
             popover.classList.add('hidden');
         };
-        document.getElementById('clear-dates-btn').onclick = () => {
-            card.startDate = '';
-            card.dueDate = '';
-            document.getElementById('modal-start-date').value = '';
-            document.getElementById('modal-due-datetime').value = '';
-            addActivity(card, 'cleared dates', CURRENT_USER_ID);
-            saveData();
-            renderModalDatesDisplay();
-            renderBoard();
-            popover.classList.add('hidden');
+        document.getElementById('clear-dates-btn').onclick = async () => {
+            const body = {
+                "start_date": null,
+                "due_date": null
+            }
+            const result = await saveData("update", "Card", body, card.id);
+            if (result) {
+
+                card.startDate = '';
+                card.dueDate = '';
+                document.getElementById('modal-start-date').value = '';
+                document.getElementById('modal-due-datetime').value = '';
+                addActivity(card, 'cleared dates', CURRENT_USER_ID);
+                renderModalDatesDisplay();
+                renderBoard();
+                popover.classList.add('hidden');
+            }
         };
         popover.classList.remove('hidden');
         positionPopover(popover, anchorEl, -40, 8);
