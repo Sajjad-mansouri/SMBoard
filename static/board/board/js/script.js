@@ -1417,7 +1417,7 @@
             c.title = document.getElementById('modal-card-title').value.trim() || 'Untitled';
             c.description = document.getElementById('modal-description').value;
             c.completed = document.getElementById('modal-completion').value === 'complete';
-            saveData();
+
             renderBoard();
         }
         currentCardId = null;
@@ -2062,15 +2062,23 @@
             }
             this.value = '';
         };
-        document.getElementById('remove-cover-btn-popover').onclick = () => {
+        document.getElementById('remove-cover-btn-popover').onclick = async () => {
             const card = getActiveBoard()
                 .cards[currentCardId];
-            card.coverColor = '';
-            card.coverImage = '';
+            const body = {
+                "cover_color": "",
+                "cover_image_fk": null,
+                "cover_image": null
+            }
+            const result = await saveData("update", "Card", body, currentCardId);
+            if(result){
+                
+                card.coverColor = '';
+                card.coverImage = '';
             addActivity(card, 'removed cover', CURRENT_USER_ID);
-            saveData();
             openCardModal(currentCardId);
             popover.classList.add('hidden');
+            }
         };
         popover.classList.remove('hidden');
         positionPopover(popover, anchorEl, -100, 8);
