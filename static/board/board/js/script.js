@@ -186,6 +186,16 @@
                 } else {
                     result = await fetchUpdate(url, body)
                 }
+            } else if (func == "delete") {
+                path = `cards/${objId}/`
+                const url = origin + "/api/" + path
+
+                if (useFormData) {
+                    result = await fetchPostWithFormData(url, body, "PATCH")
+
+                } else {
+                    result = await fetchUpdate(url, body)
+                }
             }
 
 
@@ -371,6 +381,12 @@
         } else if (model == "BoardWatch") {
             if (func == "update") {
                 path = "board-watch/"
+                const url = origin + "/api/" + path
+                result = await fetchPost(url, body)
+            }
+        } else if (model == "CardWatch") {
+            if (func == "update") {
+                path = "card-watch/"
                 const url = origin + "/api/" + path
                 result = await fetchPost(url, body)
             }
@@ -1031,13 +1047,7 @@
         }
     }
 
-    function deleteCard(cid) {
-        const b = getActiveBoard();
-        b.lists.forEach(l => l.cardIds = l.cardIds.filter(id => id !== cid));
-        delete b.cards[cid];
-        saveData();
-        renderBoard();
-    }
+
 
     async function moveCard(cardId, targetListId, targetIndex) {
         const b = getActiveBoard();
@@ -1087,13 +1097,22 @@
         renderBoard();
     }
 
-    function toggleWatch(cardId) {
+    async function toggleWatch(cardId) {
         const card = getActiveBoard().cards[cardId];
         if (!card) return;
-        card.watched = !card.watched;
-        addActivity(card, card.watched ? 'started watching' : 'stopped watching', CURRENT_USER_ID);
-        saveData();
-        renderBoard();
+        const watch = !card.watched
+        const body = {
+            "card": cardId,
+            "watch": watch
+        }
+        const result = await saveData("update", "CardWatch", body);
+        if (result) {
+            card.watched = watch;
+            addActivity(card, card.watched ? 'started watching' : 'stopped watching', CURRENT_USER_ID);
+            console.log("result", result)
+            console.log("card", card)
+            renderBoard();
+        }
     }
 
     function toggleArchive(cardId) {
@@ -3047,12 +3066,6 @@
             } else if (action === 'archive') {
                 toggleArchive(currentCardId);
                 closeCardModal();
-            } else if (action === 'delete') {
-                if (confirm('Delete card?')) {
-                    deleteCard(
-                        currentCardId);
-                    closeCardModal();
-                }
             }
             document.getElementById('three-dot-dropdown').classList.add('hidden');
         });

@@ -269,10 +269,10 @@ class BoardMemberViewSet(viewsets.ModelViewSet):
 			return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
 
-class BoardWatchView(views.APIView):
+class ToggleWatchMixin:
 	def post(self, request, *args, **kwargs):
-		print(request.data)
-		serializer = serializers.BoardWatchSerializer(
+		
+		serializer = self.serializer_class(
 			data=request.data,
 			context={"request":request}
 			)
@@ -282,3 +282,9 @@ class BoardWatchView(views.APIView):
 			return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 		return Response(serializer.data, status=status.HTTP_200_OK)
+
+class BoardWatchView(ToggleWatchMixin, views.APIView):
+	serializer_class = serializers.BoardWatchSerializer
+
+class CardWatchView(ToggleWatchMixin, views.APIView):
+	serializer_class = serializers.CardWatchSerializer

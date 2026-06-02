@@ -6,7 +6,7 @@ from board.models import (
 	BoardMembership, CheckList, 
 	ChecklistItem, Comment, CardFile, 
 	CardImage, CardLabel,CardMembership,
-	BoardWatch
+	BoardWatch, CardWatch
 	)
 from rest_framework.generics import get_object_or_404
 
@@ -314,6 +314,28 @@ class BoardWatchSerializer(serializers.ModelSerializer):
 		watch = validated_data.get("watch")
 
 		obj, created = BoardWatch.objects.get_or_create(board=board, user=user)
+		obj.watch = watch
+		obj.save()
+		return obj
+
+
+class CardWatchSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = CardWatch
+		fields = ["user", "card", "watch", "id"]
+
+	def to_internal_value(self, data):
+		request = self.context["request"]
+		data["user"] = request.user.id
+		print(data)
+		return super().to_internal_value(data)
+
+	def create(self, validated_data):
+		board = validated_data.get("card")
+		user = validated_data.get("user")
+		watch = validated_data.get("watch")
+
+		obj, created = CardWatch.objects.get_or_create(card=board, user=user)
 		obj.watch = watch
 		obj.save()
 		return obj
