@@ -945,19 +945,25 @@
         renderArchivedModal();
     }
 
-    function unarchiveCard(cardId) {
+    async function unarchiveCard(cardId) {
         const board = getActiveBoard();
         if (board.cards[cardId]) {
-            board.cards[cardId].archived = false;
-            const originalList = board.lists.find(l => l.cardIds.includes(cardId));
-            if (!originalList) {
-                const firstList = board.lists[0];
-                if (firstList) firstList.cardIds.push(cardId);
+            const body = {
+                "archived": false
             }
-            addActivity(board.cards[cardId], `restored from archive`, CURRENT_USER_ID);
-            saveData();
-            renderBoard();
-            renderArchivedModal();
+            const result = await saveData("update", "Card", body, cardId);
+            if (result) {
+                console.log("unarchived", result)
+                board.cards[cardId].archived = false;
+                const originalList = board.lists.find(l => l.cardIds.includes(cardId));
+                if (!originalList) {
+                    const firstList = board.lists[0];
+                    if (firstList) firstList.cardIds.push(cardId);
+                }
+                addActivity(board.cards[cardId], `restored from archive`, CURRENT_USER_ID);
+                renderBoard();
+                renderArchivedModal();
+            }
         }
     }
 
