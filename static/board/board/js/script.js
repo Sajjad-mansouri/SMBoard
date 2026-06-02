@@ -2746,16 +2746,22 @@
                 dd.style.left = rect.left + 'px';
             }
         };
-        document.getElementById('visibility-dropdown').addEventListener('click', function(e) {
+        document.getElementById('visibility-dropdown').addEventListener('click', async function(e) {
             const item = e
                 .target.closest('.dropdown-item');
             if (!item) return;
             const vis = item.dataset.vis;
             if (vis) {
-                getActiveBoard().boardVisibility = vis;
-                saveData();
-                renderBoardMenuBar();
-                document.getElementById('visibility-dropdown').classList.add('hidden');
+                const body = {
+                    "status": vis
+                }
+                const result = await saveData("update", "Board", body, appState.activeBoardId);
+                if (result) {
+
+                    getActiveBoard().boardVisibility = vis;
+                    renderBoardMenuBar();
+                    document.getElementById('visibility-dropdown').classList.add('hidden');
+                }
             }
         });
         document.getElementById('share-board-btn').onclick = openShareModal;
