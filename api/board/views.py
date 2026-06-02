@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import viewsets, mixins, views
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView, get_object_or_404
+from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView, get_object_or_404, GenericAPIView
 from board.models import (
 	Board, Card, CheckList, 
 	ChecklistItem, Comment, 
@@ -299,3 +299,18 @@ class LinkAttachmentViewSet(viewsets.ModelViewSet):
 
 		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
 		return LinkAttachment.objects.filter(q).distinct()
+
+
+class CopyCardView(GenericAPIView):
+	serializer_class = serializers.CardNestedSerializer
+	def post(self, request, *args, **kwargs):
+		instance = self.get_object()
+		instance.pk = None
+		instance.order = None
+		instance._state.adding = True
+		instance.save()
+		serializer = self.get_serializer(instance)
+		return Response(serializer.data)
+
+	def get_queryset(self):
+		return Card.objects.all()

@@ -174,8 +174,6 @@
                 const url = origin + "/api/" + path
                 result = await fetchPost(url, body)
 
-
-
             } else if (func == "update") {
                 path = `cards/${objId}/`
                 const url = origin + "/api/" + path
@@ -191,6 +189,11 @@
                 const url = origin + "/api/" + path
 
                 result = await fetchDelete(url, body)
+            } else if (func == "copy") {
+                console.log("copy")
+                path = `copy-card/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchPost(url, body)
             }
 
 
@@ -575,36 +578,42 @@
         return attachments
     }
 
+    function cardDataExtract(cardData) {
+        const comments = prepareComments(cardData)
+        const checklists = prepareCheckLists(cardData)
+        const attachments = prepareAttachments(cardData)
+
+
+        const card = {}
+
+        card["id"] = cardData["id"]
+        card["title"] = cardData["name"]
+        card["description"] = cardData["description"]
+        card["labels"] = cardData["labels"]
+        card["startDate"] = cardData["start_date"]
+        card["dueDate"] = cardData["due_date"]
+
+        card["assignedUsers"] = cardData["card_memberships"]
+        card["coverColor"] = cardData["cover_color"]
+        card["coverImage"] = cardData["cover_img"]
+        card["watched"] = cardData["watched"]
+        card["archived"] = cardData["archived"]
+        card["completed"] = cardData["completed"]
+        card["checklists"] = checklists
+        card["comments"] = comments
+        card["attachments"] = attachments
+        card["activities"] = []
+
+        return card
+    }
+
     function prepareCard(data) {
         const cards = {}
         const labels = []
+        let card
         data.board_lists.forEach(list => {
             list.list_cards.forEach(cardData => {
-
-                const comments = prepareComments(cardData)
-                const checklists = prepareCheckLists(cardData)
-                const attachments = prepareAttachments(cardData)
-
-
-                const card = {}
-
-                card["id"] = cardData["id"]
-                card["title"] = cardData["name"]
-                card["description"] = cardData["description"]
-                card["labels"] = cardData["labels"]
-                card["startDate"] = cardData["start_date"]
-                card["dueDate"] = cardData["due_date"]
-
-                card["assignedUsers"] = cardData["card_memberships"]
-                card["coverColor"] = cardData["cover_color"]
-                card["coverImage"] = cardData["cover_img"]
-                card["watched"] = cardData["watched"]
-                card["archived"] = cardData["archived"]
-                card["completed"] = cardData["completed"]
-                card["checklists"] = checklists
-                card["comments"] = comments
-                card["attachments"] = attachments
-                card["activities"] = []
+                card = cardDataExtract(cardData)
 
                 labels.push(...cardData["card_labels"])
 
@@ -1110,22 +1119,28 @@
 
     }
 
-    function copyCard(cardId) {
+    async function copyCard(cardId) {
         const b = getActiveBoard();
-        const original = b.cards[cardId];
-        if (!original)
-            return;
-        const newId = generateId();
-        const newCard = JSON.parse(JSON.stringify(original));
-        newCard.id = newId;
-        newCard.activities = [];
-        addActivity(newCard, 'Card copied', CURRENT_USER_ID);
-        b.cards[newId] = newCard;
-        const list = b.lists.find(l => l.cardIds.includes(cardId));
-        if (list) list
-            .cardIds.push(newId);
-        saveData();
-        renderBoard();
+        const result = await saveData("copy", "Card", {}, cardId);
+        if (result) {
+            const newCard = cardDataExtract(result)
+
+            addActivity(newCard, 'Card copied', CURRENT_USER_ID);
+            b.cards[newCard.id] = newCard;
+            console.log("b.lists", b.lists)
+            console.log("b.lists", b.lists[0].cardIds[0], typeof b.lists[0].cardIds[0], typeof cardId)
+
+            console.log("cardId", cardId)
+
+            const list = b.lists.find(l => l.cardIds.includes(Number(cardId)));
+            if (list) list
+                .cardIds.push(newCard.id);
+
+            console.log("b.cards", b.cards)
+            console.log("list", list)
+
+            renderBoard();
+        }
     }
 
     async function toggleWatch(cardId) {
