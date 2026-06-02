@@ -190,12 +190,7 @@
                 path = `cards/${objId}/`
                 const url = origin + "/api/" + path
 
-                if (useFormData) {
-                    result = await fetchPostWithFormData(url, body, "PATCH")
-
-                } else {
-                    result = await fetchUpdate(url, body)
-                }
+                result = await fetchDelete(url, body)
             }
 
 
@@ -967,17 +962,20 @@
         }
     }
 
-    function permanentlyDeleteCard(cardId) {
+    async function permanentlyDeleteCard(cardId) {
         const board = getActiveBoard();
-        delete board.cards[cardId];
-        if (board.archivedLists) {
-            board.archivedLists.forEach(l => {
-                l.cardIds = l.cardIds.filter(id => id !== cardId);
-            });
+        const result = await saveData("delete", "Card", {}, cardId);
+        if (result) {
+            delete board.cards[cardId];
+            if (board.archivedLists) {
+                board.archivedLists.forEach(l => {
+                    l.cardIds = l.cardIds.filter(id => id !== cardId);
+                });
+            }
+
+            renderArchivedModal();
+            renderBoard();
         }
-        saveData();
-        renderArchivedModal();
-        renderBoard();
     }
 
     function renderCardElement(card) {
