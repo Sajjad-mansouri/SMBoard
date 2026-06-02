@@ -1,7 +1,13 @@
 import mimetypes
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from board.models import Board, Card, BoardList, BoardMembership, CheckList, ChecklistItem, Comment, CardFile, CardImage, CardLabel,CardMembership
+from board.models import (
+	Board, Card, BoardList, 
+	BoardMembership, CheckList, 
+	ChecklistItem, Comment, CardFile, 
+	CardImage, CardLabel,CardMembership,
+	BoardWatch
+	)
 from rest_framework.generics import get_object_or_404
 
 UserModel = get_user_model()
@@ -279,6 +285,7 @@ class BoardNestedSerializer(BoardSerializer):
 
 	def get_board_watched(self, obj):
 		request = self.context["request"]
+		print("watched",obj.board_boardwatchs.filter(user=request.user, watch=True).exists())
 		return obj.board_boardwatchs.filter(user=request.user, watch=True).exists()
 
 
@@ -289,3 +296,24 @@ class CardOrderSerializer(CardSerializer):
 	id = serializers.IntegerField()
 	class Meta(CardSerializer.Meta):
 		list_serializer_class = CustomListSerializer
+
+class BoardWatchSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = BoardWatch
+		fields = ["user", "board", "watch", "id"]
+
+	def to_internal_value(self, data):
+		request = self.context["request"]
+		data["user"] = request.user.id
+		print(data)
+		return super().to_internal_value(data)
+
+	def create(self, validated_data):
+		board = validated_data.get("board")
+		user = validated_data.get("user")
+		watch = validated_data.get("watch")
+
+		obj, created = BoardWatch.objects.get_or_create(board=board, user=user)
+		obj.watch = watch
+		obj.save()
+		return obj

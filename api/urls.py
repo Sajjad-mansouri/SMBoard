@@ -46,6 +46,8 @@ urlpatterns += [
 	path("current-user/", board_views.CurrentUser.as_view(), name="current_user"),
 	path("board-list-order/", board_views.BoardListOrderUpdating.as_view(), name="update_list_order"),
 	path("card-order/", board_views.CardOrderUpdating.as_view(), name="card_order"),
+	path("board-watch/", board_views.BoardWatchView.as_view(), name="board_watch"),
+
 
 
 

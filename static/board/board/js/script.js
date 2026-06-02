@@ -368,6 +368,12 @@
                 const url = origin + "/api/" + path
                 result = await fetchUpdate(url, body)
             }
+        } else if (model == "BoardWatch") {
+            if (func == "update") {
+                path = "board-watch/"
+                const url = origin + "/api/" + path
+                result = await fetchPost(url, body)
+            }
         }
         return result
     }
@@ -2313,7 +2319,6 @@
                         uploadedBy: CURRENT_USER_ID
                     });
                     addActivity(card, `attached file "${f.name}"`, CURRENT_USER_ID);
-                    saveData();
                     renderModalAttachments();
                     renderModalCommentsActivity();
                 }
@@ -2876,10 +2881,19 @@
                 openActivityModal();
             } else if (action === 'watch') {
                 const board = getActiveBoard();
-                board.boardWatched = !board.boardWatched;
-                saveData();
+                const watch = !board.boardWatched
+                const body = {
+                    "board": board.id,
+                    "watch": !board.boardWatched
+                }
+                const result = await saveData("update", "BoardWatch", body);
+                if (result) {
 
-                updateBoardWatchStatus();
+                    board.boardWatched = watch;
+
+
+                    updateBoardWatchStatus();
+                }
             } else if (action === 'archived-items') {
                 closeBoardMenuDropdown();
                 openArchivedModal();

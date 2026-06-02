@@ -9,7 +9,8 @@ from board.models import (
 	ChecklistItem, Comment, 
 	CardFile, CardImage, 
 	CardLabel, BoardList, 
-	CardMembership,BoardMembership
+	CardMembership,BoardMembership,
+	BoardWatch
 	)
 from . import serializers
 from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission, BoardMembershipPermission
@@ -266,4 +267,18 @@ class BoardMemberViewSet(viewsets.ModelViewSet):
 			return Response(serializer.data, status=status.HTTP_201_CREATED)
 		else:
 			return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
-			
+
+
+class BoardWatchView(views.APIView):
+	def post(self, request, *args, **kwargs):
+		print(request.data)
+		serializer = serializers.BoardWatchSerializer(
+			data=request.data,
+			context={"request":request}
+			)
+		if serializer.is_valid():
+			serializer.save()
+		else:
+			return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+		return Response(serializer.data, status=status.HTTP_200_OK)
