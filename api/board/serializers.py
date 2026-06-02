@@ -6,7 +6,7 @@ from board.models import (
 	BoardMembership, CheckList, 
 	ChecklistItem, Comment, CardFile, 
 	CardImage, CardLabel,CardMembership,
-	BoardWatch, CardWatch
+	BoardWatch, CardWatch, LinkAttachment
 	)
 from rest_framework.generics import get_object_or_404
 
@@ -108,16 +108,22 @@ class CardCommentSerializer(serializers.ModelSerializer):
 
 		reply_img_attachment = False
 		reply_file_attachment = False
+		reply_link_attachment = False
 		reply_content_object = None
 		if reply_type:
 			types = reply_type.split("/")
 			reply_img_attachment = any(item in image_types for item in types)
 			reply_file_attachment = any(item in file_types for item in types)
+			reply_link_attachment = reply_type == "link"
 
 		if reply_img_attachment:
 			reply_content_object = get_object_or_404(CardImage, id=int(reply_id))
 		elif reply_file_attachment:
 			reply_content_object = get_object_or_404(CardFile, id=int(reply_id))
+		elif reply_link_attachment:
+			reply_content_object = get_object_or_404(LinkAttachment, id=int(reply_id))
+
+
 
 		obj = Comment.objects.create(reply_content_object=reply_content_object, **validated_data)
 
@@ -134,6 +140,8 @@ class CardCommentSerializer(serializers.ModelSerializer):
 	def get_reply(self, obj):
 
 		if obj.reply_content_object:
+			if isinstance(obj.reply_content_object, LinkAttachment):
+				return {"name":obj.reply_content_object.file, "id":obj.reply_content_object.id, "type":"link"}
 			mime_type, encoding = mimetypes.guess_type(obj.reply_content_object.file.name)
 			return {"name":obj.reply_content_object.get_name(), "id":obj.reply_content_object.id, "type":mime_type}
 		else:
@@ -157,10 +165,14 @@ class FileAttachmentSerializer(serializers.ModelSerializer):
 		return super().to_internal_value(data)
 
 	def get_file_type(self, obj):
+		if isinstance(obj, LinkAttachment):
+			return "link"
 		mime_type, encoding = mimetypes.guess_type(obj.file.name)
 		return mime_type	
 
 	def get_display_name(self, obj):
+		if isinstance(obj, LinkAttachment):
+			return obj.file 
 		name_loc = obj.file.name
 		name = name_loc.rsplit("/",1)[1]
 		extension = name.split(".")[1]
@@ -174,6 +186,10 @@ class FileAttachmentSerializer(serializers.ModelSerializer):
 class ImageAttachmentSerializer(FileAttachmentSerializer):
 	class Meta(FileAttachmentSerializer.Meta):
 		model = CardImage
+
+class LinkAttachmentSerializer(FileAttachmentSerializer):
+	class Meta(FileAttachmentSerializer.Meta):
+		model = LinkAttachment
 
 class CardMembershipSerializer(serializers.ModelSerializer):
 	class Meta:
@@ -204,6 +220,7 @@ class CardNestedSerializer(CardSerializer):
 
 	cardfile_set = FileAttachmentSerializer(many=True, read_only=True)
 	cardimage_set = ImageAttachmentSerializer(many=True, read_only=True)
+	linkattachment_set= LinkAttachmentSerializer(many=True, read_only=True)
 
 	class Meta(CardSerializer.Meta):
 		extra_fields = [
@@ -211,7 +228,7 @@ class CardNestedSerializer(CardSerializer):
 		"archived", "cover_image","cover_image_fk","cover_img",
 		"cover_color", "card_memberships", "card_checklists",
 		"card_comments", "watched", "cardfile_set",
-		"cardimage_set",
+		"cardimage_set","linkattachment_set"
 
 		]
 		fields = CardSerializer.Meta.fields +  extra_fields

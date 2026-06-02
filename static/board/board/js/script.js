@@ -385,6 +385,26 @@
                 const url = origin + "/api/" + path
                 result = await fetchPost(url, body)
             }
+        } else if (model == "LinkAttachment") {
+            if (func == "create") {
+                path = "link-attachments/"
+                const url = origin + "/api/" + path
+                console.log(url, body)
+                result = await fetchPost(url, body)
+
+
+
+            } else if (func == "delete") {
+                path = `link-attachments/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchDelete(url, body)
+
+
+            } else if (func == "update") {
+                path = `link-attachments/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
+            }
         }
         return result
     }
@@ -539,7 +559,7 @@
 
     function prepareAttachments(cardData) {
         const attachments = []
-        const allFiles = [...cardData.cardfile_set, ...cardData.cardimage_set]
+        const allFiles = [...cardData.cardfile_set, ...cardData.cardimage_set, ...cardData.linkattachment_set]
         allFiles.forEach(fileData => {
             const attachment = {}
             attachment["id"] = fileData["id"]
@@ -1761,8 +1781,9 @@
                     hour: '2-digit',
                     minute: '2-digit'
                 }) : '';
+            const downloadLink = att.type === "link" ? "" : `<div class="dropdown-item att-download" data-attindex="${i}">Download</div>`
             div.innerHTML =
-                `<div class="attachment-thumb">${thumbContent}</div><div class="attachment-info"><div class="attachment-name">${escapeHtml(att.name)}</div><div class="attachment-meta">${uploader?uploader.name:'Unknown'} · ${time}</div></div><div class="attachment-actions"><button class="attachment-dot-btn" data-attindex="${i}">⋯</button><div class="dropdown-menu right-align hidden attachment-dropdown" style="position:absolute;right:0;top:100%;min-width:160px;"><div class="dropdown-item att-download" data-attindex="${i}">Download</div><div class="dropdown-item att-comment" data-attindex="${i}">💬 Comment</div>${isImage?`<div class="dropdown-item att-set-cover" data-attindex="${i}">🖼️ Set as Cover</div>`:''}<div class="dropdown-divider"></div><div class="dropdown-item danger att-remove" data-attindex="${i}">🗑 Remove</div></div></div>`;
+                `<div class="attachment-thumb">${thumbContent}</div><div class="attachment-info"><div class="attachment-name">${escapeHtml(att.name)}</div><div class="attachment-meta">${uploader?uploader.name:'Unknown'} · ${time}</div></div><div class="attachment-actions"><button class="attachment-dot-btn" data-attindex="${i}">⋯</button><div class="dropdown-menu right-align hidden attachment-dropdown" style="position:absolute;right:0;top:100%;min-width:160px;">${downloadLink}<div class="dropdown-item att-comment" data-attindex="${i}">💬 Comment</div>${isImage?`<div class="dropdown-item att-set-cover" data-attindex="${i}">🖼️ Set as Cover</div>`:''}<div class="dropdown-divider"></div><div class="dropdown-item danger att-remove" data-attindex="${i}">🗑 Remove</div></div></div>`;
             container.appendChild(div);
             const dotBtn = div.querySelector('.attachment-dot-btn');
             const dropdown =
@@ -1858,6 +1879,10 @@
 
                     } else if (fileType) {
                         result = await saveData("delete", "CardFile", {}, fileId);
+
+                    } else if (type == "link") {
+                        console.log("remove link")
+                        result = await saveData("delete", "LinkAttachment", {}, fileId);
 
                     }
                     if (result) {
@@ -2348,25 +2373,32 @@
             this.value = '';
             popover.classList.add('hidden');
         };
-        document.getElementById('add-link-attachment-btn-popover').onclick = () => {
+        document.getElementById('add-link-attachment-btn-popover').onclick = async () => {
             const url = document
                 .getElementById('link-attachment-input-popover').value.trim();
             if (url) {
-                const card =
-                    getActiveBoard().cards[currentCardId];
-                card.attachments.push({
-                    name: url,
-                    type: 'link',
-                    data: url,
-                    uploadedAt: Date.now(),
-                    uploadedBy: CURRENT_USER_ID
-                });
-                addActivity(card, `attached link: ${url}`, CURRENT_USER_ID);
-                saveData();
-                renderModalAttachments();
-                renderModalCommentsActivity();
-                document.getElementById('link-attachment-input-popover').value = '';
-                popover.classList.add('hidden');
+                const card = getActiveBoard().cards[currentCardId];
+                const body = {
+                    "name": url,
+                    "file": url,
+                    "card": currentCardId
+                }
+                const result = await saveData("create", "LinkAttachment", body);
+                if (result) {
+
+                    card.attachments.push({
+                        name: url,
+                        type: 'link',
+                        data: url,
+                        uploadedAt: result.upload_at,
+                        uploadedBy: CURRENT_USER_ID
+                    });
+                    addActivity(card, `attached link: ${url}`, CURRENT_USER_ID);
+                    renderModalAttachments();
+                    renderModalCommentsActivity();
+                    document.getElementById('link-attachment-input-popover').value = '';
+                    popover.classList.add('hidden');
+                }
             }
         };
         popover.classList.remove('hidden');
@@ -3183,6 +3215,7 @@
 
             if (editingCommentIndex !== null && card.comments[editingCommentIndex] && card
                 .comments?.[editingCommentIndex]?.userId === CURRENT_USER_ID) {
+
                 const body = {
                     "content": text,
                     "edited": true
@@ -3210,6 +3243,7 @@
                     "reply_type": replyType,
                     "reply_id": replyId
                 }
+                console.log("body comment", body)
                 result = await saveData("create", "Comment", body, currentCardId);
 
                 if (result) {

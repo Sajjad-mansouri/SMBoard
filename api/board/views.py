@@ -10,7 +10,7 @@ from board.models import (
 	CardFile, CardImage, 
 	CardLabel, BoardList, 
 	CardMembership,BoardMembership,
-	BoardWatch
+	BoardWatch, LinkAttachment
 	)
 from . import serializers
 from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission, BoardMembershipPermission
@@ -288,3 +288,14 @@ class BoardWatchView(ToggleWatchMixin, views.APIView):
 
 class CardWatchView(ToggleWatchMixin, views.APIView):
 	serializer_class = serializers.CardWatchSerializer
+
+
+class LinkAttachmentViewSet(viewsets.ModelViewSet):
+
+	serializer_class = serializers.LinkAttachmentSerializer
+	permission_classes = [IsBoardOwnerOrMember]
+
+	def get_queryset(self):
+
+		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
+		return LinkAttachment.objects.filter(q).distinct()

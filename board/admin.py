@@ -3,7 +3,7 @@ from .models import (
 	Board, BoardMembership, BoardList, 
 	Card, CardLabel, CheckList, ChecklistItem, 
 	CardFile, CardImage, Comment,
-	CardWatch, BoardWatch,CardMembership
+	CardWatch, BoardWatch,CardMembership,LinkAttachment
 	)
 
 @admin.register(Board)
@@ -47,6 +47,9 @@ class FileAttachmentAdmin(admin.ModelAdmin):
 class ImageAttachmentAdmin(admin.ModelAdmin):
 	list_display = ["name", "user", "card"]
 
+@admin.register(LinkAttachment)
+class ImageAttachmentAdmin(admin.ModelAdmin):
+	list_display = ["name", "user", "card"]
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):

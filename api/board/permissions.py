@@ -28,7 +28,9 @@ class IsBoardOwnerOrMember(permissions.BasePermission):
 			isinstance(obj, models.CardLabel)|
 			isinstance(obj, models.CheckList)|
 			isinstance(obj, models.CardFile) | 
-			isinstance(obj,models.CardImage)| 
+			isinstance(obj,models.CardImage)|
+			isinstance(obj,models.LinkAttachment)| 
+
 			isinstance(obj,models.Comment) |
 			isinstance(obj,models.CardWatch)
 			

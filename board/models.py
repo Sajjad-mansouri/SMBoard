@@ -250,6 +250,16 @@ class CardImage(AttachmentAbstractModel):
 		name = name_loc.rsplit("/",1)[1]
 		return name
 
+class LinkAttachment(AttachmentAbstractModel):
+	file = models.URLField(_("Link"))
+
+	def __str__(self):
+		return f"{self.user} links"
+
+	class Meta:
+		verbose_name = _("Link Attachment")
+		verbose_name_plural = _("Links Attachments")
+
 class Comment(DateAbstractModel):
 	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_comments")
 	card = models.ForeignKey(Card, on_delete=models.CASCADE, verbose_name="Card", related_name="card_comments")
