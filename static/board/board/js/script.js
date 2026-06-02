@@ -149,7 +149,26 @@
 
         let path = "";
         let result;
-        if (model == "Card") {
+        if (model == "Board") {
+            if (func == "create") {
+                path = "boards/"
+                const url = origin + "/api/" + path
+                result = await fetchPost(url, body)
+
+
+
+            } else if (func == "delete") {
+                path = `boards/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchDelete(url, body)
+
+
+            } else if (func == "update") {
+                path = `boards/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
+            }
+        } else if (model == "Card") {
             path = `card/${objId}/`
             const url = origin + "/api/" + path
 
@@ -2700,13 +2719,19 @@
             el.contentEditable = 'true';
             el.focus();
         };
-        document.getElementById('board-title').addEventListener('blur', () => {
-            const el = document.getElementById(
-                'board-title');
-            el.contentEditable = 'false';
-            getActiveBoard().title = el.innerText.trim() || 'Board';
-            saveData();
-            renderBoard();
+        document.getElementById('board-title').addEventListener('blur', async () => {
+            const el = document.getElementById('board-title');
+            const name = el.innerText.trim() || 'Board';
+            const body = {
+                "name": name
+            }
+            const result = await saveData("update", "Board", body, appState.activeBoardId);
+            if (result) {
+
+                el.contentEditable = 'false';
+                getActiveBoard().title = name;
+                renderBoard();
+            }
         });
         document.getElementById('visibility-badge-btn').onclick = (e) => {
             e.stopPropagation();

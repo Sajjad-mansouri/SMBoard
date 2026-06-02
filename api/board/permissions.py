@@ -9,14 +9,7 @@ class IsBoardOwner(permissions.BasePermission):
 
 		return obj.owner == request.user
 
-	def has_permission(self, request, view):
-		if request.method in SAFE_METHODS:
-			q = Q(owner=request.user)
-			return models.Board.objects.filter(q).exists()
-		else:
-			obj_id = request.data.get("board")
-			q = Q(id=obj_id)& Q(owner=request.user)
-			return models.Board.objects.filter(q).exists()
+
 
 class IsBoardOwnerOrMember(permissions.BasePermission):
 
