@@ -801,13 +801,19 @@
                 cardsContainer.appendChild(renderCardElement(board.cards[cid]));
             }
         });
-        div.querySelector('.list-title').addEventListener('change', () => {
+        div.querySelector('.list-title').addEventListener('change', async () => {
             const title = div.querySelector(
                 '.list-title').value.trim() || 'Untitled';
             list.title = title
 
-            saveData();
-            renderBoard();
+            const body = {
+                "name": title
+            }
+            const result = await saveData("update", "BoardList", body, list.id);
+            if (result) {
+
+                renderBoard();
+            }
         });
         div.querySelector('.add-card-btn').addEventListener('click', () => {
             const t = prompt('Card title:');
