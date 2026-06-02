@@ -623,17 +623,7 @@
                 console.log(e)
             }
         }
-        const oldStored = localStorage.getItem('kanban_board_data_v4');
-        if (oldStored && !stored) {
-            try {
-                appState = JSON.parse(oldStored);
-                appState = migrateData(appState);
-                saveData();
-            } catch (e) {
-                console.log(e)
-            }
 
-        }
 
 
         renderBoard();
@@ -2320,26 +2310,7 @@
     }
 
     function renderBackgroundModalContent() {
-        const photosGrid = document.getElementById('bg-photos-grid-modal');
-        const photoUrls = [
-            'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=200&fit=crop',
-            'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=300&h=200&fit=crop',
-            'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=300&h=200&fit=crop',
-            'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=300&h=200&fit=crop'
-        ];
-        photosGrid.innerHTML = photoUrls.map(url =>
-            `<div class="bg-photo-thumb" style="background-image:url(${url})" data-bg-image="${url}"></div>`
-        ).join('');
 
-        photosGrid.querySelectorAll('.bg-photo-thumb').forEach(thumb => {
-            thumb.addEventListener('click', () => {
-                const board = getActiveBoard();
-                board.background = `url(${thumb.dataset.bgImage}) center/cover no-repeat`;
-                document.body.style.background = board.background;
-                document.body.style.backgroundSize = 'cover';
-                saveData();
-            });
-        });
 
         const colorsGrid = document.getElementById('bg-colors-grid-modal');
         const bgColors = ['#f0f2f5', '#e4f0f6', '#fce4ec', '#1a1a2e', '#2d3e50', '#6c5ce7', '#00b894', '#e17055'];
@@ -2350,19 +2321,34 @@
         colorsGrid.querySelectorAll('.bg-color-dot').forEach(dot => {
             dot.addEventListener('click', () => {
                 const board = getActiveBoard();
-                board.background = dot.dataset.bgColor;
-                document.body.style.background = board.background;
-                document.body.style.backgroundSize = '';
-                saveData();
+                const body = {
+                    "background_color": dot.dataset.bgColor
+                }
+                const result = saveData("update", "Board", body, board.id);
+                if (result) {
+
+                    board.background = dot.dataset.bgColor;
+                    document.body.style.background = board.background;
+                    document.body.style.backgroundSize = '';
+                }
             });
         });
 
         document.getElementById('board-bg-custom-color-modal').oninput = function() {
             const board = getActiveBoard();
-            board.background = this.value;
-            document.body.style.background = this.value;
-            document.body.style.backgroundSize = '';
-            saveData();
+
+            const body = {
+                "background_color": this.value
+            }
+            const result = saveData("update", "Board", body, board.id);
+            if (result) {
+
+                board.background = this.value;
+                document.body.style.background = this.value;
+                document.body.style.backgroundSize = '';
+            }
+
+
         };
     }
 
@@ -2831,7 +2817,7 @@
         };
 
         // Board menu dropdown items
-        document.getElementById('board-menu-dropdown').addEventListener('click', function(e) {
+        document.getElementById('board-menu-dropdown').addEventListener('click', async function(e) {
             const item = e.target.closest('.board-menu-dropdown-item');
             if (!item) return;
             const action = item.dataset.action;
@@ -2848,6 +2834,7 @@
                 const board = getActiveBoard();
                 board.boardWatched = !board.boardWatched;
                 saveData();
+
                 updateBoardWatchStatus();
             } else if (action === 'archived-items') {
                 closeBoardMenuDropdown();
@@ -2855,10 +2842,17 @@
             } else if (action === 'close-board') {
                 if (confirm('Close this board? It will be archived.')) {
                     const board = getActiveBoard();
-                    board.boardClosed = true;
-                    saveData();
-                    alert('Board closed (archived).');
-                    closeBoardMenuDropdown();
+                    const body = {
+                        "closed": true
+                    }
+                    const result = await saveData("update", "Board", body, board.id)
+                    if (result) {
+
+                        board.boardClosed = true;
+
+                        alert('Board closed (archived).');
+                        closeBoardMenuDropdown();
+                    }
                 }
             }
         });
@@ -3171,74 +3165,6 @@
 
         });
 
-        document.getElementById('close-users-modal').onclick = () => document.getElementById('users-modal-overlay')
-            .classList.add('hidden');
-        document.getElementById('close-users-modal-top')?.addEventListener('click', () => document.getElementById(
-            'users-modal-overlay').classList.add('hidden'));
-        document.getElementById('add-user-btn').onclick = () => {
-            const name = document.getElementById(
-                'new-user-name').value.trim();
-            const color = document.getElementById('new-user-color').value;
-            if (
-                name) {
-                appState.users.push({
-                    id: generateId(),
-                    name,
-                    color,
-                    email: '',
-                    username: '@' + name.toLowerCase().replace(/\s+/g, '')
-                });
-                saveData();
-                renderUsersModal();
-                updateFilterDropdowns();
-            }
-        };
-        document.getElementById('close-labels-modal').onclick = () => document.getElementById('labels-modal-overlay')
-            .classList.add('hidden');
-        document.getElementById('close-labels-modal-top')?.addEventListener('click', () => document.getElementById(
-            'labels-modal-overlay').classList.add('hidden'));
-        document.getElementById('add-label-btn').onclick = () => {
-            const name = document.getElementById(
-                'new-label-name').value.trim();
-            const color = document.getElementById('new-label-color').value;
-            if (
-                name) {
-                appState.labels.push({
-                    id: generateId(),
-                    name,
-                    color
-                });
-                saveData();
-                renderLabelsModal();
-                updateFilterDropdowns();
-            }
-        };
-
-        document.getElementById('close-bg-modal').onclick = () => document.getElementById('bg-modal-overlay')
-            .classList.add('hidden');
-        document.getElementById('close-bg-modal-top')?.addEventListener('click', () => document.getElementById(
-            'bg-modal-overlay').classList.add('hidden'));
-        document.getElementById('apply-bg-btn').onclick = () => {
-            const col = document.getElementById(
-                'custom-bg-color').value;
-            getActiveBoard().background = col;
-            saveData();
-            document.body.style.background = col;
-            document.body.style.backgroundSize = '';
-        };
-        document.querySelectorAll('#bg-presets .bg-preset').forEach(p => {
-            p.onclick = () => {
-                const bg = p.dataset
-                    .bg;
-                getActiveBoard().background = bg;
-                saveData();
-                document.body.style.background = bg;
-                document.body.style.backgroundSize = '';
-            };
-        });
-
-        const savedTheme = localStorage.getItem('theme') || 'light';
-        document.documentElement.setAttribute('data-theme', savedTheme);
 
 
         document.getElementById('close-board-activity-btn').onclick = () => document.getElementById(
@@ -3324,56 +3250,7 @@
         });
     }
 
-    function renderUsersModal() {
-        const container = document.getElementById('users-list');
-        container.innerHTML = '';
-        appState.users.forEach(u => {
-            const div = document.createElement('div');
-            div.style.cssText =
-                'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:4px;';
-            div.innerHTML =
-                `<span><span style="background:${u.color};width:22px;height:22px;display:inline-block;border-radius:50%;text-align:center;line-height:22px;color:white;font-weight:600;font-size:0.65rem;">${u.name[0]}</span> ${u.name}</span><button class="icon-btn small delete-user-btn" data-id="${u.id}">🗑</button>`;
-            container.appendChild(div);
-            div.querySelector('button').addEventListener('click', () => {
-                appState.users = appState.users.filter(
-                    usr => usr.id !== u.id);
-                appState.boards.forEach(b => {
-                    b.boardMembers = b.boardMembers.filter(uid => uid !== u.id);
-                    delete b.memberRoles[u.id];
-                    b.joinRequests = b.joinRequests.filter(uid => uid !== u.id);
-                    Object.values(b.cards).forEach(c => c.assignedUsers = c.assignedUsers.filter(
-                        member => member.user !== u.id));
-                });
-                saveData();
-                renderUsersModal();
-                updateFilterDropdowns();
-                renderBoard();
-            });
-        });
-    }
 
-    function renderLabelsModal() {
-        const container = document.getElementById('labels-list');
-        container.innerHTML = '';
-        appState.labels.forEach(l => {
-            const div = document.createElement('div');
-            div.style.cssText =
-                'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding:4px;';
-            div.innerHTML =
-                `<span><span style="background:${l.color};width:36px;height:14px;display:inline-block;border-radius:5px;"></span> ${l.name}</span><button class="icon-btn small delete-label-btn" data-id="${l.id}">🗑</button>`;
-            container.appendChild(div);
-            div.querySelector('button').addEventListener('click', () => {
-                appState.labels = appState.labels.filter(
-                    lbl => lbl.id !== l.id);
-                appState.boards.forEach(b => Object.values(b.cards).forEach(c => c.labels = c.labels.filter(
-                    lid => lid !== l.id)));
-                saveData();
-                renderLabelsModal();
-                updateFilterDropdowns();
-                renderBoard();
-            });
-        });
-    }
 
     loadData();
 
