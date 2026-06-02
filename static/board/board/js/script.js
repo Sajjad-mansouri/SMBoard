@@ -430,7 +430,7 @@
             }
             if (member.accepted) {
                 boardMembers.push(member.user.id)
-                memberRoles[`$ {member.user.id}`] = member.member_type
+                memberRoles[`${member.user.id}`] = member.member_type
             }
             users.push({
                 id: member.user.id,
@@ -2173,8 +2173,9 @@
 
         function renderMemberOptions(filter = '') {
             optionsList.innerHTML = '';
+            console.log(appState)
             const filtered = appState.users
-                .filter(u => u.name.toLowerCase().includes(filter.toLowerCase()));
+                .filter(u => u.name.toLowerCase().includes(filter.toLowerCase()) && appState.boards[0].boardMembers.includes(u.id));
             filtered.forEach(u => {
                 const div = document.createElement('div');
                 div.className = 'member-option';
@@ -2532,18 +2533,28 @@
                         <div class="member-details"><div class="member-name">${escapeHtml(u.name)}</div><div class="member-username">${u.username||''}</div></div>
                         <button class="btn-primary small approve-join-btn" data-uid="${uid}">Approve</button>
                         <button class="btn-secondary small deny-join-btn" data-uid="${uid}">Deny</button>`;
-                row.querySelector('.approve-join-btn').addEventListener('click', () => {
-                    board.boardMembers.push(uid);
-                    board.memberRoles[uid] = 'member';
-                    board.joinRequests = board.joinRequests.filter(id => id !== uid);
-                    saveData();
-                    renderShareModalContent();
-                    renderBoardMenuBar();
+                row.querySelector('.approve-join-btn').addEventListener('click', async () => {
+                    const body = {
+                        "accepted": true
+                    }
+                    const result = await saveData("update", "BoardMember", body, appState.boardMembership[uid].id);
+                    if (result) {
+
+                        board.boardMembers.push(uid);
+                        board.memberRoles[uid] = 'member';
+                        board.joinRequests = board.joinRequests.filter(id => id !== uid);
+                        renderShareModalContent();
+                        renderBoardMenuBar();
+                    }
                 });
-                row.querySelector('.deny-join-btn').addEventListener('click', () => {
-                    board.joinRequests = board.joinRequests.filter(id => id !== uid);
-                    saveData();
-                    renderShareModalContent();
+                row.querySelector('.deny-join-btn').addEventListener('click', async () => {
+                    const result = await saveData("delete", "BoardMember", {}, appState.boardMembership[uid].id);
+                    if (result) {
+
+                        board.joinRequests = board.joinRequests.filter(id => id !== uid);
+
+                        renderShareModalContent();
+                    }
                 });
                 joinContent.appendChild(row);
             });
