@@ -1762,7 +1762,7 @@
                     minute: '2-digit'
                 }) : '';
             div.innerHTML =
-                `<div class="attachment-thumb">${thumbContent}</div><div class="attachment-info"><div class="attachment-name">${escapeHtml(att.name)}</div><div class="attachment-meta">${uploader?uploader.name:'Unknown'} · ${time}</div></div><div class="attachment-actions"><button class="attachment-dot-btn" data-attindex="${i}">⋯</button><div class="dropdown-menu right-align hidden attachment-dropdown" style="position:absolute;right:0;top:100%;min-width:160px;"><div class="dropdown-item att-download" data-attindex="${i}">Download</div><div class="dropdown-item att-comment" data-attindex="${i}">💬 Comment</div>${isImage?`<div class="dropdown-item att-set-cover" data-attindex="${i}">🖼️ Set as Cover</div>`:''}<div class="dropdown-item att-remove-cover" data-attindex="${i}" style="${card.coverImage===att.data?'':'display:none;'}">❌ Remove Cover</div><div class="dropdown-divider"></div><div class="dropdown-item danger att-remove" data-attindex="${i}">🗑 Remove</div></div></div>`;
+                `<div class="attachment-thumb">${thumbContent}</div><div class="attachment-info"><div class="attachment-name">${escapeHtml(att.name)}</div><div class="attachment-meta">${uploader?uploader.name:'Unknown'} · ${time}</div></div><div class="attachment-actions"><button class="attachment-dot-btn" data-attindex="${i}">⋯</button><div class="dropdown-menu right-align hidden attachment-dropdown" style="position:absolute;right:0;top:100%;min-width:160px;"><div class="dropdown-item att-download" data-attindex="${i}">Download</div><div class="dropdown-item att-comment" data-attindex="${i}">💬 Comment</div>${isImage?`<div class="dropdown-item att-set-cover" data-attindex="${i}">🖼️ Set as Cover</div>`:''}<div class="dropdown-divider"></div><div class="dropdown-item danger att-remove" data-attindex="${i}">🗑 Remove</div></div></div>`;
             container.appendChild(div);
             const dotBtn = div.querySelector('.attachment-dot-btn');
             const dropdown =
@@ -1844,17 +1844,7 @@
 
 
             });
-            div.querySelector('.att-remove-cover')?.addEventListener('click', (e) => {
-                e.stopPropagation();
-                dropdown.classList.add('hidden');
-                if (card.coverImage === att.data) {
-                    card.coverImage =
-                        '';
-                    addActivity(card, 'removed cover', CURRENT_USER_ID);
-                    saveData();
-                    openCardModal(currentCardId);
-                }
-            });
+
             div.querySelector('.att-remove')?.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 dropdown.classList.add('hidden');
@@ -2056,14 +2046,22 @@
             });
             colorGrid.appendChild(swatch);
         });
-        document.getElementById('cover-custom-color').oninput = function() {
+        document.getElementById('cover-custom-color').oninput = async function() {
             const card = getActiveBoard()
                 .cards[currentCardId];
-            card.coverColor = this.value;
-            card.coverImage = '';
-            addActivity(card, 'changed cover color', CURRENT_USER_ID);
-            saveData();
-            openCardModal(currentCardId);
+            const body = {
+                "cover_image": null,
+                "cover_image_fk": null,
+                "cover_color": this.value
+            }
+            const result = await saveData("update", "Card", body, currentCardId);
+            if (result) {
+
+                card.coverColor = this.value;
+                card.coverImage = '';
+                addActivity(card, 'changed cover color', CURRENT_USER_ID);
+                openCardModal(currentCardId);
+            }
         };
         document.getElementById('cover-upload-area').onclick = () => document.getElementById('cover-image-input')
             .click();
