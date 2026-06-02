@@ -1075,32 +1075,39 @@
 
     async function moveCard(cardId, targetListId, targetIndex) {
         const b = getActiveBoard();
-        const oldList = b.lists.find(l => l.cardIds.includes(cardId));
-        b.lists.forEach(l => l.cardIds = l.cardIds.filter(id => id != cardId));
-        const tl = b.lists.find(l => l.id == targetListId);
-        const cardIdList = [...tl.cardIds]
-        if (tl) {
-            if (targetIndex != undefined) cardIdList.splice(targetIndex, 0,
-                cardId);
-            else cardIdList.push(cardId);
+        const body = {
+            "board_list": targetListId
         }
-        if (oldList && tl && oldList.id != tl.id) addActivity(b
-            .cards[cardId], `moved from ${oldList.title} to ${tl.title}`, null);
-
-
-        const body = []
-        cardIdList.forEach((cardId, index) => {
-            body.push({
-                "id": cardId,
-                "order": index
-            })
-        })
-
-        const result = await saveData("update", "CardOrder", body);
+        const result = saveData("update", "Card", body, cardId)
         if (result) {
-            tl.cardIds = cardIdList
-            renderBoard();
+            const oldList = b.lists.find(l => l.cardIds.includes(cardId));
+            b.lists.forEach(l => l.cardIds = l.cardIds.filter(id => id != cardId));
+            const tl = b.lists.find(l => l.id == targetListId);
+            const cardIdList = [...tl.cardIds]
+            if (tl) {
+                if (targetIndex != undefined) cardIdList.splice(targetIndex, 0,
+                    cardId);
+                else cardIdList.push(cardId);
+            }
+            if (oldList && tl && oldList.id != tl.id) addActivity(b
+                .cards[cardId], `moved from ${oldList.title} to ${tl.title}`, null);
+
+
+            const orderBody = []
+            cardIdList.forEach((cardId, index) => {
+                orderBody.push({
+                    "id": cardId,
+                    "order": index
+                })
+            })
+
+            const orderResult = await saveData("update", "CardOrder", orderBody);
+            if (orderResult) {
+                tl.cardIds = cardIdList
+                renderBoard();
+            }
         }
+
     }
 
     function copyCard(cardId) {
