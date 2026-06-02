@@ -9,7 +9,7 @@ class OrderField(models.PositiveIntegerField):
 				if hasattr(self.model, "board"):
 					qs = self.model.objects.filter(board__owner=model_instance.board.owner)
 				elif hasattr(self.model, "board_list"):
-					qs = self.model.objects.filter(board_list__board__owner=model_instance.board.owner)
+					qs = self.model.objects.filter(board_list__board__owner=model_instance.board_list.board.owner, board_list=model_instance.board_list)
 
 				last_item = qs.latest(self.attname)
 				value = last_item.order + 1

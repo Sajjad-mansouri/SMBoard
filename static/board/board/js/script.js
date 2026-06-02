@@ -169,15 +169,25 @@
                 result = await fetchUpdate(url, body)
             }
         } else if (model == "Card") {
-            path = `card/${objId}/`
-            const url = origin + "/api/" + path
+            if (func == "create") {
+                path = "cards/"
+                const url = origin + "/api/" + path
+                result = await fetchPost(url, body)
 
-            if (useFormData) {
-                result = await fetchPostWithFormData(url, body, "PATCH")
 
-            } else {
-                result = await fetchUpdate(url, body)
+
+            } else if (func == "update") {
+                path = `cards/${objId}/`
+                const url = origin + "/api/" + path
+
+                if (useFormData) {
+                    result = await fetchPostWithFormData(url, body, "PATCH")
+
+                } else {
+                    result = await fetchUpdate(url, body)
+                }
             }
+
 
 
         } else if (model == "Checklist") {
@@ -979,31 +989,40 @@
         return div;
     }
 
-    function addCardToList(listId, title) {
-        const b = getActiveBoard();
-        const id = generateId();
-        b.cards[id] = {
-            id,
-            title,
-            description: '',
-            labels: [],
-            startDate: '',
-            dueDate: '',
-            assignedUsers: [],
-            coverColor: '',
-            coverImage: '',
-            watched: false,
-            archived: false,
-            completed: false,
-            checklists: [],
-            comments: [],
-            attachments: [],
-            activities: []
-        };
-        addActivity(b.cards[id], 'Card created', CURRENT_USER_ID);
-        b.lists.find(l => l.id === listId).cardIds.push(id);
-        saveData();
-        renderBoard();
+    async function addCardToList(listId, title) {
+        const body = {
+            "name": title,
+            "board_list": listId
+        }
+        const result = await saveData("create", "Card", body)
+        console.log(result)
+        if (result) {
+
+            const b = getActiveBoard();
+
+            b.cards[result.id] = {
+                id: result.id,
+                title: result.name,
+                description: '',
+                labels: [],
+                startDate: '',
+                dueDate: '',
+                assignedUsers: [],
+                coverColor: '',
+                coverImage: '',
+                watched: false,
+                archived: false,
+                completed: false,
+                checklists: [],
+                comments: [],
+                attachments: [],
+                activities: []
+            };
+            addActivity(b.cards[result.id], 'Card created', CURRENT_USER_ID);
+            b.lists.find(l => l.id === listId).cardIds.push(result.id);
+
+            renderBoard();
+        }
     }
 
     function deleteCard(cid) {

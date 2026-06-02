@@ -88,6 +88,13 @@ class CardUpdateView(UpdateAPIView):
 
 		return Card.objects.all()
 
+class CardViewSet(viewsets.ModelViewSet):
+	serializer_class = serializers.CardNestedSerializer
+	permission_classes = [IsBoardOwnerOrMember]
+
+	def get_queryset(self):
+
+		return Card.objects.all()
 
 class ChecklistViewSet(viewsets.ModelViewSet):
 
