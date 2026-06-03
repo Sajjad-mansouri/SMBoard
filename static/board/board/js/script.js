@@ -838,7 +838,6 @@
         }
         const visLabels = {
             'private': '🔒 Private',
-            'workspace': '🏢 Workspace',
             'public': '🌐 Public'
         };
         visibilityBtn.textContent = visLabels[board.boardVisibility] || '🌐 Public';

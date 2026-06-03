@@ -6,25 +6,30 @@
 
 {%endblock%}
 {%block content%}
-  <div class="board-menu-bar" id="board-menu-bar">
-                <div class="board-menu-bar-left">
-                    <h1 id="board-title" class="board-title" contenteditable="false" data-board="{{object.id}}">{{object.name}}</h1>
-                    <button id="edit-title-btn" class="icon-btn small">✎</button>
+<div class="board-menu-bar" id="board-menu-bar">
+    <div class="board-menu-bar-left">
+        <h1 id="board-title" class="board-title" contenteditable="false" data-board="{{object.id}}">{{object.name}}</h1>
+        <button id="edit-title-btn" class="icon-btn small">✎</button>
+    </div>
+    <div class="board-menu-bar-right">
+        <div class="board-member-avatars" id="board-member-avatars"></div>
+        <div style="position:relative;">
+            <button class="visibility-badge" id="visibility-badge-btn">🔒 Private</button>
+            <div class="visibility-dropdown hidden" id="visibility-dropdown">
+                <div class="dropdown-item" data-vis="private">
+                    <div>🔒 Private</div>
+                    <div class="dropdown-desc">The board is private. Only people added to the board can view and edit it.</div>
                 </div>
-                <div class="board-menu-bar-right">
-                    <div class="board-member-avatars" id="board-member-avatars"></div>
-                    <div style="position:relative;">
-                        <button class="visibility-badge" id="visibility-badge-btn">🌐 Public ▾</button>
-                        <div class="visibility-dropdown hidden" id="visibility-dropdown">
-                            <div class="dropdown-item" data-vis="private">🔒 Private</div>
-                            <div class="dropdown-item" data-vis="workspace">🏢 Workspace</div>
-                            <div class="dropdown-item" data-vis="public">🌐 Public</div>
-                        </div>
-                    </div>
-                    <button class="share-btn" id="share-board-btn">🔗 Share</button>
-                    <button class="board-menu-btn" id="board-menu-dots-btn" title="Board menu">⋯</button>
+                <div class="dropdown-item" data-vis="public">
+                    <div>🌐 Public</div>
+                    <div class="dropdown-desc">The board is public. It's visible to anyone with the link. Only people added to the board can edit it.</div>
                 </div>
             </div>
+        </div>
+        <button class="share-btn" id="share-board-btn">🔗 Share</button>
+        <button class="board-menu-btn" id="board-menu-dots-btn" title="Board menu">⋯</button>
+    </div>
+</div>
             <main id="board-container"><div id="lists-wrapper" class="lists-wrapper"></div><div class="add-list-container"><button id="add-list-btn" class="add-list-btn">+ Add List</button><div id="add-list-form" class="add-list-form hidden"><input type="text" id="new-list-title" placeholder="Enter list title..." maxlength="50" /><div class="add-list-actions"><button id="save-list-btn" class="btn-primary">Add</button><button id="cancel-list-btn" class="btn-secondary">✕</button></div></div></div>
             </main>
 

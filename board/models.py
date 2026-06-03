@@ -29,7 +29,6 @@ def board_image_path(instance, file_name):
 class Board(DateAbstractModel):
 	STATUS_CHOICES = [
 	("private", "Private"),
-	("workspace", "Workspace"),
 	("public", "Public")
 	]
 	owner = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_boards")

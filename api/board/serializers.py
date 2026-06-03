@@ -1,6 +1,7 @@
 import mimetypes
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
+from django.db.models import Count
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from board.models import (
@@ -75,7 +76,8 @@ class BoardSerializer(serializers.ModelSerializer):
 		fields = ["id", "owner", "name", "status", "background_color", "background_image", "cards", "is_owner", "closed"]
 
 	def get_cards(self, obj):
-		return 12
+		return obj.board_lists.aggregate(card_count=Count("list_cards"))["card_count"]
+		
 
 	def get_is_owner(self, obj):
 		request = self.context["request"]
