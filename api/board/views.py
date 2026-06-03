@@ -3,16 +3,18 @@ from django.contrib.auth import get_user_model
 from rest_framework import viewsets, mixins, views
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView, get_object_or_404, GenericAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView, get_object_or_404, GenericAPIView, CreateAPIView
 from board.models import (
 	Board, Card, CheckList, 
 	ChecklistItem, Comment, 
 	CardFile, CardImage, 
 	CardLabel, BoardList, 
 	CardMembership,BoardMembership,
-	BoardWatch, LinkAttachment
+	BoardWatch, LinkAttachment,
+	Activity
 	)
 from . import serializers
+from rest_framework.permissions import AllowAny
 from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission, BoardMembershipPermission
 
 
@@ -314,3 +316,14 @@ class CopyCardView(GenericAPIView):
 
 	def get_queryset(self):
 		return Card.objects.all()
+
+
+
+class ActivitytViewSet(viewsets.ModelViewSet):
+
+	serializer_class = serializers.ActivitySerializer
+	permission_classes = [AllowAny]
+
+	def get_queryset(self):
+
+		return Activity.objects.all()

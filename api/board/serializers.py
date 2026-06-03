@@ -1,4 +1,6 @@
 import mimetypes
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from board.models import (
@@ -6,11 +8,46 @@ from board.models import (
 	BoardMembership, CheckList, 
 	ChecklistItem, Comment, CardFile, 
 	CardImage, CardLabel,CardMembership,
-	BoardWatch, CardWatch, LinkAttachment
+	BoardWatch, CardWatch, LinkAttachment,
+	Activity
 	)
 from rest_framework.generics import get_object_or_404
 
 UserModel = get_user_model()
+
+class ActivitySerializer(serializers.ModelSerializer):
+	timestamp = serializers.SerializerMethodField()
+
+
+	class Meta:
+		model = Activity
+		fields = ["id", "user", "text", "timestamp",]	
+
+	def to_internal_value(self, data):
+		request = self.context["request"]
+		data["user"] = request.user.id
+		return super().to_internal_value(data)
+	def create(self, validated_data):
+
+
+		model = self.initial_data.get("model")
+
+		try:
+		    obj_id = int(self.initial_data.get("obj_id"))
+		except (TypeError, ValueError, AttributeError):
+		    raise ValidationError({'obj_id': 'Must be a valid integer'})
+
+		content_type = get_object_or_404(ContentType, app_label="board", model=model)
+
+
+		obj = Activity.objects.create(content_type=content_type, object_id=obj_id, **validated_data)
+
+
+		return obj
+
+	def get_timestamp(self, obj):
+
+		return obj.created.timestamp()*1000
 
 
 
@@ -221,14 +258,14 @@ class CardNestedSerializer(CardSerializer):
 	cardfile_set = FileAttachmentSerializer(many=True, read_only=True)
 	cardimage_set = ImageAttachmentSerializer(many=True, read_only=True)
 	linkattachment_set= LinkAttachmentSerializer(many=True, read_only=True)
-
+	activities = ActivitySerializer(many=True, read_only=True)
 	class Meta(CardSerializer.Meta):
 		extra_fields = [
 		"description", "start_date", 
 		"archived", "cover_image","cover_image_fk","cover_img",
 		"cover_color", "card_memberships", "card_checklists",
 		"card_comments", "watched", "cardfile_set",
-		"cardimage_set","linkattachment_set"
+		"cardimage_set","linkattachment_set", "activities"
 
 		]
 		fields = CardSerializer.Meta.fields +  extra_fields
@@ -356,3 +393,5 @@ class CardWatchSerializer(serializers.ModelSerializer):
 		obj.watch = watch
 		obj.save()
 		return obj
+
+

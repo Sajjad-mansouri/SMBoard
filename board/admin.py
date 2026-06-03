@@ -3,7 +3,8 @@ from .models import (
 	Board, BoardMembership, BoardList, 
 	Card, CardLabel, CheckList, ChecklistItem, 
 	CardFile, CardImage, Comment,
-	CardWatch, BoardWatch,CardMembership,LinkAttachment
+	CardWatch, BoardWatch,CardMembership,LinkAttachment,
+	Activity
 	)
 
 @admin.register(Board)
@@ -68,3 +69,9 @@ class BoardWatchAdmin(admin.ModelAdmin):
 @admin.register(CardMembership)
 class BoardMembershipAdmin(admin.ModelAdmin):
 	list_display = ["user", "card", "created"]
+
+
+
+@admin.register(Activity)
+class BoardMembershipAdmin(admin.ModelAdmin):
+	list_display = ["user", "content_object", "text", "created"]

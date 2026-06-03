@@ -3,7 +3,8 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
+
 from .fields import OrderField
 
 UserModel = get_user_model()
@@ -130,7 +131,7 @@ class Card(DateAbstractModel):
 	cover_image = models.ImageField(_("Conver Image"), upload_to=card_cover_path, null=True, blank=True)
 	cover_image_fk = models.ForeignKey("CardImage", on_delete=models.SET_NULL, null=True, blank=True, related_name="cards")
 	cover_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
-
+	activities = GenericRelation("Activity")
 
 
 
@@ -305,3 +306,22 @@ class BoardWatch(DateAbstractModel):
 	class Meta:
 		verbose_name = _("Board Watch")
 		verbose_name_plural = _("Board Watchs")
+
+
+
+
+class Activity(DateAbstractModel):
+	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_activities")
+	content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
+	object_id = models.PositiveIntegerField(null=True)
+	content_object = GenericForeignKey('content_type', 'object_id')
+	text = models.TextField()
+
+
+	def __str__(self):
+		return f"{self.user} {self.text}"
+
+	class Meta:
+		verbose_name = _("Activity")
+		verbose_name_plural = _("Activities")
+		ordering = ["-created"]

@@ -408,6 +408,14 @@
                 const url = origin + "/api/" + path
                 result = await fetchUpdate(url, body)
             }
+        } else if (model == "Activity") {
+            if (func == "create") {
+                path = "activities/"
+                const url = origin + "/api/" + path
+                console.log(url, body)
+                result = await fetchPost(url, body)
+
+            }
         }
         return result
     }
@@ -585,7 +593,7 @@
 
 
         const card = {}
-
+        console.log("cardData", cardData)
         card["id"] = cardData["id"]
         card["title"] = cardData["name"]
         card["description"] = cardData["description"]
@@ -602,7 +610,7 @@
         card["checklists"] = checklists
         card["comments"] = comments
         card["attachments"] = attachments
-        card["activities"] = []
+        card["activities"] = cardData.activities
 
         return card
     }
@@ -739,13 +747,21 @@
             .items.filter(i => i.completed).length / cl.items.length) * 100);
     }
 
-    function addActivity(card, text, userId) {
-        card.activities.push({
-            timestamp: Date.now(),
-            text,
-            user: userId ||
-                null
-        });
+    async function addActivity(card, text, userId) {
+        const body = {
+            "text": text,
+            "obj_id": card.id,
+            "model": "card"
+        }
+        const result = await saveData("create", "Activity", body)
+        if (result) {
+
+            card.activities.push({
+                timestamp: result.timestamp,
+                text: result.text,
+                user: result.user || null
+            });
+        }
     }
 
     function linkify(comment) {
@@ -2499,6 +2515,7 @@
                     });
                 });
             } else {
+                console.log(card.activities)
                 card.activities.forEach(act => {
                     allActivities.push({
                         type: 'activity',
