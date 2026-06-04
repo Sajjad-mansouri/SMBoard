@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMchat • Login</title>
+    <title>SMBoard • Login</title>
 
     <style>
         * {
@@ -115,7 +115,7 @@
 
 <div class="container">
 
-    <div class="brand">SMchat</div>
+    <div class="brand">SMBoard</div>
     <div class="subtitle">Welcome back! Log in to continue.</div>
 
 
@@ -125,7 +125,7 @@
     <form id="loginForm" method="POST">
         {%csrf_token%}
         <div class="form-group">
-            <label>Email</label>
+            <label>Email or Username</label>
             <input type="text" id="username" name="username" autocomplete="off">
         </div>
 
