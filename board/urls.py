@@ -5,5 +5,8 @@ app_name = "board"
 urlpatterns = [
     path('', views.HomePage.as_view(), name="home"),
     path('board/<int:pk>/', views.BoardDetail.as_view(), name="board_detail"),
+    path("public/<str:short_uuid>/<slug:slug>/", views.PublicBoardDetail.as_view(), name="public_board_detail"),
+
+
 
 ]

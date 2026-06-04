@@ -1,0 +1,34 @@
+{%load static%}
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMBoards</title>
+    <link rel="stylesheet" type="text/css" href="{%static 'board/base/css/style.css'%}">
+
+    {%block style%}
+    {%endblock%}
+</head>
+<body>
+
+            <header id="header">
+                <div class="header-left">
+                    <span class="brand-logo" id="brand-logo-btn">📋 SMBoard</span>
+                </div>
+
+
+            </header>
+    {%block content%}
+
+    {%endblock%}
+
+<script src="{%static 'authentication/js/auth.js'%}"></script>
+
+
+
+{%block script%}
+{%endblock%}
+
+</body>
+</html>

@@ -80,30 +80,61 @@
     </div>
 
     <!-- Share Board Modal -->
-    <div id="share-modal-overlay" class="modal-overlay hidden">
-        <div class="small-modal share-modal">
-            <button class="modal-close-top" id="close-share-modal-btn">✕</button>
-            <h2 style="margin-bottom:16px;">🔗 Share Board</h2>
-            <div class="share-search-row">
-                <input type="text" id="share-search-input" placeholder="Search by username..." />
-                <button class="btn-primary" id="share-invite-btn">Share</button>
+<div id="share-modal-overlay" class="modal-overlay hidden">
+    <div class="small-modal share-modal">
+        <button class="modal-close-top" id="close-share-modal-btn">✕</button>
+        <h2 style="margin-bottom:16px;">🔗 Share Board</h2>
+
+        <!-- Existing search row -->
+        <div class="share-search-row">
+            <input type="text" id="share-search-input" placeholder="Search by username..." />
+            <button class="btn-primary" id="share-invite-btn">Share</button>
+        </div>
+        <div class="share-section invite hide">
+            <div class="share-section-header hide" id="invite-link-toggle">
+                <span>🔗 Invite link</span>
+                <span>▾</span>
             </div>
-            <div class="share-section">
-                <div class="share-section-header" id="board-members-toggle">
-                    <span>👥 Board members (<span id="board-members-count">0</span>)</span>
-                    <span>▾</span>
+            <div class="share-section-content hide" id="invite-link-content">
+                <button class="btn-secondary create-link-btn" id="create-link-btn">
+                    🔄 Generate new link
+                </button>
+                <div class="invite-link-row" style="display:none">
+
+                    <input 
+                        type="text" 
+                        id="invite-link-input" 
+                        class="invite-link-input" 
+                        
+                        readonly 
+                    />
+                    <button class="btn-secondary copy-link-btn" id="copy-link-btn">
+                        📋 Copy
+                    </button>
                 </div>
-                <div class="share-section-content" id="board-members-content"></div>
-            </div>
-            <div class="share-section">
-                <div class="share-section-header" id="join-requests-toggle">
-                    <span>📨 Join requests (<span id="join-requests-count">0</span>)</span>
-                    <span>▾</span>
-                </div>
-                <div class="share-section-content" id="join-requests-content"></div>
+
             </div>
         </div>
+        
+        <!-- Existing board members section -->
+        <div class="share-section">
+            <div class="share-section-header" id="board-members-toggle">
+                <span>👥 Board members (<span id="board-members-count">0</span>)</span>
+                <span>▾</span>
+            </div>
+            <div class="share-section-content" id="board-members-content"></div>
+        </div>
+        
+        <!-- Existing join requests section -->
+        <div class="share-section">
+            <div class="share-section-header" id="join-requests-toggle">
+                <span>📨 Join requests (<span id="join-requests-count">0</span>)</span>
+                <span>▾</span>
+            </div>
+            <div class="share-section-content" id="join-requests-content"></div>
+        </div>
     </div>
+</div>
 
     <!-- Change Background Modal (separate) -->
     <div id="bg-modal-overlay-new" class="modal-overlay hidden">

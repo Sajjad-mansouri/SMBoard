@@ -1,5 +1,6 @@
 from django.db.models import Q
 from django.contrib.auth import get_user_model
+from django.contrib.sites.shortcuts import get_current_site
 from rest_framework import viewsets, mixins, views
 from rest_framework.response import Response
 from rest_framework import status
@@ -105,10 +106,10 @@ class ChecklistViewSet(viewsets.ModelViewSet):
 	permission_classes = [IsBoardOwnerOrMember]
 
 	def get_queryset(self):
-		print(self.request.user)
-		print(CheckList.objects.filter(card__board_list__board__owner=self.request.user))
+		
+		
 		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
-		print(CheckList.objects.filter(q)[0].id)
+		
 		return CheckList.objects.filter(q).distinct()
 
 
@@ -120,7 +121,7 @@ class ChecklistItemViewSet(viewsets.ModelViewSet):
 	def get_queryset(self):
 
 		q = Q(checklist__card__board_list__board__owner=self.request.user) | Q(checklist__card__card_memberships__user=self.request.user)
-		print(ChecklistItem.objects.filter(q)[0].id)
+		
 		return ChecklistItem.objects.filter(q).distinct()
 
 
@@ -132,7 +133,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 	def get_queryset(self):
 
 		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
-		print(Comment.objects.filter(q)[0].id)
+		
 		return Comment.objects.filter(q).distinct()
 
 class CurrentUser(views.APIView):
@@ -327,3 +328,16 @@ class ActivitytViewSet(viewsets.ModelViewSet):
 	def get_queryset(self):
 
 		return Activity.objects.all()
+
+
+class PublicBoardAddress(views.APIView):
+	def get(self, request, *args, **kwargs):
+		board_id = kwargs.get("pk")
+
+		current_site = get_current_site(request)
+		use_https = False
+		board = get_object_or_404(Board, id=board_id, status="public")
+		protocol = "https" if use_https else "http"
+		board_address = f'{protocol}//{current_site}/public/{board.short_uuid}/{board.slug}/'
+		return Response({"board_address":board_address}, status=status.HTTP_200_OK)
+

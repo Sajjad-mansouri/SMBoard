@@ -79,7 +79,7 @@
 
         try {
             const bodyJSON = JSON.stringify(body)
-            console.log("bodyjson", bodyJSON, url)
+            
             const response = await auth.authenticatedRequest(url, bodyJSON, "PATCH", {}, "application/json")
             if (response.ok) {
 
@@ -102,12 +102,12 @@
         try {
             const bodyJSON = JSON.stringify(body)
 
-            console.log(url, bodyJSON)
+            
             const response = await auth.authenticatedRequest(url, bodyJSON, "POST")
             const data = await response.json()
             if (response.ok) {
 
-                console.log("fetch post data", data)
+                
                 return data
 
             } else {
@@ -129,7 +129,7 @@
 
 
             const response = await auth.authenticatedRequest(url, bodyJSON, "DELETE", {})
-            console.log(response)
+            
             if (response.ok) {
 
                 return true
@@ -190,7 +190,7 @@
 
                 result = await fetchDelete(url, body)
             } else if (func == "copy") {
-                console.log("copy")
+                
                 path = `copy-card/${objId}/`
                 const url = origin + "/api/" + path
                 result = await fetchPost(url, body)
@@ -260,7 +260,7 @@
             if (func == "create") {
                 path = "card-images/"
                 const url = origin + "/api/" + path
-                console.log(url, body)
+                
                 result = await fetchPostWithFormData(url, body)
 
 
@@ -392,7 +392,7 @@
             if (func == "create") {
                 path = "link-attachments/"
                 const url = origin + "/api/" + path
-                console.log(url, body)
+                
                 result = await fetchPost(url, body)
 
 
@@ -412,7 +412,7 @@
             if (func == "create") {
                 path = "activities/"
                 const url = origin + "/api/" + path
-                console.log(url, body)
+                
                 result = await fetchPost(url, body)
 
             }
@@ -593,7 +593,7 @@
 
 
         const card = {}
-        console.log("cardData", cardData)
+        
         card["id"] = cardData["id"]
         card["title"] = cardData["name"]
         card["description"] = cardData["description"]
@@ -706,7 +706,7 @@
     }
 
     function getUserById(id) {
-        console.log("appState.users", appState.users)
+        
         return appState.users.find(u => u.id === id);
     }
 
@@ -841,6 +841,9 @@
             'public': '🌐 Public'
         };
         visibilityBtn.textContent = visLabels[board.boardVisibility] || '🌐 Public';
+        if (board.boardVisibility == "public") {
+            addGenerateInviteLink(board.id)
+        }
         document.getElementById('board-title').textContent = board.title;
     }
 
@@ -992,7 +995,7 @@
             }
             const result = await saveData("update", "Card", body, cardId);
             if (result) {
-                console.log("unarchived", result)
+                
                 board.cards[cardId].archived = false;
                 const originalList = board.lists.find(l => l.cardIds.includes(cardId));
                 if (!originalList) {
@@ -1065,7 +1068,7 @@
             "board_list": listId
         }
         const result = await saveData("create", "Card", body)
-        console.log(result)
+        
         if (result) {
 
             const b = getActiveBoard();
@@ -1142,17 +1145,17 @@
 
             addActivity(newCard, 'Card copied', CURRENT_USER_ID);
             b.cards[newCard.id] = newCard;
-            console.log("b.lists", b.lists)
-            console.log("b.lists", b.lists[0].cardIds[0], typeof b.lists[0].cardIds[0], typeof cardId)
+            
+            
 
-            console.log("cardId", cardId)
+            
 
             const list = b.lists.find(l => l.cardIds.includes(Number(cardId)));
             if (list) list
                 .cardIds.push(newCard.id);
 
-            console.log("b.cards", b.cards)
-            console.log("list", list)
+            
+            
 
             renderBoard();
         }
@@ -1170,8 +1173,8 @@
         if (result) {
             card.watched = watch;
             addActivity(card, card.watched ? 'started watching' : 'stopped watching', CURRENT_USER_ID);
-            console.log("result", result)
-            console.log("card", card)
+            
+            
             renderBoard();
         }
     }
@@ -1850,7 +1853,7 @@
                         result = await saveData("update", "CardFile", body, fileId);
 
                     }
-                    console.log(result)
+                    
                     if (result) {
                         att.name = result.display_name;
                         renderModalAttachments();
@@ -1884,7 +1887,7 @@
             div.querySelector('.att-set-cover')?.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 dropdown.classList.add('hidden');
-                console.log(att)
+                
                 body = {
                     "cover_image_fk": att.id,
                     "cover_color": "",
@@ -1918,7 +1921,7 @@
                         result = await saveData("delete", "CardFile", {}, fileId);
 
                     } else if (type == "link") {
-                        console.log("remove link")
+                        
                         result = await saveData("delete", "LinkAttachment", {}, fileId);
 
                     }
@@ -2136,7 +2139,7 @@
 
 
                 const result = await saveData("update", "Card", formData, currentCardId, true);
-                console.log(result)
+                
                 if (result) {
 
                     const card = getActiveBoard().cards[currentCardId];
@@ -2199,7 +2202,7 @@
                         addActivity(card, `removed label "${l.name}"`, CURRENT_USER_ID);
 
                         card.labels = card.labels.filter(id => id !== l.id);
-                        console.log("appState.labels", appState.labels, l.id)
+                        
                         appState.labels = appState.labels.filter(label => label.id !== l.id)
 
                         renderModalLabelsDisplay();
@@ -2270,7 +2273,7 @@
 
             card.dueDate = document.getElementById('modal-due-datetime').value;
             addActivity(card, `set dates: ${card.startDate||'none'} → ${card.dueDate||'none'}`, CURRENT_USER_ID);
-            console.log(startDateVal, dueDateVal)
+            
             const body = {
                 "start_date": startDateVal,
                 "due_date": dueDateVal
@@ -2315,7 +2318,7 @@
 
         function renderMemberOptions(filter = '') {
             optionsList.innerHTML = '';
-            console.log(appState)
+            
             const filtered = appState.users
                 .filter(u => u.name.toLowerCase().includes(filter.toLowerCase()) && appState.boards[0].boardMembers.includes(u.id));
             filtered.forEach(u => {
@@ -2349,7 +2352,7 @@
                         }
 
                     }
-                    console.log("result", result)
+                    
                     if (result) {
 
                         renderModalMembersDisplay();
@@ -2375,8 +2378,8 @@
             const files = e.target.files;
             const card = getActiveBoard().cards[currentCardId];
             Array.from(files).forEach(async (f) => {
-                console.log(f.name)
-                console.log(f.type)
+                
+                
 
                 const formData = new FormData()
                 formData.append("file", f)
@@ -2384,14 +2387,14 @@
                 const [imageType, fileType] = checkAttachmentClass(f.type)
 
                 let result;
-                console.log(imageType, fileType, f.type)
+                
                 if (imageType) {
                     result = await saveData("create", "CardImage", formData, currentCardId, true);
                 } else if (fileType) {
                     result = await saveData("create", "CardFile", formData, currentCardId, true);
 
                 }
-                console.log(result)
+                
                 if (result) {
                     card.attachments.push({
                         id: result.id,
@@ -2514,7 +2517,7 @@
                     });
                 });
             } else {
-                console.log(card.activities)
+                
                 card.activities.forEach(act => {
                     allActivities.push({
                         type: 'activity',
@@ -2582,16 +2585,16 @@
     }
 
     function renderShareModalContent() {
-        console.log(appState)
+        
         const board = getActiveBoard();
         document.getElementById('board-members-count').textContent = board.boardMembers.length;
         document.getElementById('join-requests-count').textContent = board.joinRequests.length;
         const membersContent = document.getElementById('board-members-content');
         membersContent.innerHTML = '';
-        console.log("befor loop", board.boardMembers)
+        
         board.boardMembers.forEach(uid => {
             const u = getUserById(uid);
-            console.log("u", u)
+            
             if (!u) return;
             const role = board.memberRoles[uid] || 'member';
             const row = document.createElement('div');
@@ -2793,7 +2796,58 @@
     function closeArchivedModal() {
         document.getElementById('archived-modal-overlay').classList.add('hidden');
     }
+    // Create toast element dynamically
+    function showToast(message, duration = 2000) {
+        // Remove existing toast if any
+        const existingToast = document.querySelector('.copy-toast');
+        if (existingToast) {
+            existingToast.remove();
+        }
 
+        // Create toast
+        const toast = document.createElement('div');
+        toast.className = 'copy-toast';
+        toast.textContent = message;
+
+        // Add to share modal
+        const shareModal = document.querySelector('.share-modal');
+        shareModal.appendChild(toast);
+
+        // Remove after duration
+        setTimeout(() => {
+            toast.classList.add('fade-out');
+            setTimeout(() => {
+                toast.remove();
+            }, 300); // Wait for fade animation
+        }, duration);
+    }
+
+
+    async function copyToClipboard(text) {
+        try {
+            await navigator.clipboard.writeText(text);
+            showToast('✅ Link copied to clipboard!');
+
+        } catch (err) {
+            showToast('❌ Failed to copy!');
+        }
+    }
+
+    function addGenerateInviteLink(boardId) {
+        const shareSection = document.querySelector(".share-section.invite")
+        shareSection.classList.remove("hide")
+        const inviteLinkToggle = document.getElementById("invite-link-content")
+        inviteLinkToggle.classList.remove("hide")
+    }
+
+    function hideGenerateInviteLink(boardId) {
+        const shareSection = document.querySelector(".share-section.invite")
+        shareSection.classList.add("hide")
+        const inviteLinkContent = document.getElementById("invite-link-content")
+        inviteLinkContent.classList.add("hide")
+        inviteLinkContent.querySelector(".invite-link-row").style.display = "none"
+
+    }
 
     function addEventListeners() {
         // Profile avatar button
@@ -2883,7 +2937,11 @@
                 }
                 const result = await saveData("update", "Board", body, appState.activeBoardId);
                 if (result) {
-
+                    if (result.status == "public") {
+                        addGenerateInviteLink(appState.activeBoardId)
+                    } else {
+                        hideGenerateInviteLink()
+                    }
                     getActiveBoard().boardVisibility = vis;
                     renderBoardMenuBar();
                     document.getElementById('visibility-dropdown').classList.add('hidden');
@@ -3281,7 +3339,7 @@
                     "reply_type": replyType,
                     "reply_id": replyId
                 }
-                console.log("body comment", body)
+                
                 result = await saveData("create", "Comment", body, currentCardId);
 
                 if (result) {
@@ -3393,6 +3451,29 @@
                     .add('hidden');
             });
         });
+        document.getElementById("create-link-btn").addEventListener("click", async () => {
+            const inviteLinkRow = document.querySelector(".invite-link-row")
+            const url = origin + `/api/public-board-address/${appState.activeBoardId}/`
+            try {
+                const response = await auth.authenticatedRequest(url, null, "GET")
+                const data = await response.json()
+                if (response.ok) {
+                    inviteLinkRow.style.display = "flex"
+                    inviteLinkRow.querySelector("input").value = data.board_address
+                    
+                }
+            } catch (error) {
+                console.log(error)
+            }
+
+
+
+        })
+
+        document.getElementById("copy-link-btn").addEventListener("click", () => {
+            const text = document.querySelector(".invite-link-row input").value
+            copyToClipboard(text)
+        })
     }
 
 

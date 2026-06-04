@@ -545,6 +545,7 @@
             display: flex;
             gap: 8px;
         }
+
         .share-modal {
             max-width: 550px;
         }
@@ -580,6 +581,71 @@
         .share-modal .share-section-content {
             padding: 8px 0;
         }
+        .hide{
+            display: none;
+        }
+
+
+/* Add to your existing share-modal styles */
+
+.share-modal .invite-link-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.share-modal .invite-link-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: default;
+}
+
+.share-modal .invite-link-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.share-modal .copy-link-btn,
+.share-modal .create-link-btn {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.share-modal .copy-link-btn {
+    background: var(--btn-secondary-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.share-modal .copy-link-btn:hover {
+    background: var(--btn-hover);
+}
+
+.share-modal .create-link-btn {
+    width: 100%;
+    background: transparent;
+    color: var(--accent-color);
+    border: 1px dashed var(--border-color);
+    border-radius: 6px;
+    padding: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.15s;
+}
+
+.share-modal .create-link-btn:hover {
+    background: var(--hover-bg);
+    border-color: var(--accent-color);
+}
         .share-member-row {
             display: flex;
             align-items: center;
@@ -1678,3 +1744,48 @@
         .list-menu-dropdown-item.danger {
             color: var(--danger-color);
         }
+
+
+
+
+/* Toast notification styles */
+.copy-toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #333;
+    color: white;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    z-index: 1000;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.copy-toast.fade-out {
+    opacity: 0;
+}
+
+/* Or position inside modal */
+.share-modal .copy-toast {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #4CAF50;
+    color: white;
+    padding: 8px 20px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    z-index: 10;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.share-modal .copy-toast.fade-out {
+    opacity: 0;
+}

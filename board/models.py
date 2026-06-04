@@ -1,5 +1,7 @@
+import uuid
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
@@ -25,7 +27,8 @@ def board_image_path(instance, file_name):
 										month = created.month,
 										day = created.day,
 										file_name = file_name)
-
+def generate_short_uuid():
+	return uuid.uuid4().hex[:6]
 class Board(DateAbstractModel):
 	STATUS_CHOICES = [
 	("private", "Private"),
@@ -33,6 +36,8 @@ class Board(DateAbstractModel):
 	]
 	owner = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_boards")
 	name = models.CharField(_("Name"), max_length=250)
+	slug = models.SlugField(_("Slug"), blank=True)
+	short_uuid = models.CharField(_("Short UUID"), max_length=6, default=generate_short_uuid)
 	status = models.CharField(_("Status"), choices=STATUS_CHOICES, max_length=10, default="workspace")
 	background_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
 	background_image = models.ImageField(_("Background Image"), upload_to=board_image_path, null=True, blank=True)
@@ -47,6 +52,11 @@ class Board(DateAbstractModel):
 	class Meta:
 		verbose_name = _("Board")
 		verbose_name_plural = _("Boards")
+
+	def save(self, *args, **kwargs):
+		if not self.slug:
+			self.slug = slugify(self.name)
+		return super().save(*args, **kwargs)
 
 
 class BoardMembership(DateAbstractModel):

@@ -1,0 +1,66 @@
+{%extends 'board/public_base.html'%}
+{%load static%}
+
+{%block style%}
+<link rel="stylesheet" type="text/css" href="{%static 'board/board/css/style.css'%}">
+
+{%endblock%}
+{%block content%}
+
+<div class="board-menu-bar" id="board-menu-bar">
+    <div class="board-menu-bar-left">
+        <h1 id="board-title" class="board-title" contenteditable="false" data-board="{{object.id}}">{{object.name}}</h1>
+
+    </div>
+
+</div>
+            <main id="board-container"><div id="lists-wrapper" class="lists-wrapper"></div>
+            </main>
+
+
+
+
+    <!-- Card Modal -->
+    <div id="card-modal-overlay" class="modal-overlay hidden">
+        <div id="card-modal" class="card-modal">
+            <div class="modal-cover-area">
+                <div class="modal-cover" id="modal-cover"></div>
+                <div class="modal-cover-actions">
+
+                    <button id="close-modal-btn" class="cover-action-btn icon-only">✕</button>
+                </div>
+            </div>
+            <div class="modal-title-row">
+                <input type="text" id="modal-card-title" class="modal-title-input" placeholder="Card title" />
+
+            </div>
+            <div class="modal-info-row">
+                <div id="modal-labels-display" class="labels-display"></div>
+                <div id="modal-dates-display" class="dates-display"></div>
+                <div id="modal-members-display" class="members-display"></div>
+            </div>
+
+            <div class="modal-body">
+                <div class="modal-main">
+                    <section class="modal-section" id="description-section"><h3>📝 Description</h3><textarea id="modal-description" class="modal-description" placeholder="Add a description..."></textarea></section>
+                    <section class="modal-section" id="checklists-section"><h3>✅ Checklists</h3><div id="modal-checklists"></div></section>
+                    <section class="modal-section" id="attachments-section"><h3>📎 Attachments</h3><div id="modal-attachments"></div></section>
+                </div>
+                <div class="modal-sidebar-right" id="comment-sidebar">
+                    <h3 style="font-size:0.75rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">💬 Comments & Activity</h3>
+                    <div id="modal-comments-activity"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+
+
+{%endblock%}
+
+{%block script%}
+<script type="text/javascript" src="{%static 'board/board/js/public.js'%}"></script>
+
+{%endblock%}
