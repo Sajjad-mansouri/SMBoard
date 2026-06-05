@@ -96,7 +96,7 @@ class CardViewSet(viewsets.ModelViewSet):
 		card__board_list__board__board_memberships__user=self.request.user
 		q = Q(board_list__board__owner=self.request.user) | Q(board_list__board__board_memberships__user=self.request.user)
 
-		return Card.objects.filter(q)
+		return Card.objects.filter(q).distinct()
 
 class CardArchivedUpdateView(UpdateAPIView):
 	serializer_class = serializers.CardArchivedSerializer
@@ -105,7 +105,7 @@ class CardArchivedUpdateView(UpdateAPIView):
 
 		q = Q(board_list__board__owner=self.request.user)
 
-		return Card.objects.filter(q)
+		return Card.objects.filter(q).distinct()
 
 class ChecklistViewSet(viewsets.ModelViewSet):
 
@@ -197,7 +197,7 @@ class BoardListArchivedUpdateView(UpdateAPIView):
 	def get_queryset(self):
 		q = Q(board__owner=self.request.user)
 
-		return BoardList.objects.filter(q)
+		return BoardList.objects.filter(q).distinct()
 
 class BoardListOrderUpdating(views.APIView):
 	permission_classes = [IsBoardOwnerOrMember]
@@ -261,7 +261,7 @@ class BoardMemberViewSet(viewsets.ModelViewSet):
 	def get_queryset(self):
 
 		q = Q(board__owner=self.request.user)
-		return BoardMembership.objects.filter(q)
+		return BoardMembership.objects.filter(q).distinct()
 
 	def create(self, request, *args, **kwargs):
 		search = request.data.get("search")
@@ -335,7 +335,7 @@ class CopyCardView(GenericAPIView):
 
 	def get_queryset(self):
 		q = Q(board_list__board__owner=self.request.user) | Q(card__board_list__board__board_memberships__user=self.request.user)
-		return Card.objects.filter(q)
+		return Card.objects.filter(q).distinct()
 
 
 

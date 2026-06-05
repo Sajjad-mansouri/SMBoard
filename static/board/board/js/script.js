@@ -2006,8 +2006,10 @@
                 }
                 const result = await saveData("update", "Card", body, currentCardId);
                 if (result) {
-                    card.coverImage = att.cover_img;
+
+                    card.coverImage = result.cover_img;
                     card.coverColor = '';
+
                     addActivity(card, `set cover from attachment "${att.name}"`, CURRENT_USER_ID);
 
                     openCardModal(currentCardId);
@@ -2195,9 +2197,7 @@
             swatch.style.backgroundColor = color;
             swatch.addEventListener('click', async () => {
                 const card = getActiveBoard().cards[currentCardId];
-                card.coverColor = color;
-                card.coverImage = '';
-                addActivity(card, 'changed cover color', CURRENT_USER_ID);
+
                 const body = {
                     "cover_color": color,
                     "cover_image": null,
@@ -2205,6 +2205,9 @@
                 }
                 const result = await saveData("update", "Card", body, currentCardId);
                 if (result) {
+                    card.coverColor = color;
+                    card.coverImage = '';
+                    addActivity(card, 'changed cover color', CURRENT_USER_ID);
                     openCardModal(currentCardId);
                     popover.classList.add('hidden');
 
