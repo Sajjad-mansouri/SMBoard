@@ -15,7 +15,7 @@ class BoardDetail(LoginRequiredMixin, DetailView):
 
 	def get_queryset(self):
 		q = (Q(owner=self.request.user) | Q(board_memberships__user=self.request.user)) & Q(closed=False)
-		return Board.objects.filter(q)
+		return Board.objects.filter(q).distinct()
 
 class PublicBoardDetail(DetailView):
 	template_name = "board/board/public.html"

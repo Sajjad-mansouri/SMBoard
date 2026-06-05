@@ -271,6 +271,7 @@ class CardNestedSerializer(CardSerializer):
 
 		]
 		fields = CardSerializer.Meta.fields +  extra_fields
+		read_only_fields = ["archived"]
 
 
 	def get_cover_img(self, obj):
@@ -294,6 +295,13 @@ class CardNestedSerializer(CardSerializer):
 		err = super().is_valid(raise_exception=False)
 		print(self._errors)
 		return err
+class CardArchivedSerializer(CardSerializer):
+	class Meta(CardSerializer.Meta):
+		model = Card
+		fields = ["archived"]
+	def to_internal_value(self, data):
+		print(data)
+		return super().to_internal_value(data)
 class BoardMembershipSerializer(serializers.ModelSerializer):
 	user = UserSerializer(read_only=True)
 	user_id = serializers.PrimaryKeyRelatedField(queryset=UserModel.objects.all(), source="user",write_only=True)
@@ -326,6 +334,10 @@ class BoardListSerializer(serializers.ModelSerializer):
 		model = BoardList
 		fields = ["id", "order", "name", "cover_image", "cover_color", "list_cards", "archived","board"]
 
+class BoardListArchivedSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = BoardList
+		fields = ["archived"]
 
 class BoardListOrderSerializer(BoardListSerializer):
 	id = serializers.IntegerField()

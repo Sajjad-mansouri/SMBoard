@@ -53,7 +53,11 @@ urlpatterns += [
 	path("board-watch/", board_views.BoardWatchView.as_view(), name="board_watch"),
 	path("card-watch/", board_views.CardWatchView.as_view(), name="card_watch"),
 	path("copy-card/<int:pk>/", board_views.CopyCardView.as_view(), name="copy_card"),
-	path("public-board-address/<int:pk>/", board_views.PublicBoardAddress.as_view(), name="public_board_address"),
+	path("card/update-archived/<int:pk>/", board_views.CardArchivedUpdateView.as_view(), name="archive_card"),
+	path("list/update-archived/<int:pk>/", board_views.BoardListArchivedUpdateView.as_view(), name="archive_list"),
+
+
+	path("public-board-address/<int:pk>/", board_views.BoardListArchivedUpdateView.as_view(), name="public_board_address"),
 
 
 

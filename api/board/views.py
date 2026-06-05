@@ -98,6 +98,15 @@ class CardViewSet(viewsets.ModelViewSet):
 
 		return Card.objects.filter(q)
 
+class CardArchivedUpdateView(UpdateAPIView):
+	serializer_class = serializers.CardArchivedSerializer
+
+	def get_queryset(self):
+
+		q = Q(board_list__board__owner=self.request.user)
+
+		return Card.objects.filter(q)
+
 class ChecklistViewSet(viewsets.ModelViewSet):
 
 	serializer_class = serializers.CheckListSerializer
@@ -182,6 +191,13 @@ class BoardListViewSet(viewsets.ModelViewSet):
 		q = Q(board__owner=self.request.user) | Q(board__board_memberships__user=self.request.user)
 		return BoardList.objects.filter(q).distinct()
 
+class BoardListArchivedUpdateView(UpdateAPIView):
+	serializer_class = serializers.BoardListArchivedSerializer
+
+	def get_queryset(self):
+		q = Q(board__owner=self.request.user)
+
+		return BoardList.objects.filter(q)
 
 class BoardListOrderUpdating(views.APIView):
 	permission_classes = [IsBoardOwnerOrMember]

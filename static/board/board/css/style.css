@@ -33,6 +33,9 @@
             align-items: center;
             gap: 8px;
         }
+        .board-menu-bar-left #edit-title-btn{
+            display: none;
+        }
         
         .board-menu-bar-right {
             display: flex;
@@ -720,6 +723,9 @@
             display: flex;
             align-items: center;
             gap: 6px;
+        }
+        .dropdown-item.hide{
+            display: none;
         }
         .role-dropdown .dropdown-item:hover {
             background: var(--hover-bg);
@@ -1699,6 +1705,9 @@
             align-items: center;
             gap: 12px;
             color: var(--text-color);
+        }
+        .board-menu-dropdown-item.hide{
+            display: none;
         }
         .board-menu-dropdown-item:hover {
             background: var(--hover-bg);

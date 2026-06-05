@@ -416,6 +416,18 @@
                 result = await fetchPost(url, body)
 
             }
+        } else if (model == "ArchiveCard") {
+            if (func == "update") {
+                path = `card/update-archived/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
+            }
+        } else if (model == "ArchiveList") {
+            if (func == "update") {
+                path = `list/update-archived/${objId}/`
+                const url = origin + "/api/" + path
+                result = await fetchUpdate(url, body)
+            }
         }
         return result
     }
@@ -675,6 +687,46 @@
         }
     }
 
+    function createBoardRightMenu() {
+        const board = getActiveBoard();
+        const boardMenuBar = document.getElementById('board-menu-bar');
+        let elementVisibility = "";
+        let disabled = ""
+        console.log(board.memberRoles, CURRENT_USER_ID)
+        console.log(board.memberRoles[CURRENT_USER_ID])
+        if (board.memberRoles[CURRENT_USER_ID] != "admin") {
+            elementVisibility = "hide"
+            disabled = "disabled"
+        } else {
+            document.getElementById("edit-title-btn").style.display = "flex"
+            document.getElementById("edit-title-btn").disabled = false
+
+
+        }
+        document.querySelector(".board-menu-bar-right")?.remove()
+        const boardMenuRight = `
+    <div class="board-menu-bar-right">
+        <div class="board-member-avatars" id="board-member-avatars"></div>
+           <div style="position:relative;">
+            <button class="visibility-badge" ${disabled} id="visibility-badge-btn">🔒 Private</button>
+            <div class="visibility-dropdown hidden" id="visibility-dropdown">
+                <div class="dropdown-item" data-vis="private">
+                    <div>🔒 Private</div>
+                    <div class="dropdown-desc">The board is private. Only people added to the board can view and edit it.</div>
+                </div>
+                <div class="dropdown-item" data-vis="public">
+                    <div>🌐 Public</div>
+                    <div class="dropdown-desc">The board is public. It's visible to anyone with the link. Only people added to the board can edit it.</div>
+                </div>
+            </div>
+        </div>
+        <button class="share-btn ${elementVisibility}" id="share-board-btn"  ${disabled}>🔗 Share</button>
+        <button class="board-menu-btn" id="board-menu-dots-btn" title="Board menu">⋯</button>
+    </div>
+        `
+        console.log(board.memberRoles[CURRENT_USER_ID])
+        boardMenuBar.insertAdjacentHTML("beforeend", boardMenuRight)
+    }
     async function loadData() {
         await fetchData()
         const stored = localStorage.getItem(STORAGE_KEY);
@@ -688,7 +740,9 @@
             }
         }
 
-
+        createBoardRightMenu()
+        createBoardMenuDropDown()
+        createDropDown()
 
         renderBoard();
         addEventListeners();
@@ -790,11 +844,53 @@
         currentCardId = null,
         editingCommentIndex = null;
 
+    function createDropDown() {
+        const board = getActiveBoard();
+
+        let elementVisibility = "";
+        let disabled = "";
+        let memberDropDowndata = "members"
+        let archiveData = "archive"
+
+
+
+        if (board.memberRoles[CURRENT_USER_ID] != "admin") {
+            elementVisibility = "hide";
+            memberDropDowndata = "";
+            archiveData = ""
+
+        }
+        document.getElementById("add-dropdown")?.remove()
+        document.getElementById("three-dot-dropdown")?.remove()
+
+
+        const dropDown = `<div id="add-dropdown" class="dropdown-menu hidden" style="position:absolute;top:100%;left:0;">
+                        <div class="dropdown-item" data-add="label">🏷️ Label</div>
+                        <div class="dropdown-item" data-add="dates">📅 Dates</div>
+                        <div class="dropdown-item" data-add="checklist">✅ Checklist</div>
+                        <div class="dropdown-item ${elementVisibility}" data-add="${memberDropDowndata}">👤 Members</div>
+                        <div class="dropdown-item" data-add="attachments">📎 Attachments</div>
+                    </div>`
+
+        const cardThreeDotDropdown = `<div id="three-dot-dropdown" class="dropdown-menu right-align hidden" style="position:absolute;top:100%;right:0;min-width:180px;">
+                            <div class="dropdown-item" data-action="move">↔️ Move</div>
+                            <div class="dropdown-item" data-action="copy">📄 Copy</div>
+                            <div class="dropdown-item" data-action="watch" id="watch-dropdown-item">👀 Watch</div>
+                            <div class="dropdown-divider"></div>
+                            <div class="dropdown-item ${elementVisibility}" data-action="${archiveData}" id="archive-dropdown-item">📦 Archive</div>
+                            
+                        </div>`
+
+        document.querySelector(".modal-cover-actions div").insertAdjacentHTML("beforeend", cardThreeDotDropdown)
+        document.querySelector(".modal-action-buttons div").insertAdjacentHTML("beforeend", dropDown)
+    }
+
     function renderBoard() {
         const board = getActiveBoard();
         document.body.style.background = board.background;
         document.getElementById('board-title').innerText = board.title;
         document.getElementById('board-title').textContent = board.title;
+
         renderBoardMenuBar();
         renderLists();
         updateNotificationBadge();
@@ -813,6 +909,8 @@
 
     function renderBoardMenuBar() {
         const board = getActiveBoard();
+
+
         const avatarsContainer = document.getElementById('board-member-avatars');
         const visibilityBtn = document.getElementById('visibility-badge-btn');
         avatarsContainer.innerHTML = '';
@@ -864,8 +962,14 @@
         const div = document.createElement('div');
         div.className = 'list';
         div.dataset.listId = list.id;
+        let elementVisibility = "";
+        let disabled = "";
+        if (board.memberRoles[CURRENT_USER_ID] != "admin") {
+            elementVisibility = "hide"
+            disabled = "disabled"
+        }
         div.innerHTML =
-            `<div class="list-header"><span class="drag-handle" draggable="true">⋮⋮</span><input type="text" class="list-title" value="${escapeHtml(list.title)}" data-list-id="${list.id}" /><div class="list-header-actions"><div style="position:relative;"><button class="icon-btn list-menu-btn" data-list-id="${list.id}" title="List actions">⋯</button><div class="list-menu-dropdown hidden" data-list-id="${list.id}"><div class="list-menu-dropdown-item" data-action="archive-list">📦 Archive List</div></div></div></div></div><div class="list-cards" data-list-id="${list.id}"></div><div class="list-actions"><button class="add-card-btn" data-list-id="${list.id}">+ Add Card</button></div>`;
+            `<div class="list-header"><span class="drag-handle" draggable="true">⋮⋮</span><input type="text" class="list-title" value="${escapeHtml(list.title)}" data-list-id="${list.id}" /><div class="list-header-actions ${elementVisibility}"><div style="position:relative;"><button class="icon-btn list-menu-btn" ${disabled} data-list-id="${list.id}" title="List actions">⋯</button><div class="list-menu-dropdown hidden" data-list-id="${list.id}"><div class="list-menu-dropdown-item" data-action="archive-list">📦 Archive List</div></div></div></div></div><div class="list-cards" data-list-id="${list.id}"></div><div class="list-actions"><button class="add-card-btn" data-list-id="${list.id}">+ Add Card</button></div>`;
         const cardsContainer = div.querySelector('.list-cards');
         list.cardIds.forEach(cid => {
 
@@ -928,7 +1032,7 @@
                     archived: true
                 }
 
-                const result = await saveData("update", "BoardList", body, list.id);
+                const result = await saveData("update", "ArchiveList", body, list.id);
                 if (result) {
 
                     archiveList(list.id);
@@ -993,7 +1097,7 @@
             const body = {
                 "archived": false
             }
-            const result = await saveData("update", "Card", body, cardId);
+            const result = await saveData("update", "ArchiveCard", body, cardId);
             if (result) {
 
                 board.cards[cardId].archived = false;
@@ -1176,16 +1280,22 @@
         }
     }
 
-    function toggleArchive(cardId) {
+    async function toggleArchive(cardId) {
         const card = getActiveBoard().cards[cardId];
         if (!card) return;
-        card.archived = !card.archived;
-        addActivity(card, card.archived ? 'archived card' : 'unarchived card', CURRENT_USER_ID);
+
         const body = {
             "archived": card.archived ? true : false
         }
-        saveData("update", "Card", body, card.id);
-        renderBoard();
+        console.log(body)
+        const result = await saveData("update", "ArchiveCard", body, card.id);
+        if (result) {
+            card.archived = !card.archived;
+            addActivity(card, card.archived ? 'archived card' : 'unarchived card', CURRENT_USER_ID);
+            renderBoard();
+
+
+        }
     }
 
     function attachListDragEvents() {
@@ -1492,7 +1602,7 @@
         renderModalChecklists();
         renderModalAttachments();
         renderModalCommentsActivity();
-        updateCommentUserSelect();
+
         closeAllPopovers();
         document.getElementById('card-modal-overlay').classList.remove('hidden');
     }
@@ -1619,16 +1729,20 @@
                 container.appendChild(avatar);
             }
         });
-        const addBtn = document.createElement('button');
-        addBtn.className = 'add-member-inline';
-        addBtn.textContent = '+';
-        addBtn.title = 'Add member';
-        addBtn.addEventListener('click', (e) => {
-            closeAllPopovers();
-            openMembersPopover(e.target);
-        });
-        container.appendChild(addBtn);
+        const board = getActiveBoard();
+        if (board.memberRoles[CURRENT_USER_ID] == "admin") {
+            const addBtn = document.createElement('button');
+            addBtn.className = 'add-member-inline';
+            addBtn.textContent = '+';
+            addBtn.title = 'Add member';
+            addBtn.addEventListener('click', (e) => {
+                closeAllPopovers();
+                openMembersPopover(e.target);
+            });
+            container.appendChild(addBtn);
+        }
     }
+
 
     function renderModalChecklists() {
         const container = document.getElementById('modal-checklists');
@@ -2063,17 +2177,7 @@
         if (discardBtn) discardBtn.remove();
     }
 
-    function updateCommentUserSelect() {
-        const sel = document.getElementById('comment-user-select');
-        sel.innerHTML = '<option value="">Post as...</option>';
-        appState.users.forEach(u => {
-            const opt = document.createElement('option');
-            opt.value = u.id;
-            opt.textContent = u.name;
-            sel.appendChild(opt);
-        });
-        sel.value = CURRENT_USER_ID;
-    }
+
 
     function openCoverPopover(anchorEl) {
         closeAllPopovers();
@@ -2740,7 +2844,7 @@
                     const body = {
                         archived: false
                     }
-                    const result = await saveData("update", "BoardList", body, list.id);
+                    const result = await saveData("update", "ArchiveList", body, list.id);
                     if (result) {
 
                         unarchiveList(list.id, list);
@@ -2844,6 +2948,56 @@
         inviteLinkContent.classList.add("hide")
         inviteLinkContent.querySelector(".invite-link-row").style.display = "none"
 
+    }
+
+    function createBoardMenuDropDown() {
+        const board = getActiveBoard();
+
+        let elementVisibility = "";
+        let disabled = "";
+        let shareDataAction = "share-users"
+        let backgroundDataAction = "change-bg"
+        let archiveDataAction = "archived-items"
+        let closeDataAction = "close-board"
+
+
+        if (board.memberRoles[CURRENT_USER_ID] != "admin") {
+            elementVisibility = "hide";
+            shareDataAction = "";
+            backgroundDataAction = "";
+            archiveDataAction = "";
+            closeDataAction = "";
+        }
+        document.getElementById("board-menu-dropdown")?.remove()
+        const modal = `
+    <div id="board-menu-dropdown" class="board-menu-dropdown hidden">
+        <div class="board-menu-dropdown-item ${elementVisibility}" data-action="${shareDataAction}">
+            <span>🔗</span> <span>Share and users</span>
+        </div>
+        <div class="board-menu-dropdown-item ${elementVisibility}" data-action="${backgroundDataAction}">
+            <span>🎨</span> <span>Change background</span>
+        </div>
+        <div class="board-menu-dropdown-item" data-action="activity">
+            <span>📋</span> <span>Activity</span>
+        </div>
+        <div class="board-menu-dropdown-divider ${elementVisibility}"></div>
+        <div class="board-menu-dropdown-item" data-action="watch" id="board-watch-item">
+            <span>👀</span> <span>Watch</span>
+            <span class="menu-item-extra" id="board-watch-status">Not watching</span>
+        </div>
+        <div class="board-menu-dropdown-divider ${elementVisibility}"></div>
+        <div class="board-menu-dropdown-item ${elementVisibility}" data-action="${archiveDataAction}">
+            <span>📦</span> <span>Archived items</span>
+        </div>
+        <div class="board-menu-dropdown-divider ${elementVisibility}"></div>
+        <div class="board-menu-dropdown-item danger ${elementVisibility}" data-action="${closeDataAction}">
+            <span>📦</span> <span>Close board</span>
+        </div>
+    </div>
+
+        `
+
+        document.querySelector("body").insertAdjacentHTML("beforeend", modal)
     }
 
     function addEventListeners() {
@@ -3000,6 +3154,7 @@
         document.getElementById('board-menu-dots-btn').onclick = (e) => {
             e.stopPropagation();
             closeAllPopovers();
+
             const dropdown = document.getElementById('board-menu-dropdown');
             dropdown.classList.toggle('hidden');
             updateBoardWatchStatus();

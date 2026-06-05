@@ -9,26 +9,9 @@
 <div class="board-menu-bar" id="board-menu-bar">
     <div class="board-menu-bar-left">
         <h1 id="board-title" class="board-title" contenteditable="false" data-board="{{object.id}}">{{object.name}}</h1>
-        <button id="edit-title-btn" class="icon-btn small">✎</button>
+        <button id="edit-title-btn" class="icon-btn small" disabled>✎</button>
     </div>
-    <div class="board-menu-bar-right">
-        <div class="board-member-avatars" id="board-member-avatars"></div>
-        <div style="position:relative;">
-            <button class="visibility-badge" id="visibility-badge-btn">🔒 Private</button>
-            <div class="visibility-dropdown hidden" id="visibility-dropdown">
-                <div class="dropdown-item" data-vis="private">
-                    <div>🔒 Private</div>
-                    <div class="dropdown-desc">The board is private. Only people added to the board can view and edit it.</div>
-                </div>
-                <div class="dropdown-item" data-vis="public">
-                    <div>🌐 Public</div>
-                    <div class="dropdown-desc">The board is public. It's visible to anyone with the link. Only people added to the board can edit it.</div>
-                </div>
-            </div>
-        </div>
-        <button class="share-btn" id="share-board-btn">🔗 Share</button>
-        <button class="board-menu-btn" id="board-menu-dots-btn" title="Board menu">⋯</button>
-    </div>
+
 </div>
             <main id="board-container"><div id="lists-wrapper" class="lists-wrapper"></div><div class="add-list-container"><button id="add-list-btn" class="add-list-btn">+ Add List</button><div id="add-list-form" class="add-list-form hidden"><input type="text" id="new-list-title" placeholder="Enter list title..." maxlength="50" /><div class="add-list-actions"><button id="save-list-btn" class="btn-primary">Add</button><button id="cancel-list-btn" class="btn-secondary">✕</button></div></div></div>
             </main>
@@ -37,30 +20,7 @@
 
 
     <!-- Board Menu Dropdown (floating) - replaces sidebar -->
-    <div id="board-menu-dropdown" class="board-menu-dropdown hidden">
-        <div class="board-menu-dropdown-item" data-action="share-users">
-            <span>🔗</span> <span>Share and users</span>
-        </div>
-        <div class="board-menu-dropdown-item" data-action="change-bg">
-            <span>🎨</span> <span>Change background</span>
-        </div>
-        <div class="board-menu-dropdown-item" data-action="activity">
-            <span>📋</span> <span>Activity</span>
-        </div>
-        <div class="board-menu-dropdown-divider"></div>
-        <div class="board-menu-dropdown-item" data-action="watch" id="board-watch-item">
-            <span>👀</span> <span>Watch</span>
-            <span class="menu-item-extra" id="board-watch-status">Not watching</span>
-        </div>
-        <div class="board-menu-dropdown-divider"></div>
-        <div class="board-menu-dropdown-item" data-action="archived-items">
-            <span>📦</span> <span>Archived items</span>
-        </div>
-        <div class="board-menu-dropdown-divider"></div>
-        <div class="board-menu-dropdown-item danger" data-action="close-board">
-            <span>📦</span> <span>Close board</span>
-        </div>
-    </div>
+
 
     <!-- Archived Items Modal -->
     <div id="archived-modal-overlay" class="modal-overlay hidden">
@@ -178,14 +138,7 @@
                     <button id="modal-cover-btn" class="cover-action-btn" title="Cover">🖼️ Cover</button>
                     <div style="position:relative;">
                         <button id="three-dot-btn" class="cover-action-btn icon-only" title="More actions">⋯</button>
-                        <div id="three-dot-dropdown" class="dropdown-menu right-align hidden" style="position:absolute;top:100%;right:0;min-width:180px;">
-                            <div class="dropdown-item" data-action="move">↔️ Move</div>
-                            <div class="dropdown-item" data-action="copy">📄 Copy</div>
-                            <div class="dropdown-item" data-action="watch" id="watch-dropdown-item">👀 Watch</div>
-                            <div class="dropdown-divider"></div>
-                            <div class="dropdown-item" data-action="archive" id="archive-dropdown-item">📦 Archive</div>
-                            
-                        </div>
+
                     </div>
                     <button id="close-modal-btn" class="cover-action-btn icon-only">✕</button>
                 </div>
@@ -205,13 +158,7 @@
             <div class="modal-action-buttons" style="position:relative;">
                 <div style="position:relative;">
                     <button id="add-dropdown-btn" class="action-btn">+ Add ▾</button>
-                    <div id="add-dropdown" class="dropdown-menu hidden" style="position:absolute;top:100%;left:0;">
-                        <div class="dropdown-item" data-add="label">🏷️ Label</div>
-                        <div class="dropdown-item" data-add="dates">📅 Dates</div>
-                        <div class="dropdown-item" data-add="checklist">✅ Checklist</div>
-                        <div class="dropdown-item" data-add="members">👤 Members</div>
-                        <div class="dropdown-item" data-add="attachments">📎 Attachments</div>
-                    </div>
+
                 </div>
                 <button id="modal-labels-btn" class="action-btn">🏷️ Labels</button>
                 <button id="modal-dates-btn" class="action-btn">📅 Dates</button>
@@ -227,7 +174,6 @@
                 <div class="modal-sidebar-right" id="comment-sidebar">
                     <h3 style="font-size:0.75rem;font-weight:700;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px;">💬 Comments & Activity</h3>
                     <div class="comment-input-area">
-                        <select id="comment-user-select" style="font-size:0.8rem;padding:6px;border-radius:4px;"><option value="">Post as...</option></select>
                         <textarea id="new-comment-text" placeholder="Write a comment..." rows="2"></textarea>
                         <div class="comment-input-actions"><button id="add-comment-btn" class="btn-primary small">Post Comment</button></div>
 
