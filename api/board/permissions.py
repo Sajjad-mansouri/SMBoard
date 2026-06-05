@@ -9,36 +9,34 @@ class IsBoardOwner(permissions.BasePermission):
 
 		return obj.owner == request.user
 
+	def has_permission(self, request, view):
+		return bool(request.user and request.user.is_authenticated)
+
 
 
 class IsBoardOwnerOrMember(permissions.BasePermission):
 
-	def has_object_permission(self, request, view, obj):
-		if isinstance(obj, models.Board):
-			return obj.owner == request.user | obj.board_memberships.filter(user=request.user).exists()
+	def has_permission(self, request, view):
+		print(request.data)
+		print(view.action)
+		if view.action == "create":
+			if request.data.get("checklist"):
+				q = Q(id=request.data.get("checklist")) & (Q(card__board_list__board__owner=request.user)| Q(card__board_list__board__board_memberships__user=request.user))
+				return models.CheckList.objects.filter(q).exists()
+			elif request.data.get("card"):
 
-		elif isinstance(obj, models.BoardList):
-			return (obj.board.owner == request.user) | obj.board.board_memberships.filter(user=request.user).exists()
-		elif isinstance(obj, models.Card) | isinstance(obj, models.BoardWatch):
-			return (obj.board_list.board.owner == request.user) | obj.card_memberships.filter(user=request.user).exists()
+				q = Q(id=request.data.get("card")) & (Q(board_list__board__owner=request.user)| Q(board_list__board__board_memberships__user=request.user))
+				return models.Card.objects.filter(q).exists()
+			elif request.data.get("board_list"):
 
-		elif isinstance(obj, models.ChecklistItem):
-			return (obj.checklist.card.board_list.board.owner == request.user) | obj.checklist.card.card_memberships.filter(user=request.user).exists()
-		elif (
-			isinstance(obj, models.CardLabel)|
-			isinstance(obj, models.CheckList)|
-			isinstance(obj, models.CardFile) | 
-			isinstance(obj,models.CardImage)|
-			isinstance(obj,models.LinkAttachment)| 
+				q = Q(id=request.data.get("board_list")) & (Q(board__owner=request.user)| Q(board__board_memberships__user=request.user))
+				return models.BoardList.objects.filter(q).exists()
+			elif request.data.get("board"):
 
-			isinstance(obj,models.Comment) |
-			isinstance(obj,models.CardWatch)
+				q = Q(id=request.data.get("board")) & (Q(owner=request.user)| Q(board_memberships__user=request.user))
+				return models.Board.objects.filter(q).exists()
+		return bool(request.user and request.user.is_authenticated)
 			
-
-			):
-			return (obj.card.board_list.board.owner == request.user) | obj.card.card_memberships.filter(user=request.user).exists()
-
-
 
 
 class CardMembershipPermission(permissions.BasePermission):
@@ -49,30 +47,48 @@ class CardMembershipPermission(permissions.BasePermission):
 		return (obj.card.board_list.board.owner == request.user)
 
 	def has_permission(self, request, view):
-		print(request.data)
 
-		obj_id = request.data.get("card")
-		user_id = request.data.get("user")
-		if obj_id and user_id:
+		if view.action == "create":
+
+			obj_id = request.data.get("card")
+			user_id = request.data.get("user")
 			q = Q(id=obj_id) & Q(board_list__board__owner=request.user) & Q(board_list__board__board_memberships__user_id=user_id)
 			return models.Card.objects.filter(q).exists()
+
 		else:
-			return True
+			return bool(request.user and request.user.is_authenticated)
+
 
 class BoardMembershipPermission(permissions.BasePermission):
 	"""
 	Allow create based on the data being submitted
 	"""
 	def has_object_permission(self, request, view, obj):
+
 		return (obj.board.owner == request.user)
 
 	def has_permission(self, request, view):
-		obj_id = request.data.get("board")
-		if request.method == "POST":
-			q = Q(board_id=obj_id)& Q(board__owner=request.user)
-			print(models.BoardMembership.objects.filter(Q(board_id=obj_id)).exists())
-			print(models.BoardMembership.objects.filter(Q(board__owner=request.user)).exists())
 
-			return models.BoardMembership.objects.filter(q).exists()
+
+		if view.action == "create":
+			obj_id = request.data.get("board")
+
+			q = Q(id=obj_id)& Q(owner=request.user)
+			return models.Board.objects.filter(q).exists()
+
 		else:
-			return True
+			return bool(request.user and request.user.is_authenticated)
+
+
+
+class WatchBoardCardPermission(permissions.BasePermission):
+	def has_permission(self, request, view):
+		board = request.data.get("board")
+		card = request.data.get("card")
+
+		if board:
+			q = Q(id=board) & (Q(owner=request.user)| Q(board_memberships__user=request.user))
+			return models.Board.objects.filter(q).exists()
+		elif card:
+			q = Q(id=card) & (Q(board_list__board__owner=request.user)| Q(board_list__board__board_memberships__user=request.user))
+			return models.Card.objects.filter(q).exists()

@@ -4,6 +4,7 @@ from django.utils.translation import gettext as _
 from django.views.generic.base import TemplateView
 from django.views.generic.detail import DetailView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Q
 from .models import Board
 
 class HomePage(LoginRequiredMixin, TemplateView):
@@ -13,7 +14,8 @@ class BoardDetail(LoginRequiredMixin, DetailView):
 	template_name = "board/board/main.html"
 
 	def get_queryset(self):
-		return Board.objects.filter(owner=self.request.user)
+		q = (Q(owner=self.request.user) | Q(board_memberships__user=self.request.user)) & Q(closed=False)
+		return Board.objects.filter(q)
 
 class PublicBoardDetail(DetailView):
 	template_name = "board/board/public.html"

@@ -9,7 +9,7 @@ from .models import (
 
 @admin.register(Board)
 class BoardAdmin(admin.ModelAdmin):
-	list_display = ["owner", "name"]
+	list_display = ["owner", "name", "id"]
 
 
 @admin.register(BoardMembership)

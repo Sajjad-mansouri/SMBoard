@@ -45,7 +45,7 @@ urlpatterns += [
 	path("closed/", board_views.ClosedBoardView.as_view(), name="closed_boards"),
 
 	path("board/<int:pk>/", board_views.BoardRetrieveView.as_view(), name="board"),
-	path("card/<int:pk>/", board_views.CardUpdateView.as_view(), name="card_update"),
+
 
 	path("current-user/", board_views.CurrentUser.as_view(), name="current_user"),
 	path("board-list-order/", board_views.BoardListOrderUpdating.as_view(), name="update_list_order"),

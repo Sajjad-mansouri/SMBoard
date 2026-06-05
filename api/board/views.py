@@ -15,8 +15,8 @@ from board.models import (
 	Activity
 	)
 from . import serializers
-from rest_framework.permissions import AllowAny
-from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission, BoardMembershipPermission
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission, BoardMembershipPermission, WatchBoardCardPermission
 
 
 UserModel = get_user_model()
@@ -32,6 +32,7 @@ class BoardViewSet(viewsets.ModelViewSet):
 
 class GuestBoardListView(ListAPIView):
 	serializer_class = serializers.BoardSerializer
+	permission_classes = [IsAuthenticated]
 	def get_queryset(self):
 		q = Q(board_memberships__user=self.request.user) & ~Q(owner=self.request.user) & Q(closed=False)
 		return Board.objects.filter(q).distinct()
@@ -39,13 +40,14 @@ class GuestBoardListView(ListAPIView):
 
 class UserRetrieveView(RetrieveAPIView):
 	serializer_class = serializers.UserSerializer
-
+	permission_classes = [IsAuthenticated]
 	def get_object(self):
 		return self.request.user
 
 
 class SearchBoardView(ListAPIView):
 	serializer_class = serializers.BoardSerializer
+	permission_classes = [IsAuthenticated]
 	def get_queryset(self):
 		search = self.request.query_params["search"]
 		q = Q(board_memberships__user=self.request.user) | Q(owner=self.request.user)
@@ -55,6 +57,7 @@ class SearchBoardView(ListAPIView):
 
 class SearchCardView(ListAPIView):
 	serializer_class = serializers.CardSerializer
+	permission_classes = [IsAuthenticated]
 	def get_queryset(self):
 		search = self.request.query_params["search"]
 
@@ -65,6 +68,7 @@ class SearchCardView(ListAPIView):
 
 class ClosedBoardView(ListAPIView):
 	serializer_class = serializers.BoardSerializer
+	permission_classes = [IsAuthenticated]
 	def get_queryset(self):
 
 
@@ -84,21 +88,15 @@ class BoardRetrieveView(RetrieveAPIView):
 
 
 
-class CardUpdateView(UpdateAPIView):
-	serializer_class = serializers.CardNestedSerializer
-	permission_classes = [IsBoardOwnerOrMember]
-
-	def get_queryset(self):
-
-		return Card.objects.all()
-
 class CardViewSet(viewsets.ModelViewSet):
 	serializer_class = serializers.CardNestedSerializer
 	permission_classes = [IsBoardOwnerOrMember]
 
 	def get_queryset(self):
+		card__board_list__board__board_memberships__user=self.request.user
+		q = Q(board_list__board__owner=self.request.user) | Q(board_list__board__board_memberships__user=self.request.user)
 
-		return Card.objects.all()
+		return Card.objects.filter(q)
 
 class ChecklistViewSet(viewsets.ModelViewSet):
 
@@ -107,8 +105,7 @@ class ChecklistViewSet(viewsets.ModelViewSet):
 
 	def get_queryset(self):
 		
-		
-		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
+		q = Q(card__board_list__board__owner=self.request.user) | Q(card__board_list__board__board_memberships__user=self.request.user)
 		
 		return CheckList.objects.filter(q).distinct()
 
@@ -120,7 +117,7 @@ class ChecklistItemViewSet(viewsets.ModelViewSet):
 
 	def get_queryset(self):
 
-		q = Q(checklist__card__board_list__board__owner=self.request.user) | Q(checklist__card__card_memberships__user=self.request.user)
+		q = Q(checklist__card__board_list__board__owner=self.request.user) | Q(checklist__card__board_list__board__board_memberships__user=self.request.user)
 		
 		return ChecklistItem.objects.filter(q).distinct()
 
@@ -132,16 +129,14 @@ class CommentViewSet(viewsets.ModelViewSet):
 
 	def get_queryset(self):
 
-		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
+		q = Q(card__board_list__board__owner=self.request.user) | Q(card__board_list__board__board_memberships__user=self.request.user)
 		
 		return Comment.objects.filter(q).distinct()
 
 class CurrentUser(views.APIView):
+	permission_classes = [IsAuthenticated]
 	def get(self, request, format=None):
-			"""
-			Return a list of all users.
-			"""
-			
+
 			return Response({"user":request.user.id})
 
 
@@ -152,7 +147,7 @@ class CardFileViewSet(viewsets.ModelViewSet):
 
 	def get_queryset(self):
 
-		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
+		q = Q(card__board_list__board__owner=self.request.user) | Q(card__board_list__board__board_memberships__user=self.request.user)
 
 		return CardFile.objects.filter(q).distinct()
 
@@ -163,7 +158,7 @@ class CardImageViewSet(viewsets.ModelViewSet):
 
 	def get_queryset(self):
 
-		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
+		q = Q(card__board_list__board__owner=self.request.user) | Q(card__board_list__board__board_memberships__user=self.request.user)
 		return CardImage.objects.filter(q).distinct()
 
 
@@ -174,7 +169,7 @@ class CardLabelViewSet(viewsets.ModelViewSet):
 
 	def get_queryset(self):
 
-		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
+		q = Q(card__board_list__board__owner=self.request.user) | Q(card__board_list__board__board_memberships__user=self.request.user)
 		return CardLabel.objects.filter(q).distinct()
 
 class BoardListViewSet(viewsets.ModelViewSet):
@@ -192,8 +187,8 @@ class BoardListOrderUpdating(views.APIView):
 	permission_classes = [IsBoardOwnerOrMember]
 	def patch(self, request, *args, **kwargs):
 		ids = [item["id"] for item in request.data]
-
-		queryset = BoardList.objects.filter(id__in=ids)
+		q = (Q(board__owner=self.request.user) | Q(board__board_memberships__user=self.request.user)) & Q(id__in=ids)
+		queryset = BoardList.objects.filter(q)
 
 		serializer = serializers.BoardListOrderSerializer(
 			queryset,
@@ -214,6 +209,7 @@ class CardOrderUpdating(views.APIView):
 	def patch(self, request, *args, **kwargs):
 
 		ids = [item["id"] for item in request.data]
+		q = (Q(board_list__board__owner=self.request.user) | Q(board_list__board__board_memberships__user=self.request.user)) & Q(id__in=ids)
 
 		queryset = Card.objects.filter(id__in=ids)
 
@@ -286,11 +282,14 @@ class ToggleWatchMixin:
 
 		return Response(serializer.data, status=status.HTTP_200_OK)
 
+
 class BoardWatchView(ToggleWatchMixin, views.APIView):
 	serializer_class = serializers.BoardWatchSerializer
+	permission_classes = [WatchBoardCardPermission]
 
 class CardWatchView(ToggleWatchMixin, views.APIView):
 	serializer_class = serializers.CardWatchSerializer
+	permission_classes = [WatchBoardCardPermission]
 
 
 class LinkAttachmentViewSet(viewsets.ModelViewSet):
@@ -300,12 +299,15 @@ class LinkAttachmentViewSet(viewsets.ModelViewSet):
 
 	def get_queryset(self):
 
-		q = Q(card__board_list__board__owner=self.request.user) | Q(card__card_memberships__user=self.request.user)
+		q = Q(card__board_list__board__owner=self.request.user) | Q(card__board_list__board__board_memberships__user=self.request.user)
 		return LinkAttachment.objects.filter(q).distinct()
 
 
 class CopyCardView(GenericAPIView):
 	serializer_class = serializers.CardNestedSerializer
+
+
+
 	def post(self, request, *args, **kwargs):
 		instance = self.get_object()
 		instance.pk = None
@@ -316,14 +318,15 @@ class CopyCardView(GenericAPIView):
 		return Response(serializer.data)
 
 	def get_queryset(self):
-		return Card.objects.all()
+		q = Q(board_list__board__owner=self.request.user) | Q(card__board_list__board__board_memberships__user=self.request.user)
+		return Card.objects.filter(q)
 
 
 
 class ActivitytViewSet(viewsets.ModelViewSet):
 
 	serializer_class = serializers.ActivitySerializer
-	permission_classes = [AllowAny]
+	permission_classes = [IsAuthenticated]
 
 	def get_queryset(self):
 
@@ -336,7 +339,7 @@ class PublicBoardAddress(views.APIView):
 
 		current_site = get_current_site(request)
 		use_https = False
-		board = get_object_or_404(Board, id=board_id, status="public")
+		board = get_object_or_404(Board, id=board_id, owner=request.user, status="public")
 		protocol = "https" if use_https else "http"
 		board_address = f'{protocol}//{current_site}/public/{board.short_uuid}/{board.slug}/'
 		return Response({"board_address":board_address}, status=status.HTTP_200_OK)

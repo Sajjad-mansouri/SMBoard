@@ -79,7 +79,7 @@
 
         try {
             const bodyJSON = JSON.stringify(body)
-            
+
             const response = await auth.authenticatedRequest(url, bodyJSON, "PATCH", {}, "application/json")
             if (response.ok) {
 
@@ -102,12 +102,12 @@
         try {
             const bodyJSON = JSON.stringify(body)
 
-            
+
             const response = await auth.authenticatedRequest(url, bodyJSON, "POST")
             const data = await response.json()
             if (response.ok) {
 
-                
+
                 return data
 
             } else {
@@ -129,7 +129,7 @@
 
 
             const response = await auth.authenticatedRequest(url, bodyJSON, "DELETE", {})
-            
+
             if (response.ok) {
 
                 return true
@@ -190,7 +190,7 @@
 
                 result = await fetchDelete(url, body)
             } else if (func == "copy") {
-                
+
                 path = `copy-card/${objId}/`
                 const url = origin + "/api/" + path
                 result = await fetchPost(url, body)
@@ -260,7 +260,7 @@
             if (func == "create") {
                 path = "card-images/"
                 const url = origin + "/api/" + path
-                
+
                 result = await fetchPostWithFormData(url, body)
 
 
@@ -392,7 +392,7 @@
             if (func == "create") {
                 path = "link-attachments/"
                 const url = origin + "/api/" + path
-                
+
                 result = await fetchPost(url, body)
 
 
@@ -412,7 +412,7 @@
             if (func == "create") {
                 path = "activities/"
                 const url = origin + "/api/" + path
-                
+
                 result = await fetchPost(url, body)
 
             }
@@ -593,7 +593,7 @@
 
 
         const card = {}
-        
+
         card["id"] = cardData["id"]
         card["title"] = cardData["name"]
         card["description"] = cardData["description"]
@@ -706,7 +706,7 @@
     }
 
     function getUserById(id) {
-        
+
         return appState.users.find(u => u.id === id);
     }
 
@@ -995,7 +995,7 @@
             }
             const result = await saveData("update", "Card", body, cardId);
             if (result) {
-                
+
                 board.cards[cardId].archived = false;
                 const originalList = board.lists.find(l => l.cardIds.includes(cardId));
                 if (!originalList) {
@@ -1068,7 +1068,7 @@
             "board_list": listId
         }
         const result = await saveData("create", "Card", body)
-        
+
         if (result) {
 
             const b = getActiveBoard();
@@ -1145,17 +1145,14 @@
 
             addActivity(newCard, 'Card copied', CURRENT_USER_ID);
             b.cards[newCard.id] = newCard;
-            
-            
 
-            
+
 
             const list = b.lists.find(l => l.cardIds.includes(Number(cardId)));
             if (list) list
                 .cardIds.push(newCard.id);
 
-            
-            
+
 
             renderBoard();
         }
@@ -1173,8 +1170,8 @@
         if (result) {
             card.watched = watch;
             addActivity(card, card.watched ? 'started watching' : 'stopped watching', CURRENT_USER_ID);
-            
-            
+
+
             renderBoard();
         }
     }
@@ -1853,7 +1850,7 @@
                         result = await saveData("update", "CardFile", body, fileId);
 
                     }
-                    
+
                     if (result) {
                         att.name = result.display_name;
                         renderModalAttachments();
@@ -1887,7 +1884,7 @@
             div.querySelector('.att-set-cover')?.addEventListener('click', async (e) => {
                 e.stopPropagation();
                 dropdown.classList.add('hidden');
-                
+
                 body = {
                     "cover_image_fk": att.id,
                     "cover_color": "",
@@ -1921,7 +1918,7 @@
                         result = await saveData("delete", "CardFile", {}, fileId);
 
                     } else if (type == "link") {
-                        
+
                         result = await saveData("delete", "LinkAttachment", {}, fileId);
 
                     }
@@ -2139,7 +2136,7 @@
 
 
                 const result = await saveData("update", "Card", formData, currentCardId, true);
-                
+
                 if (result) {
 
                     const card = getActiveBoard().cards[currentCardId];
@@ -2202,7 +2199,7 @@
                         addActivity(card, `removed label "${l.name}"`, CURRENT_USER_ID);
 
                         card.labels = card.labels.filter(id => id !== l.id);
-                        
+
                         appState.labels = appState.labels.filter(label => label.id !== l.id)
 
                         renderModalLabelsDisplay();
@@ -2273,7 +2270,7 @@
 
             card.dueDate = document.getElementById('modal-due-datetime').value;
             addActivity(card, `set dates: ${card.startDate||'none'} → ${card.dueDate||'none'}`, CURRENT_USER_ID);
-            
+
             const body = {
                 "start_date": startDateVal,
                 "due_date": dueDateVal
@@ -2318,7 +2315,7 @@
 
         function renderMemberOptions(filter = '') {
             optionsList.innerHTML = '';
-            
+
             const filtered = appState.users
                 .filter(u => u.name.toLowerCase().includes(filter.toLowerCase()) && appState.boards[0].boardMembers.includes(u.id));
             filtered.forEach(u => {
@@ -2352,7 +2349,7 @@
                         }
 
                     }
-                    
+
                     if (result) {
 
                         renderModalMembersDisplay();
@@ -2378,8 +2375,8 @@
             const files = e.target.files;
             const card = getActiveBoard().cards[currentCardId];
             Array.from(files).forEach(async (f) => {
-                
-                
+
+
 
                 const formData = new FormData()
                 formData.append("file", f)
@@ -2387,14 +2384,14 @@
                 const [imageType, fileType] = checkAttachmentClass(f.type)
 
                 let result;
-                
+
                 if (imageType) {
                     result = await saveData("create", "CardImage", formData, currentCardId, true);
                 } else if (fileType) {
                     result = await saveData("create", "CardFile", formData, currentCardId, true);
 
                 }
-                
+
                 if (result) {
                     card.attachments.push({
                         id: result.id,
@@ -2517,7 +2514,7 @@
                     });
                 });
             } else {
-                
+
                 card.activities.forEach(act => {
                     allActivities.push({
                         type: 'activity',
@@ -2585,16 +2582,16 @@
     }
 
     function renderShareModalContent() {
-        
+
         const board = getActiveBoard();
         document.getElementById('board-members-count').textContent = board.boardMembers.length;
         document.getElementById('join-requests-count').textContent = board.joinRequests.length;
         const membersContent = document.getElementById('board-members-content');
         membersContent.innerHTML = '';
-        
+
         board.boardMembers.forEach(uid => {
             const u = getUserById(uid);
-            
+
             if (!u) return;
             const role = board.memberRoles[uid] || 'member';
             const row = document.createElement('div');
@@ -2963,6 +2960,7 @@
                     "board": board.id,
                     "search": searchVal
                 }
+                console.log("body", body)
                 const result = await saveData("create", "BoardMember", body);
                 if (result) {
                     board.boardMembers.push(result.user.id);
@@ -3339,7 +3337,7 @@
                     "reply_type": replyType,
                     "reply_id": replyId
                 }
-                
+
                 result = await saveData("create", "Comment", body, currentCardId);
 
                 if (result) {
@@ -3460,7 +3458,7 @@
                 if (response.ok) {
                     inviteLinkRow.style.display = "flex"
                     inviteLinkRow.querySelector("input").value = data.board_address
-                    
+
                 }
             } catch (error) {
                 console.log(error)
