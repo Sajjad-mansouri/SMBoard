@@ -482,6 +482,7 @@
         boardObj["boardWatched"] = data.board_watched
         boardObj["boardClosed"] = data.closed
         boardObj["cards"] = {}
+        boardObj["activities"] = []
 
 
 
@@ -801,20 +802,30 @@
             .items.filter(i => i.completed).length / cl.items.length) * 100);
     }
 
-    async function addActivity(card, text, userId) {
+    async function addActivity(obj, text, userId, model = "card") {
         const body = {
             "text": text,
-            "obj_id": card.id,
-            "model": "card"
+            "obj_id": obj.id,
+            "model": model
         }
+        console.log(text, userId, model)
         const result = await saveData("create", "Activity", body)
         if (result) {
+            if (model == "card") {
 
-            card.activities.push({
-                timestamp: result.timestamp,
-                text: result.text,
-                user: result.user || null
-            });
+                card.activities.push({
+                    timestamp: result.timestamp,
+                    text: result.text,
+                    user: result.user || null
+                });
+            } else if (model == "board") {
+                getActiveBoard().activities.push({
+                    timestamp: result.timestamp,
+                    text: result.text,
+                    user: result.user || null
+                })
+
+            }
         }
     }
 
@@ -1205,13 +1216,22 @@
 
 
     async function moveCard(cardId, targetListId, targetIndex) {
+        cardId = Number(cardId)
         const b = getActiveBoard();
         const body = {
             "board_list": targetListId
         }
-        const result = saveData("update", "Card", body, cardId)
+        const result = await saveData("update", "Card", body, cardId)
+        console.log(result)
         if (result) {
             const oldList = b.lists.find(l => l.cardIds.includes(cardId));
+            const card = b.cards[cardId]
+            const newList = b.lists.find(l => l.id == targetListId);
+            // console.log(b, targetIndex)
+            console.log(cardId, oldList, newList, card.title)
+
+
+
             b.lists.forEach(l => l.cardIds = l.cardIds.filter(id => id != cardId));
             const tl = b.lists.find(l => l.id == targetListId);
             const cardIdList = [...tl.cardIds]
@@ -1220,8 +1240,13 @@
                     cardId);
                 else cardIdList.push(cardId);
             }
-            if (oldList && tl && oldList.id != tl.id) addActivity(b
-                .cards[cardId], `moved from ${oldList.title} to ${tl.title}`, null);
+            if (oldList.id == newList.id) {
+
+                addActivity(b, `The '${card.title}' card was moved within the '${oldList.title}' list`, CURRENT_USER_ID, "board");
+            } else {
+                addActivity(b, `The '${card.title}' card was moved from the '${oldList.title}' list to the '${newList.title}' list`, CURRENT_USER_ID, "board");
+
+            }
 
 
             const orderBody = []
@@ -1420,6 +1445,8 @@
 
         const result = await saveData("update", "BoardListOrder", body);
         if (result) {
+
+            addActivity(board, `Order of lists changed`, CURRENT_USER_ID, "board")
             board.lists = boardList
             if (listPlaceholder.parentNode) listPlaceholder.remove();
 
@@ -2055,7 +2082,8 @@
     function renderModalCommentsActivity() {
         const container = document.getElementById(
             'modal-comments-activity');
-        const card = getActiveBoard().cards[currentCardId];
+        const board = getActiveBoard()
+        const card = boards.cards[currentCardId];
         container.innerHTML = '';
         const allItems = [];
 
@@ -2078,6 +2106,14 @@
                     .timestamp
             });
         });
+        board.activities.forEach(a => {
+            allItems.push({
+                type: 'activity',
+                data: a,
+                timestamp: a
+                    .timestamp
+            });
+        })
         allItems.sort((a, b) => b.timestamp - a.timestamp);
         allItems.forEach(item => {
             if (item.type === 'comment') {

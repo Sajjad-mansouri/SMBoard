@@ -200,7 +200,7 @@ class BoardListArchivedUpdateView(UpdateAPIView):
 		return BoardList.objects.filter(q).distinct()
 
 class BoardListOrderUpdating(views.APIView):
-	permission_classes = [IsBoardOwnerOrMember]
+
 	def patch(self, request, *args, **kwargs):
 		ids = [item["id"] for item in request.data]
 		q = (Q(board__owner=self.request.user) | Q(board__board_memberships__user=self.request.user)) & Q(id__in=ids)
@@ -221,7 +221,7 @@ class BoardListOrderUpdating(views.APIView):
 
 
 class CardOrderUpdating(views.APIView):
-	permission_classes = [IsBoardOwnerOrMember]
+
 	def patch(self, request, *args, **kwargs):
 
 		ids = [item["id"] for item in request.data]
