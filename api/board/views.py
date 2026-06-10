@@ -946,3 +946,15 @@ class PublicBoardAddress(views.APIView):
 		board_address = f'{protocol}//{current_site}/public/{board.short_uuid}/{board.slug}/'
 		return Response({"board_address":board_address}, status=status.HTTP_200_OK)
 
+
+
+class ProfileUpdateView(UpdateAPIView):
+	serializer_class = serializers.ProfileSerializer
+	def get_object(self):
+		return self.request.user.profile
+
+
+class UserUpdateView(UpdateAPIView):
+	serializer_class = serializers.UserSerializer
+	def get_object(self):
+		return self.request.user

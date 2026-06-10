@@ -59,19 +59,8 @@ urlpatterns += [
 
 	path("public-board-address/<int:pk>/", board_views.BoardListArchivedUpdateView.as_view(), name="public_board_address"),
 	path("activities/<int:board>/", board_views.ActivitytView.as_view(), name="activities"),
-
-
-
-
-
-
-
-
-
-
-
-
-
+	path("update-profile/", board_views.ProfileUpdateView.as_view(), name="update_profile"),
+	path("update-user/", board_views.UserUpdateView.as_view(), name="update_user"),
 
 
 ]
@@ -82,6 +71,7 @@ urlpatterns += [
 	path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 	path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
 	path("login/", api_auth_views.LoginApiView.as_view(), name="login"),
+
 	]
 
 

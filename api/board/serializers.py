@@ -12,6 +12,7 @@ from board.models import (
 	BoardWatch, CardWatch, LinkAttachment,
 	Activity
 	)
+from account.models import Profile
 from rest_framework.generics import get_object_or_404
 
 UserModel = get_user_model()
@@ -37,21 +38,43 @@ class ActivitySerializer(serializers.ModelSerializer):
 
 		return obj.created.timestamp()*1000
 
-
+class ProfileSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = Profile
+		fields = ["user", "profile_image", "bio"]
 
 class UserSerializer(serializers.ModelSerializer):
 	profile_image = serializers.SerializerMethodField()
 	fullname = serializers.SerializerMethodField()
+	profile = ProfileSerializer()
+
 
 	class Meta:
 		model = UserModel
-		fields = ["id", "username", "email", "profile_image", "fullname"]
+		fields = ["id", "username", "email", "profile_image", "fullname", "first_name", "last_name", "profile"]
 
 	def get_profile_image(self, obj):
 		return obj.profile.profile_image.url if obj.profile.profile_image else ""
 
+
+
 	def get_fullname(self, obj):
 		return obj.get_full_name()
+
+	def update(self, instance, validated_data):
+		profile_data = validated_data.pop('profile')
+
+		profile = instance.profile
+		print(validated_data)
+		instance.first_name = validated_data.get('first_name', instance.first_name)
+		instance.last_name = validated_data.get('last_name', instance.last_name)
+		instance.username = validated_data.get('username', instance.username)
+		instance.email = validated_data.get('email', instance.email)
+		instance.save()
+
+		profile.bio = profile_data.get("bio", profile.bio)
+		profile.save()
+		return instance
 
 class BoardSerializer(serializers.ModelSerializer):
 	# user = UserSerializer()

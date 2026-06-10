@@ -74,4 +74,5 @@ class BoardMembershipAdmin(admin.ModelAdmin):
 
 @admin.register(Activity)
 class BoardMembershipAdmin(admin.ModelAdmin):
-	list_display = ["user", "board", "board_list", "card", "action_type", "text", "created"]
+	list_display = ["user", "action_type", "text", "created"]
+	list_filter = ["action_type"]

@@ -1,0 +1,267 @@
+{%load static%}
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>SMBoard Settings · Boards & Cards</title>
+    <link rel="stylesheet" type="text/css" href="{%static 'board/setting/css/style.css'%}">
+</head>
+<body>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Modal Container -->
+    <div id="modal-container"></div>
+
+    <div class="app-container">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">⚙️ Settings</div>
+            </div>
+
+            <div class="sidebar-nav">
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Personal Settings</div>
+                    <button class="sidebar-nav-item active" data-panel="profile">
+                        <span class="sidebar-icon">👤</span> Profile
+                    </button>
+                    <button class="sidebar-nav-item" data-panel="cards">
+                        <span class="sidebar-icon">📋</span> Cards
+                    </button>
+                    <button class="sidebar-nav-item" data-panel="settings">
+                        <span class="sidebar-icon">⚙️</span> Settings
+                    </button>
+                </div>
+                <div class="sidebar-section">
+                    <div class="sidebar-section-title">Workspace</div>
+                    <button class="sidebar-nav-item" data-panel="boards">
+                        <span class="sidebar-icon">📊</span> Boards
+                    </button>
+                </div>
+            </div>
+
+            <div class="sidebar-footer">
+                <button class="back-to-home" id="back-to-home-btn">
+                    <span>🏠</span> Back to Home Page
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Profile Panel -->
+            <div class="content-panel active" id="profile-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Profile</h2>
+                    <p class="panel-description">Manage your personal information and how others see you on Trello.</p>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Profile Photo</h3>
+                    <div class="profile-image-container">
+                        <div class="profile-image" id="profile-image-display">
+                            <span id="profile-initials"></span>
+
+                        </div>
+                        <label class="profile-image-upload">
+                            📁 Upload Photo
+                            <input type="file" id="profile-image-input" accept="image/*" hidden>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Personal Information</h3>
+                    <div class="form-group">
+                        <label class="form-label">First Name</label>
+                        <input type="text" class="form-input" id="profile-firstname"  placeholder="Enter first name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Last Name</label>
+                        <input type="text" class="form-input" id="profile-lastname"  placeholder="Enter last name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-input" id="profile-username"  placeholder="Enter username">
+
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" id="profile-email"  placeholder="Enter email">
+
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Bio</label>
+                        <textarea class="form-input" id="profile-bio" placeholder="Tell us about yourself..." rows="4"></textarea>
+                    </div>
+                    <button class="btn btn-primary" id="save-profile-btn">Save Changes</button>
+                </div>
+            </div>
+
+            <!-- Cards Panel -->
+            <div class="content-panel" id="cards-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">My Cards</h2>
+                    <p class="panel-description">View all cards assigned to you across all boards.</p>
+                    <div class="filter-buttons">
+                        <button class="btn btn-outline btn-sm" id="show-active-cards">📋 Active</button>
+                        <button class="btn btn-outline btn-sm" id="show-archived-cards">📦 Archived</button>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Card</th>
+                                <th>List</th>
+                                <th>Labels</th>
+                                <th>Due Date</th>
+                                <th>Board</th>
+                                <th style="width:130px">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="cards-table-body"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="cards-pagination">
+                    <button id="prev-page" disabled>‹ Previous</button>
+                    <span id="page-indicator">Page 1</span>
+                    <button id="next-page">Next ›</button>
+                </div>
+            </div>
+
+            <!-- Settings Panel -->
+            <div class="content-panel" id="settings-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Email Notifications</h2>
+                    <p class="panel-description">Choose when and how you want to be notified by email.</p>
+                </div>
+
+                <div class="alert-banner warning" id="pythonanywhere-banner" style="display: none;">
+                    <span class="alert-icon">⚠️</span>
+                    <div class="alert-content">
+                        <div class="alert-title">PythonAnywhere Limitation</div>
+                        <div class="alert-message">
+                            Email notifications with Celery and RabbitMQ are not available on PythonAnywhere. 
+                            This feature requires a message broker (RabbitMQ/Redis) which is not supported on this platform. 
+                            <br><strong>All notification settings have been disabled.</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert-banner info" id="local-dev-banner" style="display: none;">
+                    <span class="alert-icon">ℹ️</span>
+                    <div class="alert-content">
+                        <div class="alert-title">Local Development Mode</div>
+                        <div class="alert-message">
+                            Celery + RabbitMQ email notifications are active.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" id="notification-frequency-card">
+                    <h3 class="card-title">Notification Frequency</h3>
+                    <div class="form-group">
+                        <select class="form-input" id="notification-frequency">
+                            <option value="never">Never</option>
+                            <option value="periodically" selected>Periodically</option>
+                            <option value="instantly">Instantly</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card" id="notification-types-card">
+                    <h3 class="card-title">Notification Types</h3>
+                    <div class="switch-group">
+                        <span class="switch-label">Select All</span>
+                        <label class="switch">
+                            <input type="checkbox" id="select-all-notifications" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">💬 Comments</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">📅 Due Dates</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">👤 Removed from Card</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">📎 Attachment Added</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">🆕 Cards Created</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">↔️ Cards Moved</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">📦 Cards Archived</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary" id="save-settings-btn">Save Settings</button>
+            </div>
+
+            <!-- Boards Panel -->
+            <div class="content-panel" id="boards-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Boards</h2>
+                    <p class="panel-description">Manage your boards and create new ones.</p>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Create New Board</h3>
+                    <div class="form-group">
+                        <label class="form-label">Board Name</label>
+                        <input type="text" class="form-input" id="new-board-name" placeholder="Enter board name...">
+                    </div>
+                    <button class="btn btn-primary" id="create-board-btn">Create Board</button>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">Your Boards</h3>
+                    <div class="boards-grid" id="boards-list"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+<script src="{%static 'authentication/js/auth.js'%}"></script>
+<script src="{%static 'board/setting/js/script.js'%}"></script>
+
+</body>
+</html>

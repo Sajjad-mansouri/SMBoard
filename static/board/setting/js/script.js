@@ -1,0 +1,675 @@
+        (function() {
+            // ============================================
+            // CONFIGURATION
+            // ============================================
+            const auth = new Auth()
+
+            const CONFIG = {
+                IS_PYTHONANYWHERE: false,
+                LOCAL_SETTINGS: {
+                    CELERY_BROKER_URL: 'amqp://localhost:5672//',
+                    EMAIL_BACKEND: 'django.core.mail.backends.smtp.EmailBackend',
+                    NOTIFICATION_ENABLED: true
+                }
+            };
+
+            // Mock existing usernames for validation
+            const existingUsernames = ['johndoe', 'admin', 'test', 'user', 'trello'];
+
+            // ============================================
+            // TOAST NOTIFICATION SYSTEM
+            // ============================================
+            function showToast(message, type = 'info', duration = 3000) {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+
+                const icons = {
+                    success: '✅',
+                    error: '❌',
+                    warning: '⚠️',
+                    info: 'ℹ️'
+                };
+
+                toast.innerHTML = `
+                    <span class="toast-icon">${icons[type] || icons.info}</span>
+                    <span class="toast-message">${message}</span>
+                    <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+                `;
+
+                container.appendChild(toast);
+
+                setTimeout(() => {
+                    if (toast.parentElement) {
+                        toast.classList.add('removing');
+                        setTimeout(() => {
+                            if (toast.parentElement) {
+                                toast.remove();
+                            }
+                        }, 300);
+                    }
+                }, duration);
+            }
+
+            // ============================================
+            // MODAL SYSTEM
+            // ============================================
+            function showModal({
+                title,
+                message,
+                icon,
+                confirmText,
+                confirmClass,
+                onConfirm
+            }) {
+                const container = document.getElementById('modal-container');
+
+                const overlay = document.createElement('div');
+                overlay.className = 'modal-overlay';
+
+                overlay.innerHTML = `
+                    <div class="modal">
+                        <div class="modal-header">
+                            <span class="modal-icon">${icon || '⚠️'}</span>
+                            <span class="modal-title">${title}</span>
+                        </div>
+                        <div class="modal-body">${message}</div>
+                        <div class="modal-footer">
+                            <button class="btn-modal-cancel" id="modal-cancel">Cancel</button>
+                            <button class="btn-modal-confirm ${confirmClass || ''}" id="modal-confirm">${confirmText || 'Confirm'}</button>
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(overlay);
+
+                const closeModal = () => {
+                    overlay.classList.add('fade-out');
+                    setTimeout(() => overlay.remove(), 200);
+                };
+
+                overlay.querySelector('#modal-cancel').addEventListener('click', closeModal);
+
+                overlay.querySelector('#modal-confirm').addEventListener('click', () => {
+                    if (onConfirm) onConfirm();
+                    closeModal();
+                });
+
+                overlay.addEventListener('click', (e) => {
+                    if (e.target === overlay) closeModal();
+                });
+
+                return {
+                    close: closeModal
+                };
+            }
+
+            // ============================================
+            // APPLY CONFIGURATION
+            // ============================================
+            function applyConfiguration() {
+                const pythonanywhereBanner = document.getElementById('pythonanywhere-banner');
+                const localDevBanner = document.getElementById('local-dev-banner');
+                const frequencyCard = document.getElementById('notification-frequency-card');
+                const typesCard = document.getElementById('notification-types-card');
+                const frequencySelect = document.getElementById('notification-frequency');
+                const selectAllCheckbox = document.getElementById('select-all-notifications');
+                const notificationCheckboxes = document.querySelectorAll('.notification-checkbox');
+                const saveSettingsBtn = document.getElementById('save-settings-btn');
+
+                if (CONFIG.IS_PYTHONANYWHERE) {
+                    pythonanywhereBanner.style.display = 'flex';
+                    localDevBanner.style.display = 'none';
+                    frequencyCard.classList.add('disabled-card');
+                    typesCard.classList.add('disabled-card');
+                    frequencySelect.disabled = true;
+                    selectAllCheckbox.disabled = true;
+                    notificationCheckboxes.forEach(cb => cb.disabled = true);
+                    saveSettingsBtn.disabled = true;
+                } else {
+                    pythonanywhereBanner.style.display = 'none';
+                    localDevBanner.style.display = 'flex';
+                    frequencyCard.classList.remove('disabled-card');
+                    typesCard.classList.remove('disabled-card');
+                    frequencySelect.disabled = false;
+                    selectAllCheckbox.disabled = false;
+                    notificationCheckboxes.forEach(cb => cb.disabled = false);
+                    saveSettingsBtn.disabled = false;
+                }
+            }
+
+            // ---------- STATE ----------
+            let cardsData = [{
+                id: 'c1',
+                title: 'Design new landing page',
+                list: 'In Progress',
+                label: 'High Priority',
+                labelColor: '#eb5a46',
+                due: '2024-12-15',
+                board: 'Marketing Website',
+                archived: false
+            }, {
+                id: 'c2',
+                title: 'Fix login bug',
+                list: 'To Do',
+                label: 'Bug',
+                labelColor: '#f2d600',
+                due: '2024-12-10',
+                board: 'App Development',
+                archived: false
+            }, {
+                id: 'c3',
+                title: 'Update API documentation',
+                list: 'Done',
+                label: 'Documentation',
+                labelColor: '#61bd4f',
+                due: '2024-12-05',
+                board: 'Backend Services',
+                archived: false
+            }, {
+                id: 'c4',
+                title: 'User research interviews',
+                list: 'In Progress',
+                label: 'Research',
+                labelColor: '#0079bf',
+                due: '2024-12-20',
+                board: 'Design System',
+                archived: false
+            }, {
+                id: 'c5',
+                title: 'Old marketing campaign',
+                list: 'Archived',
+                label: 'Marketing',
+                labelColor: '#ff9f1a',
+                due: '2024-10-01',
+                board: 'Marketing Website',
+                archived: true
+            }, {
+                id: 'c6',
+                title: 'Legacy code cleanup',
+                list: 'Archived',
+                label: 'Tech Debt',
+                labelColor: '#eb5a46',
+                due: '2024-09-15',
+                board: 'App Development',
+                archived: true
+            }];
+
+            let boardsData = [{
+                id: 'b1',
+                name: 'Marketing Website',
+                color: 'linear-gradient(135deg, #667eea, #764ba2)',
+                closed: false
+            }, {
+                id: 'b2',
+                name: 'App Development',
+                color: 'linear-gradient(135deg, #4facfe, #00f2fe)',
+                closed: false
+            }, {
+                id: 'b3',
+                name: 'Backend Services',
+                color: '#eb5a46',
+                closed: false
+            }, {
+                id: 'b4',
+                name: 'Design System',
+                color: '#61bd4f',
+                closed: false
+            }];
+
+            const CARDS_PER_PAGE = 3;
+            let currentCardsPage = 1;
+            let showArchivedCards = false;
+
+            // ---------- DOM ELEMENTS ----------
+            const navItems = document.querySelectorAll('.sidebar-nav-item');
+            const panels = document.querySelectorAll('.content-panel');
+            const cardsTbody = document.getElementById('cards-table-body');
+            const prevPageBtn = document.getElementById('prev-page');
+            const nextPageBtn = document.getElementById('next-page');
+            const pageIndicator = document.getElementById('page-indicator');
+            const showActiveBtn = document.getElementById('show-active-cards');
+            const showArchivedBtn = document.getElementById('show-archived-cards');
+            const boardsListDiv = document.getElementById('boards-list');
+            const newBoardInput = document.getElementById('new-board-name');
+            const createBoardBtn = document.getElementById('create-board-btn');
+            const backToHomeBtn = document.getElementById('back-to-home-btn');
+
+            function escapeHtml(text) {
+                return String(text).replace(/[&<>"]/g, function(m) {
+                    if (m === '&') return '&amp;';
+                    if (m === '<') return '&lt;';
+                    if (m === '>') return '&gt;';
+                    if (m === '"') return '&quot;';
+                    return m;
+                });
+            }
+
+            function renderCards() {
+                const filtered = cardsData.filter(c => showArchivedCards ? c.archived === true : c.archived === false);
+                const totalPages = Math.ceil(filtered.length / CARDS_PER_PAGE) || 1;
+
+                if (currentCardsPage > totalPages) currentCardsPage = totalPages;
+
+                const start = (currentCardsPage - 1) * CARDS_PER_PAGE;
+                const paginatedCards = filtered.slice(start, start + CARDS_PER_PAGE);
+
+                cardsTbody.innerHTML = '';
+
+                if (paginatedCards.length === 0) {
+                    cardsTbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-secondary);">No cards found.</td></tr>`;
+                } else {
+                    paginatedCards.forEach(card => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><strong>${escapeHtml(card.title)}</strong></td>
+                            <td>${escapeHtml(card.list)}</td>
+                            <td><span style="background:${card.labelColor};color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem;">${escapeHtml(card.label)}</span></td>
+                            <td>${escapeHtml(card.due)}</td>
+                            <td>${escapeHtml(card.board)}</td>
+                            <td>
+                                <div class="flex-row">
+                                    ${!card.archived 
+                                        ? `<button class="btn btn-sm btn-outline archive-card-btn" data-id="${card.id}">📦 Archive</button>` 
+                                        : `<button class="btn btn-sm btn-outline unarchive-card-btn" data-id="${card.id}">📤 Restore</button>`
+                                    }
+                                    <button class="btn btn-sm btn-danger delete-card-btn" data-id="${card.id}">🗑️ Delete</button>
+                                </div>
+                            </td>
+                        `;
+                        cardsTbody.appendChild(tr);
+                    });
+                }
+
+                pageIndicator.textContent = `Page ${currentCardsPage} of ${totalPages}`;
+                prevPageBtn.disabled = currentCardsPage <= 1;
+                nextPageBtn.disabled = currentCardsPage >= totalPages;
+
+                attachCardEvents();
+            }
+
+            function renderBoards() {
+                boardsListDiv.innerHTML = '';
+
+                boardsData.forEach(board => {
+                    const boardDiv = document.createElement('div');
+                    boardDiv.className = 'board-card';
+                    boardDiv.style.background = board.color;
+                    boardDiv.innerHTML = `
+                        <span class="board-card-title">
+                            ${escapeHtml(board.name)}
+                            ${board.closed ? '<span class="archived-badge">Closed</span>' : ''}
+                        </span>
+                        <div class="board-actions">
+                            ${!board.closed 
+                                ? `<button class="close-board-btn" data-id="${board.id}">🔒 Close</button>` 
+                                : `<button class="reopen-board-btn" data-id="${board.id}">🔓 Reopen</button>`
+                            }
+                            <button class="remove-board-btn" data-id="${board.id}">🗑️ Remove</button>
+                        </div>
+                    `;
+                    boardsListDiv.appendChild(boardDiv);
+                });
+
+                const createNewCard = document.createElement('div');
+                createNewCard.className = 'board-card create-new';
+                createNewCard.id = 'create-new-board-card';
+                createNewCard.innerHTML = '<span class="board-card-title">+ Create New Board</span>';
+                boardsListDiv.appendChild(createNewCard);
+
+                attachBoardEvents();
+            }
+
+            function attachCardEvents() {
+                document.querySelectorAll('.archive-card-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = btn.getAttribute('data-id');
+                        const card = cardsData.find(c => c.id === id);
+                        if (card) {
+                            showToast(`Card "<strong>${card.title}</strong>" has been archived.`, 'success');
+                            card.archived = true;
+                            renderCards();
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.unarchive-card-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = btn.getAttribute('data-id');
+                        const card = cardsData.find(c => c.id === id);
+                        if (card) {
+                            showToast(`Card "<strong>${card.title}</strong>" has been restored.`, 'success');
+                            card.archived = false;
+                            renderCards();
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.delete-card-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = btn.getAttribute('data-id');
+                        const card = cardsData.find(c => c.id === id);
+                        if (card) {
+                            showModal({
+                                title: 'Delete Card',
+                                message: `Are you sure you want to permanently delete <strong>"${card.title}"</strong>? This action cannot be undone.`,
+                                icon: '🗑️',
+                                confirmText: 'Delete Permanently',
+                                confirmClass: '',
+                                onConfirm: () => {
+                                    cardsData = cardsData.filter(c => c.id !== id);
+                                    const filtered = cardsData.filter(c => showArchivedCards ? c.archived : !c.archived);
+                                    const totalPages = Math.ceil(filtered.length / CARDS_PER_PAGE) || 1;
+                                    if (currentCardsPage > totalPages) currentCardsPage = totalPages;
+                                    renderCards();
+                                    showToast(`Card deleted successfully.`, 'success');
+                                }
+                            });
+                        }
+                    });
+                });
+            }
+
+            function attachBoardEvents() {
+                document.querySelectorAll('.close-board-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = btn.getAttribute('data-id');
+                        const board = boardsData.find(b => b.id === id);
+                        if (board) {
+                            board.closed = true;
+                            renderBoards();
+                            showToast(`Board "<strong>${board.name}</strong>" has been closed.`, 'warning');
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.reopen-board-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = btn.getAttribute('data-id');
+                        const board = boardsData.find(b => b.id === id);
+                        if (board) {
+                            board.closed = false;
+                            renderBoards();
+                            showToast(`Board "<strong>${board.name}</strong>" has been reopened.`, 'success');
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.remove-board-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const id = btn.getAttribute('data-id');
+                        const board = boardsData.find(b => b.id === id);
+                        if (board) {
+                            showModal({
+                                title: 'Remove Board',
+                                message: `Are you sure you want to remove <strong>"${board.name}"</strong>? This will permanently delete the board and all its data. This action cannot be undone.`,
+                                icon: '🗑️',
+                                confirmText: 'Remove Board',
+                                confirmClass: '',
+                                onConfirm: () => {
+                                    boardsData = boardsData.filter(b => b.id !== id);
+                                    renderBoards();
+                                    showToast(`Board "<strong>${board.name}</strong>" has been removed.`, 'success');
+                                }
+                            });
+                        }
+                    });
+                });
+
+                const createNewCard = document.getElementById('create-new-board-card');
+                if (createNewCard) {
+                    createNewCard.addEventListener('click', () => {
+                        const boardsNavItem = document.querySelector('.sidebar-nav-item[data-panel="boards"]');
+                        if (boardsNavItem) boardsNavItem.click();
+                        newBoardInput.focus();
+                    });
+                }
+            }
+
+            // ---------- NAVIGATION ----------
+            navItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    item.classList.add('active');
+                    const panelId = item.getAttribute('data-panel');
+                    panels.forEach(panel => panel.classList.remove('active'));
+                    const activePanel = document.getElementById(`${panelId}-panel`);
+                    if (activePanel) activePanel.classList.add('active');
+                    if (panelId === 'cards') renderCards();
+                    else if (panelId === 'boards') renderBoards();
+                });
+            });
+
+            backToHomeBtn.addEventListener('click', () => {
+                window.location.href = '/';
+            });
+
+            // ---------- PAGINATION ----------
+            prevPageBtn.addEventListener('click', () => {
+                if (currentCardsPage > 1) {
+                    currentCardsPage--;
+                    renderCards();
+                }
+            });
+            nextPageBtn.addEventListener('click', () => {
+                const filtered = cardsData.filter(c => showArchivedCards ? c.archived : !c.archived);
+                const totalPages = Math.ceil(filtered.length / CARDS_PER_PAGE);
+                if (currentCardsPage < totalPages) {
+                    currentCardsPage++;
+                    renderCards();
+                }
+            });
+
+            // ---------- FILTER TOGGLES ----------
+            showActiveBtn.addEventListener('click', () => {
+                showArchivedCards = false;
+                currentCardsPage = 1;
+                renderCards();
+                showActiveBtn.style.background = 'var(--accent-color)';
+                showActiveBtn.style.color = 'white';
+                showActiveBtn.style.border = 'none';
+                showArchivedBtn.style.background = 'transparent';
+                showArchivedBtn.style.color = 'var(--text-color)';
+                showArchivedBtn.style.border = '1px solid var(--border-color)';
+            });
+
+            showArchivedBtn.addEventListener('click', () => {
+                showArchivedCards = true;
+                currentCardsPage = 1;
+                renderCards();
+                showArchivedBtn.style.background = 'var(--accent-color)';
+                showArchivedBtn.style.color = 'white';
+                showArchivedBtn.style.border = 'none';
+                showActiveBtn.style.background = 'transparent';
+                showActiveBtn.style.color = 'var(--text-color)';
+                showActiveBtn.style.border = '1px solid var(--border-color)';
+            });
+
+            showActiveBtn.style.background = 'var(--accent-color)';
+            showActiveBtn.style.color = 'white';
+            showActiveBtn.style.border = 'none';
+
+            // ---------- CREATE BOARD ----------
+            createBoardBtn.addEventListener('click', () => {
+                const name = newBoardInput.value.trim();
+                if (name) {
+                    const newId = 'b' + Date.now();
+                    const colors = [
+                        'linear-gradient(135deg, #667eea, #764ba2)',
+                        'linear-gradient(135deg, #4facfe, #00f2fe)',
+                        '#eb5a46', '#61bd4f', '#f2d600', '#ff9f1a', '#0079bf'
+                    ];
+                    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                    boardsData.push({
+                        id: newId,
+                        name,
+                        color: randomColor,
+                        closed: false
+                    });
+                    newBoardInput.value = '';
+                    renderBoards();
+                    showToast(`Board "<strong>${name}</strong>" created successfully!`, 'success');
+                } else {
+                    showToast('Please enter a board name.', 'error');
+                }
+            });
+
+            // ---------- PROFILE IMAGE UPLOAD ----------
+            const profileImageInput = document.getElementById('profile-image-input');
+            const profileImageDisplay = document.getElementById('profile-image-display');
+            const profileInitials = document.getElementById('profile-initials');
+
+            document.querySelector('.profile-image-upload').addEventListener('click', (e) => {
+                if (e.target.tagName !== 'INPUT') profileImageInput.click();
+            });
+
+            function populateProfileImage(imgSrc, username = "") {
+                if (imgSrc) {
+
+                    profileInitials.style.display = 'none';
+                    const existingImg = profileImageDisplay.querySelector('img');
+                    if (existingImg) existingImg.remove();
+                    const img = document.createElement('img');
+                    img.src = imgSrc;
+                    profileImageDisplay.appendChild(img);
+                } else {
+                    profileInitials.innerText = username[0]
+                }
+            }
+            async function getUserProfileInfo() {
+                const url = origin + `/api/user/`
+                try {
+                    const response = await auth.authenticatedRequest(url, null, "GET")
+                    const data = await response.json()
+                    if (response.ok) {
+                        populateProfileImage(data.profile_image, data.username)
+                        document.getElementById('profile-firstname').value = data.first_name;
+                        document.getElementById('profile-lastname').value = data.last_name;
+                        document.getElementById('profile-username').value = data.username;
+                        document.getElementById('profile-bio').value = data.profile.bio;
+                        document.getElementById('profile-email').value = data.email;
+
+                    }
+                } catch (error) {
+                    console.log(data)
+                }
+
+
+            }
+            getUserProfileInfo()
+            profileImageInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    try {
+                        const url = origin + `/api/update-profile/`
+                        const body = new FormData()
+                        body.append("profile_image", file)
+                        const response = await auth.authenticatedRequest(url, body, "PATCH", {}, "multipart/form-data");
+                        const data = await response.json()
+                        if (response.ok) {
+                            populateProfileImage(data.profile_image)
+                        }
+                    } catch (error) {
+                        console.log(error)
+                    }
+
+                }
+            });
+
+            // ---------- SAVE PROFILE WITH USERNAME VALIDATION ----------
+            document.getElementById('save-profile-btn').addEventListener('click', async () => {
+                const firstName = document.getElementById('profile-firstname').value.trim();
+                const lastName = document.getElementById('profile-lastname').value.trim();
+                const username = document.getElementById('profile-username').value.trim();
+                const bio = document.getElementById('profile-bio').value.trim();
+                const email = document.getElementById('profile-email').value.trim();
+
+
+
+                try {
+                    const url = origin + `/api/update-user/`
+                    const bodyJSON = JSON.stringify({
+                        "first_name": firstName,
+                        "last_name": lastName,
+                        "username": username,
+                        "email": email,
+
+                        "profile": {
+                            "bio": bio
+                        }
+                    })
+                    const response = await auth.authenticatedRequest(url, bodyJSON, "PATCH", {}, "application/json")
+                    const data = await response.json()
+                    if (response.ok) {
+
+                        showToast('Profile saved successfully!', 'success');
+                    } else {
+                        Object.entries(data).forEach(([key, value]) => {
+                            showToast(value, 'error');
+
+                        })
+                    }
+                } catch (error) {
+
+                    showToast('some problem happen please try again later', 'error');
+                }
+                // Simulate successful save
+
+
+            });
+
+            // ---------- NOTIFICATION SETTINGS ----------
+            const selectAllCheckbox = document.getElementById('select-all-notifications');
+            const notificationCheckboxes = document.querySelectorAll('.notification-checkbox');
+
+            selectAllCheckbox.addEventListener('change', () => {
+                if (!CONFIG.IS_PYTHONANYWHERE) {
+                    notificationCheckboxes.forEach(checkbox => {
+                        checkbox.checked = selectAllCheckbox.checked;
+                    });
+                }
+            });
+
+            notificationCheckboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', () => {
+                    if (!CONFIG.IS_PYTHONANYWHERE) {
+                        const allChecked = Array.from(notificationCheckboxes).every(cb => cb.checked);
+                        selectAllCheckbox.checked = allChecked;
+                    }
+                });
+            });
+
+            document.getElementById('save-settings-btn').addEventListener('click', () => {
+                if (CONFIG.IS_PYTHONANYWHERE) {
+                    showToast('Notification settings are not available on PythonAnywhere.', 'warning');
+                    return;
+                }
+
+                const frequency = document.getElementById('notification-frequency').value;
+                const notifications = [];
+                notificationCheckboxes.forEach(cb => {
+                    if (cb.checked) {
+                        notifications.push(cb.parentElement.previousElementSibling.textContent.trim());
+                    }
+                });
+                showToast('Notification settings saved successfully!', 'success');
+                console.log('Settings saved:', {
+                    frequency,
+                    notifications
+                });
+            });
+
+            // ---------- INITIAL SETUP ----------
+            applyConfiguration();
+            renderBoards();
+            renderCards();
+
+            console.log('✅ Trello Settings Page Loaded Successfully');
+            console.log('🔧 Mode:', CONFIG.IS_PYTHONANYWHERE ? 'PythonAnywhere' : 'Local Development');
+        })();

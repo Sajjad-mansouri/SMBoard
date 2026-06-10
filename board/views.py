@@ -38,3 +38,6 @@ class PublicBoardDetail(DetailView):
 				% {"verbose_name": queryset.model._meta.verbose_name}
 			)
 		return obj
+
+class SettingsView(LoginRequiredMixin, TemplateView):
+	template_name = "board/setting/settings.html"
