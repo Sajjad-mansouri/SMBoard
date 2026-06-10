@@ -22,29 +22,16 @@ class ActivitySerializer(serializers.ModelSerializer):
 
 	class Meta:
 		model = Activity
-		fields = ["id", "user", "text", "timestamp",]	
+		fields = ["id", "user", "board", "board_list", "card", "text", "action_type", "timestamp",]	
 
 	def to_internal_value(self, data):
 		request = self.context["request"]
 		data["user"] = request.user.id
+		print("to internal value", data)
+		reqeust = self.context["request"]
+		print("initial value", request.data)
+
 		return super().to_internal_value(data)
-	def create(self, validated_data):
-
-
-		model = self.initial_data.get("model")
-
-		try:
-		    obj_id = int(self.initial_data.get("obj_id"))
-		except (TypeError, ValueError, AttributeError):
-		    raise ValidationError({'obj_id': 'Must be a valid integer'})
-
-		content_type = get_object_or_404(ContentType, app_label="board", model=model)
-
-
-		obj = Activity.objects.create(content_type=content_type, object_id=obj_id, **validated_data)
-
-
-		return obj
 
 	def get_timestamp(self, obj):
 
@@ -87,6 +74,11 @@ class BoardSerializer(serializers.ModelSerializer):
 		request = self.context["request"]
 		data["owner"] = request.user.id
 		return super().to_internal_value(data)
+	def save(self, **kwargs):
+		instance = super().save(**kwargs)
+		print("kwargs in save", kwargs)
+		print("instance", instance)
+		return instance
 
 class CardLabelSerializer(serializers.ModelSerializer):
 	class Meta:
@@ -172,9 +164,9 @@ class CardCommentSerializer(serializers.ModelSerializer):
 	def get_timestamp(self, obj):
 
 		if obj.updated:
-			return obj.updated.timestamp()
+			return obj.updated.timestamp()*1000
 		else:
-			obj.created.timestamp()
+			obj.created.timestamp()*1000
 
 	def get_reply(self, obj):
 
@@ -260,14 +252,14 @@ class CardNestedSerializer(CardSerializer):
 	cardfile_set = FileAttachmentSerializer(many=True, read_only=True)
 	cardimage_set = ImageAttachmentSerializer(many=True, read_only=True)
 	linkattachment_set= LinkAttachmentSerializer(many=True, read_only=True)
-	activities = ActivitySerializer(many=True, read_only=True)
+	card_activities = ActivitySerializer(many=True, read_only=True)
 	class Meta(CardSerializer.Meta):
 		extra_fields = [
 		"description", "start_date", 
 		"archived", "cover_image","cover_image_fk","cover_img",
 		"cover_color", "card_memberships", "card_checklists",
 		"card_comments", "watched", "cardfile_set",
-		"cardimage_set","linkattachment_set", "activities"
+		"cardimage_set","linkattachment_set", "card_activities"
 
 		]
 		fields = CardSerializer.Meta.fields +  extra_fields
@@ -348,8 +340,9 @@ class BoardNestedSerializer(BoardSerializer):
 	board_lists = BoardListSerializer(many=True)
 	board_watched = serializers.SerializerMethodField()
 	board_memberships = BoardMembershipSerializer(many=True)
+	board_activities = ActivitySerializer(many=True, read_only=True)
 	class Meta(BoardSerializer.Meta):
-		fields = BoardSerializer.Meta.fields + ["board_lists", "board_watched", "board_memberships"]
+		fields = BoardSerializer.Meta.fields + ["board_lists", "board_watched", "board_memberships", "board_activities"]
 
 	def get_board_watched(self, obj):
 		request = self.context["request"]

@@ -111,7 +111,7 @@
                 return data
 
             } else {
-                console.log(data)
+                
                 return false
             }
 
@@ -400,6 +400,7 @@
             } else if (func == "delete") {
                 path = `link-attachments/${objId}/`
                 const url = origin + "/api/" + path
+                
                 result = await fetchDelete(url, body)
 
 
@@ -407,14 +408,6 @@
                 path = `link-attachments/${objId}/`
                 const url = origin + "/api/" + path
                 result = await fetchUpdate(url, body)
-            }
-        } else if (model == "Activity") {
-            if (func == "create") {
-                path = "activities/"
-                const url = origin + "/api/" + path
-
-                result = await fetchPost(url, body)
-
             }
         } else if (model == "ArchiveCard") {
             if (func == "update") {
@@ -482,7 +475,7 @@
         boardObj["boardWatched"] = data.board_watched
         boardObj["boardClosed"] = data.closed
         boardObj["cards"] = {}
-        boardObj["activities"] = []
+        boardObj["activities"] = data.board_activities
 
 
 
@@ -623,7 +616,8 @@
         card["checklists"] = checklists
         card["comments"] = comments
         card["attachments"] = attachments
-        card["activities"] = cardData.activities
+        card["activities"] = cardData.card_activities
+        
 
         return card
     }
@@ -632,8 +626,10 @@
         const cards = {}
         const labels = []
         let card
+        
         data.board_lists.forEach(list => {
             list.list_cards.forEach(cardData => {
+                
                 card = cardDataExtract(cardData)
 
                 labels.push(...cardData["card_labels"])
@@ -693,8 +689,8 @@
         const boardMenuBar = document.getElementById('board-menu-bar');
         let elementVisibility = "";
         let disabled = ""
-        console.log(board.memberRoles, CURRENT_USER_ID)
-        console.log(board.memberRoles[CURRENT_USER_ID])
+        
+        
         if (board.memberRoles[CURRENT_USER_ID] != "admin") {
             elementVisibility = "hide"
             disabled = "disabled"
@@ -725,7 +721,7 @@
         <button class="board-menu-btn" id="board-menu-dots-btn" title="Board menu">⋯</button>
     </div>
         `
-        console.log(board.memberRoles[CURRENT_USER_ID])
+        
         boardMenuBar.insertAdjacentHTML("beforeend", boardMenuRight)
     }
     async function loadData() {
@@ -802,31 +798,44 @@
             .items.filter(i => i.completed).length / cl.items.length) * 100);
     }
 
-    async function addActivity(obj, text, userId, model = "card") {
-        const body = {
-            "text": text,
-            "obj_id": obj.id,
-            "model": model
-        }
-        console.log(text, userId, model)
-        const result = await saveData("create", "Activity", body)
-        if (result) {
-            if (model == "card") {
+    async function addActivity() {
+        const board = getActiveBoard()
+        const url = origin + `/api/activities/${board.id}`
+        try {
+            const response = await auth.authenticatedRequest(url, null, "GET")
+            const activities = await response.json()
+            if (response.ok) {
 
-                card.activities.push({
-                    timestamp: result.timestamp,
-                    text: result.text,
-                    user: result.user || null
-                });
-            } else if (model == "board") {
-                getActiveBoard().activities.push({
-                    timestamp: result.timestamp,
-                    text: result.text,
-                    user: result.user || null
+
+                board.activities = []
+                
+                Object.entries(board.cards).forEach(([key, card]) => {
+                    card.activities = []
+
                 })
+                
+                activities.forEach(activity => {
+                    if (activity.card) {
 
+                        board.cards[activity.card].activities.push({
+                            timestamp: activity.timestamp,
+                            text: activity.text,
+                            user: activity.user || null
+                        })
+                    } else {
+                        board.activities.push({
+                            timestamp: activity.timestamp,
+                            text: activity.text,
+                            user: activity.user || null
+                        })
+                    }
+                })
             }
+        } catch (error) {
+            console.log(error)
         }
+
+
     }
 
     function linkify(comment) {
@@ -980,7 +989,7 @@
             disabled = "disabled"
         }
         div.innerHTML =
-            `<div class="list-header"><span class="drag-handle" draggable="true">⋮⋮</span><input type="text" class="list-title" value="${escapeHtml(list.title)}" data-list-id="${list.id}" /><div class="list-header-actions ${elementVisibility}"><div style="position:relative;"><button class="icon-btn list-menu-btn" ${disabled} data-list-id="${list.id}" title="List actions">⋯</button><div class="list-menu-dropdown hidden" data-list-id="${list.id}"><div class="list-menu-dropdown-item" data-action="archive-list">📦 Archive List</div></div></div></div></div><div class="list-cards" data-list-id="${list.id}"></div><div class="list-actions"><button class="add-card-btn" data-list-id="${list.id}">+ Add Card</button></div>`;
+            `<div class="list-header"><span class="drag-handle" draggable="true">⋮⋮</span><input type="text" class="list-title" data-previous-title="${escapeHtml(list.title)}" value="${escapeHtml(list.title)}" data-list-id="${list.id}" /><div class="list-header-actions ${elementVisibility}"><div style="position:relative;"><button class="icon-btn list-menu-btn" ${disabled} data-list-id="${list.id}" title="List actions">⋯</button><div class="list-menu-dropdown hidden" data-list-id="${list.id}"><div class="list-menu-dropdown-item" data-action="archive-list">📦 Archive List</div></div></div></div></div><div class="list-cards" data-list-id="${list.id}"></div><div class="list-actions"><button class="add-card-btn" data-list-id="${list.id}">+ Add Card</button></div>`;
         const cardsContainer = div.querySelector('.list-cards');
         list.cardIds.forEach(cid => {
 
@@ -991,8 +1000,8 @@
             }
         });
         div.querySelector('.list-title').addEventListener('change', async () => {
-            const title = div.querySelector(
-                '.list-title').value.trim() || 'Untitled';
+            const title = div.querySelector('.list-title').value.trim() || 'Untitled';
+            const previousTitle = div.querySelector('.list-title').dataset.previousTitle
             list.title = title
 
             const body = {
@@ -1000,6 +1009,8 @@
             }
             const result = await saveData("update", "BoardList", body, list.id);
             if (result) {
+                addActivity();
+                div.querySelector('.list-title').setAttribute("data-previous-title", title)
 
                 renderBoard();
             }
@@ -1065,7 +1076,7 @@
         archivedList.cardIds.forEach(cardId => {
             if (board.cards[cardId]) {
                 board.cards[cardId].archived = true;
-                addActivity(board.cards[cardId], `archived card as part of list "${archivedList.title}"`, CURRENT_USER_ID);
+                addActivity();
             }
         });
         board.lists.splice(listIndex, 1);
@@ -1085,7 +1096,7 @@
             if (board.cards[cardId]) {
                 board.cards[cardId].archived = false;
                 newList.cardIds.push(cardId);
-                addActivity(board.cards[cardId], `restored from archive`, CURRENT_USER_ID);
+                addActivity();
             }
         });
 
@@ -1117,7 +1128,7 @@
                     const firstList = board.lists[0];
                     if (firstList) firstList.cardIds.push(cardId);
                 }
-                addActivity(board.cards[cardId], `restored from archive`, CURRENT_USER_ID);
+                addActivity();
                 renderBoard();
                 renderArchivedModal();
             }
@@ -1128,6 +1139,7 @@
         const board = getActiveBoard();
         const result = await saveData("delete", "Card", {}, cardId);
         if (result) {
+            addActivity();
             delete board.cards[cardId];
             if (board.archivedLists) {
                 board.archivedLists.forEach(l => {
@@ -1206,7 +1218,7 @@
                 attachments: [],
                 activities: []
             };
-            addActivity(b.cards[result.id], 'Card created', CURRENT_USER_ID);
+            addActivity();
             b.lists.find(l => l.id === listId).cardIds.push(result.id);
 
             renderBoard();
@@ -1222,13 +1234,13 @@
             "board_list": targetListId
         }
         const result = await saveData("update", "Card", body, cardId)
-        console.log(result)
+        
         if (result) {
             const oldList = b.lists.find(l => l.cardIds.includes(cardId));
             const card = b.cards[cardId]
             const newList = b.lists.find(l => l.id == targetListId);
-            // console.log(b, targetIndex)
-            console.log(cardId, oldList, newList, card.title)
+            // 
+            
 
 
 
@@ -1240,13 +1252,8 @@
                     cardId);
                 else cardIdList.push(cardId);
             }
-            if (oldList.id == newList.id) {
+            addActivity();
 
-                addActivity(b, `The '${card.title}' card was moved within the '${oldList.title}' list`, CURRENT_USER_ID, "board");
-            } else {
-                addActivity(b, `The '${card.title}' card was moved from the '${oldList.title}' list to the '${newList.title}' list`, CURRENT_USER_ID, "board");
-
-            }
 
 
             const orderBody = []
@@ -1272,7 +1279,7 @@
         if (result) {
             const newCard = cardDataExtract(result)
 
-            addActivity(newCard, 'Card copied', CURRENT_USER_ID);
+            addActivity();
             b.cards[newCard.id] = newCard;
 
 
@@ -1298,7 +1305,7 @@
         const result = await saveData("update", "CardWatch", body);
         if (result) {
             card.watched = watch;
-            addActivity(card, card.watched ? 'started watching' : 'stopped watching', CURRENT_USER_ID);
+            addActivity();
 
 
             renderBoard();
@@ -1310,13 +1317,13 @@
         if (!card) return;
 
         const body = {
-            "archived": card.archived ? true : false
+            "archived": card.archived ? false : true
         }
-        console.log(body)
+        
         const result = await saveData("update", "ArchiveCard", body, card.id);
         if (result) {
             card.archived = !card.archived;
-            addActivity(card, card.archived ? 'archived card' : 'unarchived card', CURRENT_USER_ID);
+            addActivity();
             renderBoard();
 
 
@@ -1446,7 +1453,7 @@
         const result = await saveData("update", "BoardListOrder", body);
         if (result) {
 
-            addActivity(board, `Order of lists changed`, CURRENT_USER_ID, "board")
+            addActivity();
             board.lists = boardList
             if (listPlaceholder.parentNode) listPlaceholder.remove();
 
@@ -1669,7 +1676,7 @@
                     const result = await saveData("delete", "CardLabel", {}, lid);
                     if (result) {
                         card.labels = card.labels.filter(id => id !== lid);
-                        addActivity(card, `removed label "${l.name}"`, CURRENT_USER_ID);
+                        addActivity();
                         renderModalLabelsDisplay();
                         renderBoard();
 
@@ -1748,7 +1755,7 @@
                     const result = await saveData("delete", "CardMember", {}, member.id);
                     if (result) {
 
-                        addActivity(card, `removed user ${u.name}`, CURRENT_USER_ID);
+                        addActivity();
                         renderModalMembersDisplay();
                         renderBoard();
                     }
@@ -1790,14 +1797,14 @@
             const block = document.createElement('div');
             block.className = 'checklist-block';
             block.dataset.clIndex = clIndex;
-            block.innerHTML = `<div class="checklist-block-header"><input type="text" class="checklist-block-title-input" value="${escapeHtml(checklist.name)}" data-clindex="${clIndex}" placeholder="Checklist name" /><span class="progress-text">${progress}%</span><button class="icon-btn small delete-checklist-block-btn" data-clindex="${clIndex}" title="Delete checklist">🗑</button></div><div class="checklist-progress-bar"><div class="checklist-progress-fill" style="width:${progress}%"></div></div><div class="checklist-items-container" data-clindex="${clIndex}"></div><div class="inline-add-item-area" data-clindex="${clIndex}"><button class="btn-secondary small show-add-item-form-btn" data-clindex="${clIndex}">+ Add item</button><div class="inline-add-item-form hidden" data-clindex="${clIndex}"><input type="text" class="inline-item-input" placeholder="Item text..." data-clindex="${clIndex}" /><button class="btn-primary small save-inline-item-btn" data-clindex="${clIndex}">Add</button><button class="btn-secondary small cancel-inline-item-btn" data-clindex="${clIndex}">✕</button></div></div>`;
+            block.innerHTML = `<div class="checklist-block-header"><input type="text" class="checklist-block-title-input" data-previous-title="${escapeHtml(checklist.name)}" value="${escapeHtml(checklist.name)}" data-clindex="${clIndex}" placeholder="Checklist name" /><span class="progress-text">${progress}%</span><button class="icon-btn small delete-checklist-block-btn" data-clindex="${clIndex}" title="Delete checklist">🗑</button></div><div class="checklist-progress-bar"><div class="checklist-progress-fill" style="width:${progress}%"></div></div><div class="checklist-items-container" data-clindex="${clIndex}"></div><div class="inline-add-item-area" data-clindex="${clIndex}"><button class="btn-secondary small show-add-item-form-btn" data-clindex="${clIndex}">+ Add item</button><div class="inline-add-item-form hidden" data-clindex="${clIndex}"><input type="text" class="inline-item-input" placeholder="Item text..." data-clindex="${clIndex}" /><button class="btn-primary small save-inline-item-btn" data-clindex="${clIndex}">Add</button><button class="btn-secondary small cancel-inline-item-btn" data-clindex="${clIndex}">✕</button></div></div>`;
             const itemsContainer = block.querySelector('.checklist-items-container');
             checklist.items.forEach((item, index) => {
                 const i = item.id
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'checklist-item';
                 itemDiv.innerHTML =
-                    `<input type="checkbox" ${item.completed?'checked':''} data-clindex="${clIndex}" data-itemindex="${i}"><input type="text" class="checklist-item-text ${item.completed?'completed':''}" value="${escapeHtml(item.text)}" data-clindex="${clIndex}" data-itemindex="${i}" /><button class="icon-btn small delete-checklist-item" data-clindex="${clIndex}" data-itemindex="${i}">🗑</button>`;
+                    `<input type="checkbox" ${item.completed?'checked':''} data-clindex="${clIndex}" data-itemindex="${i}"><input type="text" class="checklist-item-text ${item.completed?'completed':''}" data-previous-title="${escapeHtml(item.text)}" value="${escapeHtml(item.text)}" data-clindex="${clIndex}" data-itemindex="${i}" /><button class="icon-btn small delete-checklist-item" data-clindex="${clIndex}" data-itemindex="${i}">🗑</button>`;
                 itemsContainer.appendChild(itemDiv);
                 itemDiv.querySelector('input[type="checkbox"]').addEventListener('change', async function() {
                     checklist.items[index].completed = this.checked;
@@ -1807,22 +1814,22 @@
                     const result = await saveData("update", "ChecklistItem", body, i);
                     if (result) {
 
-                        addActivity(card,
-                            `${checklist.items[index].completed?'completed':'uncompleted'} "${checklist.items[index].text}" in "${checklist.name}"`,
-                            CURRENT_USER_ID);
+                        addActivity();
                         renderModalChecklists();
                         renderBoard();
                     }
                 });
                 itemDiv.querySelector('.checklist-item-text').addEventListener('input', async function() {
                     const name = this.value.trim()
+                    const previousName = checklist.items[index].text;
+
                     const body = {
                         "name": name,
                         "checklist": checklist.id
                     }
                     const result = await saveData("update", "ChecklistItem", body, i);
                     if (result) {
-
+                        addActivity();
                         checklist.items[index].text = result.name;
                     }
                 });
@@ -1832,23 +1839,26 @@
 
                     if (result) {
                         checklist.items.splice(index, 1);
-                        addActivity(card,
-                            `deleted checklist item "${deletedText}" from "${checklist.name}"`,
-                            CURRENT_USER_ID);
+                        addActivity();
                         renderModalChecklists();
                         renderBoard();
 
                     }
                 });
             });
-            block.querySelector('.checklist-block-title-input').addEventListener('input', function() {
+            block.querySelector('.checklist-block-title-input').addEventListener('input', async function() {
                 const name = this.value.trim() || 'Checklist';
-                checklist.name = name;
                 const body = {
                     "name": name
                 }
-                saveData("update", "Checklist", body, clIndex);
-                renderBoard();
+                const result = await saveData("update", "Checklist", body, clIndex);
+                const previousTitle = checklist.name
+                if (result) {
+                    addActivity();
+                    checklist.name = name;
+
+                    renderBoard();
+                }
             });
             block.querySelector('.delete-checklist-block-btn').addEventListener('click', async () => {
                 if (confirm(
@@ -1856,10 +1866,13 @@
                     card.checklists.splice(Index,
                         1);
 
-                    await saveData("delete", "Checklist", {}, clIndex);
-                    addActivity(card, `deleted checklist "${checklist.name}"`, CURRENT_USER_ID);
-                    renderModalChecklists();
-                    renderBoard();
+                    const result = await saveData("delete", "Checklist", {}, clIndex);
+                    if (result) {
+                        addActivity();
+                        renderModalChecklists();
+                        renderBoard();
+
+                    }
                 }
             });
             const showBtn = block.querySelector('.show-add-item-form-btn');
@@ -1895,8 +1908,7 @@
                             text: result.name,
                             completed: false
                         });
-                        addActivity(card, `added checklist item "${txt}" to "${checklist.name}"`,
-                            CURRENT_USER_ID);
+                        addActivity();
 
                         renderModalChecklists();
                         renderBoard();
@@ -1944,6 +1956,7 @@
             div.className = 'attachment-card';
 
             const i = att.id
+            
             div.setAttribute("data-attid", att.id)
             div.setAttribute("data-type", att.type)
 
@@ -2037,7 +2050,7 @@
                     card.coverImage = result.cover_img;
                     card.coverColor = '';
 
-                    addActivity(card, `set cover from attachment "${att.name}"`, CURRENT_USER_ID);
+                    addActivity();
 
                     openCardModal(currentCardId);
 
@@ -2068,7 +2081,7 @@
                     if (result) {
                         const deleted = card.attachments[index];
                         card.attachments.splice(index, 1);
-                        addActivity(card, `removed attachment "${deleted.name}"`, CURRENT_USER_ID);
+                        addActivity();
                         renderModalAttachments();
                         renderModalCommentsActivity();
 
@@ -2079,41 +2092,48 @@
 
     }
 
-    function renderModalCommentsActivity() {
+    function renderModalCommentsActivity(filterType) {
         const container = document.getElementById(
             'modal-comments-activity');
         const board = getActiveBoard()
-        const card = boards.cards[currentCardId];
+        const card = board.cards[currentCardId];
         container.innerHTML = '';
         const allItems = [];
+        if (filterType === "comments") {
 
-        card.comments.forEach((c, i) => {
+            card.comments.forEach((c, i) => {
 
-            allItems.push({
-                type: 'comment',
-                data: c,
-                index: i,
-                timestamp: c.timestamp
+                allItems.push({
+                    type: 'comment',
+                    data: c,
+                    index: i,
+                    timestamp: c.timestamp
+                });
+
+            });
+        } else {
+            card.comments.forEach((c, i) => {
+
+                allItems.push({
+                    type: 'comment',
+                    data: c,
+                    index: i,
+                    timestamp: c.timestamp
+                });
+
             });
 
-        });
+            card.activities.forEach(a => {
+                allItems.push({
+                    type: 'activity',
+                    data: a,
+                    timestamp: a
+                        .timestamp
+                });
+            });
+        }
 
-        card.activities.forEach(a => {
-            allItems.push({
-                type: 'activity',
-                data: a,
-                timestamp: a
-                    .timestamp
-            });
-        });
-        board.activities.forEach(a => {
-            allItems.push({
-                type: 'activity',
-                data: a,
-                timestamp: a
-                    .timestamp
-            });
-        })
+
         allItems.sort((a, b) => b.timestamp - a.timestamp);
         allItems.forEach(item => {
             if (item.type === 'comment') {
@@ -2124,7 +2144,7 @@
 
                 const canEdit = c.userId === CURRENT_USER_ID;
 
-                div.innerHTML = `<div class="comment-avatar" style="background:${u?.color||'#ccc'}">${u?.name?.[0]||'?'}</div><div class="comment-body"><div class="comment-header"><span class="comment-author">${u?.name||'Unknown'}</span><span class="comment-time">${new Date(c.timestamp*1000).toLocaleString()}${c.edited?' <span class="comment-edited">(edited)</span>':''}</span></div><div class="comment-content">${linkify(c)}</div>${canEdit?`<div class="comment-actions"><button class="edit-comment-btn" data-commentindex="${item.index}">✏️ Edit</button><button class="delete-comment-btn" data-commentindex="${c.id}">🗑 Delete</button></div>`:''}</div>`;
+                div.innerHTML = `<div class="comment-avatar" style="background:${u?.color||'#ccc'}">${u?.name?.[0]||'?'}</div><div class="comment-body"><div class="comment-header"><span class="comment-author">${u?.name||'Unknown'}</span><span class="comment-time">${new Date(c.timestamp).toLocaleString()}${c.edited?' <span class="comment-edited">(edited)</span>':''}</span></div><div class="comment-content">${linkify(c)}</div>${canEdit?`<div class="comment-actions"><button class="edit-comment-btn" data-commentindex="${item.index}">✏️ Edit</button><button class="delete-comment-btn" data-commentindex="${c.id}">🗑 Delete</button></div>`:''}</div>`;
                 div.querySelector("a")?.addEventListener("click", () => {
                     event.preventDefault()
                     const attId = event.target.dataset.replyId
@@ -2183,7 +2203,7 @@
                         const result = await saveData("delete", "Comment", {}, commentId);
                         if (result) {
                             card.comments.splice(item.index, 1);
-                            addActivity(card, 'deleted a comment', CURRENT_USER_ID);
+                            addActivity();
                             renderModalCommentsActivity();
 
                         }
@@ -2243,7 +2263,7 @@
                 if (result) {
                     card.coverColor = color;
                     card.coverImage = '';
-                    addActivity(card, 'changed cover color', CURRENT_USER_ID);
+                    addActivity();
                     openCardModal(currentCardId);
                     popover.classList.add('hidden');
 
@@ -2264,7 +2284,7 @@
 
                 card.coverColor = this.value;
                 card.coverImage = '';
-                addActivity(card, 'changed cover color', CURRENT_USER_ID);
+                addActivity();
                 openCardModal(currentCardId);
             }
         };
@@ -2285,7 +2305,7 @@
                     const card = getActiveBoard().cards[currentCardId];
                     card.coverImage = result.cover_img;
                     card.coverColor = '';
-                    addActivity(card, 'uploaded cover image', CURRENT_USER_ID);
+                    addActivity();
 
                     openCardModal(currentCardId);
                     popover.classList.add('hidden');
@@ -2307,7 +2327,7 @@
 
                 card.coverColor = '';
                 card.coverImage = '';
-                addActivity(card, 'removed cover', CURRENT_USER_ID);
+                addActivity();
                 openCardModal(currentCardId);
                 popover.classList.add('hidden');
             }
@@ -2339,7 +2359,7 @@
                 div.addEventListener('click', async (event) => {
                     const result = await saveData("delete", "CardLabel", {}, l.id);
                     if (result) {
-                        addActivity(card, `removed label "${l.name}"`, CURRENT_USER_ID);
+                        addActivity();
 
                         card.labels = card.labels.filter(id => id !== l.id);
 
@@ -2382,7 +2402,7 @@
                     };
                     appState.labels.push(newLabel);
                     card.labels.push(newLabel.id);
-                    addActivity(card, `created and added label "${name}"`, CURRENT_USER_ID);
+                    addActivity();
                     renderModalLabelsDisplay();
                     renderBoard();
                     updateFilterDropdowns();
@@ -2404,23 +2424,26 @@
         const card = getActiveBoard().cards[currentCardId];
         document.getElementById('modal-start-date').value = card.startDate || '';
         document.getElementById('modal-due-datetime').value = card.dueDate || '';
-        document.getElementById('save-dates-btn').onclick = () => {
+        document.getElementById('save-dates-btn').onclick = async () => {
             let startDateVal = document.getElementById('modal-start-date').value;
             startDateVal = startDateVal == "" ? null : startDateVal
-            card.startDate = startDateVal
             let dueDateVal = document.getElementById('modal-due-datetime').value;
             dueDateVal = dueDateVal == "" ? null : dueDateVal
 
-            card.dueDate = document.getElementById('modal-due-datetime').value;
-            addActivity(card, `set dates: ${card.startDate||'none'} → ${card.dueDate||'none'}`, CURRENT_USER_ID);
 
             const body = {
                 "start_date": startDateVal,
                 "due_date": dueDateVal
             }
-            saveData("update", "Card", body, card.id);
-            renderModalDatesDisplay();
-            renderBoard();
+            const result = await saveData("update", "Card", body, card.id);
+            if (result) {
+
+                card.startDate = startDateVal
+                card.dueDate = document.getElementById('modal-due-datetime').value;
+                addActivity();
+                renderModalDatesDisplay();
+                renderBoard();
+            }
             popover.classList.add('hidden');
         };
         document.getElementById('clear-dates-btn').onclick = async () => {
@@ -2435,7 +2458,7 @@
                 card.dueDate = '';
                 document.getElementById('modal-start-date').value = '';
                 document.getElementById('modal-due-datetime').value = '';
-                addActivity(card, 'cleared dates', CURRENT_USER_ID);
+                addActivity();
                 renderModalDatesDisplay();
                 renderBoard();
                 popover.classList.add('hidden');
@@ -2476,7 +2499,7 @@
                         result = await saveData("delete", "CardMember", {}, assignedMember.id)
                         if (result) {
                             card.assignedUsers = card.assignedUsers.filter(member => member.user !== u.id);
-                            addActivity(card, `removed user ${u.name}`, CURRENT_USER_ID);
+                            addActivity();
 
                         }
                     } else {
@@ -2487,7 +2510,7 @@
                         result = await saveData("create", "CardMember", body)
                         if (result) {
                             card.assignedUsers.push(result);
-                            addActivity(card, `added user ${u.name}`, CURRENT_USER_ID);
+                            addActivity();
 
                         }
 
@@ -2544,7 +2567,7 @@
                         uploadedAt: result.upload_at,
                         uploadedBy: CURRENT_USER_ID
                     });
-                    addActivity(card, `attached file "${f.name}"`, CURRENT_USER_ID);
+                    addActivity();
                     renderModalAttachments();
                     renderModalCommentsActivity();
                 }
@@ -2567,13 +2590,14 @@
                 if (result) {
 
                     card.attachments.push({
-                        name: url,
+                        id: result.id,
+                        name: result.file,
                         type: 'link',
-                        data: url,
+                        data: result.file,
                         uploadedAt: result.upload_at,
                         uploadedBy: CURRENT_USER_ID
                     });
-                    addActivity(card, `attached link: ${url}`, CURRENT_USER_ID);
+                    addActivity();
                     renderModalAttachments();
                     renderModalCommentsActivity();
                     document.getElementById('link-attachment-input-popover').value = '';
@@ -2601,13 +2625,14 @@
         ).join('');
 
         colorsGrid.querySelectorAll('.bg-color-dot').forEach(dot => {
-            dot.addEventListener('click', () => {
+            dot.addEventListener('click', async () => {
                 const board = getActiveBoard();
                 const body = {
                     "background_color": dot.dataset.bgColor
                 }
-                const result = saveData("update", "Board", body, board.id);
+                const result = await saveData("update", "Board", body, board.id);
                 if (result) {
+                    addActivity();
 
                     board.background = dot.dataset.bgColor;
                     document.body.style.background = board.background;
@@ -2616,14 +2641,15 @@
             });
         });
 
-        document.getElementById('board-bg-custom-color-modal').oninput = function() {
+        document.getElementById('board-bg-custom-color-modal').oninput = async function() {
             const board = getActiveBoard();
 
             const body = {
                 "background_color": this.value
             }
-            const result = saveData("update", "Board", body, board.id);
+            const result = await saveData("update", "Board", body, board.id);
             if (result) {
+                addActivity();
 
                 board.background = this.value;
                 document.body.style.background = this.value;
@@ -2643,15 +2669,17 @@
     function renderActivityModalContent(filter = 'all') {
         const board = getActiveBoard();
         const allActivities = [];
+        
 
         Object.values(board.cards).forEach(card => {
             if (filter === 'comments') {
                 card.comments.forEach(c => {
+                    
                     allActivities.push({
                         type: 'comment',
                         cardId: card.id,
                         cardTitle: card.title,
-                        text: c.text,
+                        text: c.edited ? c.text + "(edited)" : c.text,
                         timestamp: c.timestamp,
                         user: c.userId
                     });
@@ -2671,13 +2699,29 @@
                         type: 'comment',
                         cardId: card.id,
                         cardTitle: card.title,
-                        text: 'Commented: ' + c.text,
+                        text: c.edited ? 'Commented: ' + c.text + "(edited)" : 'Commented: ' + c.text,
                         timestamp: c.timestamp,
                         user: c.userId
                     });
                 });
+
             }
         });
+        if (filter != "comments") {
+            
+            board.activities.forEach(activity => {
+                
+                if (activity.card == null) {
+
+                    allActivities.push({
+                        type: 'activity',
+                        cardId: null,
+                        cardTitle: null,
+                        ...activity
+                    });
+                }
+            })
+        }
 
         allActivities.sort((a, b) => b.timestamp - a.timestamp);
 
@@ -2688,16 +2732,17 @@
             container.innerHTML = '<p style="color:var(--text-secondary);padding:8px;">No activity yet.</p>';
             return;
         }
-
+        
         allActivities.slice(0, 50).forEach(act => {
             const user = getUserById(act.user);
             const time = new Date(act.timestamp).toLocaleString();
             const div = document.createElement('div');
             div.className = 'activity-item-inline';
             div.style.padding = '6px 0';
+            const cardTitle = act.cardTitle ? `<strong>${escapeHtml(act.cardTitle)}</strong> –` : ""
             div.innerHTML = `
                         <span class="activity-dot"></span>
-                        <span><strong>${escapeHtml(act.cardTitle)}</strong> – ${escapeHtml(act.text)} ${user ? `by ${user.name}` : ''} · ${time}</span>
+                        ${cardTitle}${escapeHtml(act.text)} ${user ? `by "${user.name}"` : ''} · ${time}</span>
                     `;
             container.appendChild(div);
         });
@@ -2757,7 +2802,7 @@
                 dropdown.innerHTML = `
                             <div class="dropdown-item" data-role="admin">👑 Admin</div>
                             <div class="dropdown-item" data-role="member">👤 Member</div>
-                            <div class="dropdown-item" data-role="observer">👁️ Observer</div>
+
                             <div class="dropdown-divider"></div>
                             <div class="dropdown-item danger" data-role="remove">🗑 Remove from board</div>`;
                 roleBadge.appendChild(dropdown);
@@ -2770,7 +2815,10 @@
                             board.boardMembers = board.boardMembers.filter(
                                 id => id !== uid);
                             result = await saveData("delete", "BoardMember", {}, membershipId);
+                            const user = appState.users.filter(user => user.id == uid)[0]
+
                             if (result) {
+                                addActivity();
                                 delete board.memberRoles[uid];
                                 delete appState.boardMembership[uid];
 
@@ -2788,8 +2836,13 @@
                             const body = {
                                 "member_type": r
                             }
+                            const user = appState.users.filter(user => user.id == uid)[0]
 
                             result = await saveData("update", "BoardMember", body, membershipId);
+                            if (result) {
+                                addActivity();
+
+                            }
                         }
                         if (result) {
 
@@ -2826,7 +2879,9 @@
                         "accepted": true
                     }
                     const result = await saveData("update", "BoardMember", body, appState.boardMembership[uid].id);
+                    const user = appState.users.filter(user => user.id == uid)[0]
                     if (result) {
+                        addActivity();
 
                         board.boardMembers.push(uid);
                         board.memberRoles[uid] = 'member';
@@ -2837,8 +2892,10 @@
                 });
                 row.querySelector('.deny-join-btn').addEventListener('click', async () => {
                     const result = await saveData("delete", "BoardMember", {}, appState.boardMembership[uid].id);
-                    if (result) {
+                    const user = appState.users.filter(user => user.id == uid)[0]
 
+                    if (result) {
+                        addActivity();
                         board.joinRequests = board.joinRequests.filter(id => id !== uid);
 
                         renderShareModalContent();
@@ -3069,7 +3126,10 @@
                     "board": appState.activeBoardId
                 }
                 const result = await saveData("create", "BoardList", body, appState.activeBoardId);
+
                 if (result) {
+
+                    addActivity();
 
                     getActiveBoard().lists.push({
                         id: result.id,
@@ -3097,6 +3157,8 @@
             }
             const result = await saveData("update", "Board", body, appState.activeBoardId);
             if (result) {
+
+                addActivity();
 
                 el.contentEditable = 'false';
                 getActiveBoard().title = name;
@@ -3132,6 +3194,9 @@
                     } else {
                         hideGenerateInviteLink()
                     }
+
+                    addActivity();
+
                     getActiveBoard().boardVisibility = vis;
                     renderBoardMenuBar();
                     document.getElementById('visibility-dropdown').classList.add('hidden');
@@ -3153,7 +3218,7 @@
                     "board": board.id,
                     "search": searchVal
                 }
-                console.log("body", body)
+                
                 const result = await saveData("create", "BoardMember", body);
                 if (result) {
                     board.boardMembers.push(result.user.id);
@@ -3172,7 +3237,8 @@
                     renderShareModalContent();
                     renderBoardMenuBar();
                     document.getElementById('share-search-input').value = '';
-                    alert(`${result.user.username} added to board!`);
+
+                    addActivity();
                 } else {
                     alert('User not found.');
                 }
@@ -3230,6 +3296,7 @@
                 const result = await saveData("update", "BoardWatch", body);
                 if (result) {
 
+                    addActivity();
                     board.boardWatched = watch;
 
 
@@ -3247,6 +3314,7 @@
                     const result = await saveData("update", "Board", body, board.id)
                     if (result) {
 
+                        addActivity();
                         board.boardClosed = true;
 
                         alert('Board closed (archived).');
@@ -3291,28 +3359,42 @@
                 }
             });
         });
+        document.querySelectorAll('.activity-modal-filter-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const filter = tab.dataset.activityFilterModal;
+                if (filter) {
 
+                    document.querySelectorAll('.activity-modal-filter-tab').forEach(t =>
+                        t.classList.remove('active')
+                    );
+                    tab.classList.add('active');
+                    renderModalCommentsActivity(filter);
+                }
+            });
+        });
         document.getElementById('close-modal-btn').onclick = closeCardModal;
         document.getElementById('card-modal-overlay').addEventListener('click', e => {
             if (e.target === e
                 .currentTarget) closeCardModal();
         });
-        document.getElementById('modal-card-title').addEventListener('input', function() {
+        document.getElementById('modal-card-title').addEventListener('input', async function() {
             if (currentCardId) {
                 const title = this.value.trim() || 'Untitled';
-                getActiveBoard().cards[currentCardId].title = title;
                 const body = {
                     "name": title
                 }
-                saveData("update", "Card", body, currentCardId);
+                const result = await saveData("update", "Card", body, currentCardId);
+                if (result) {
+                    getActiveBoard().cards[currentCardId].title = title;
+                    addActivity()
+
+                }
             }
         });
-        document.getElementById('modal-completion').addEventListener('change', function() {
+        document.getElementById('modal-completion').addEventListener('change', async function() {
             if (currentCardId) {
                 const card = getActiveBoard().cards[currentCardId];
-                card.completed = this.value === 'complete';
-                document.getElementById('modal-card-title').classList.toggle('completed', card.completed);
-                addActivity(card, card.completed ? 'marked complete' : 'marked incomplete', CURRENT_USER_ID);
+
                 let val;
                 if (this.value == "complete") {
                     val = true
@@ -3322,18 +3404,27 @@
                 const body = {
                     "completed": val
                 }
-                saveData("update", "Card", body, card.id);
-                renderModalDatesDisplay();
-                renderBoard();
+                const result = await saveData("update", "Card", body, card.id);
+                if (result) {
+                    card.completed = this.value === 'complete';
+                    document.getElementById('modal-card-title').classList.toggle('completed', card.completed);
+                    addActivity();
+                    renderModalDatesDisplay();
+                    renderBoard();
+                }
             }
         });
-        document.getElementById('modal-description').addEventListener('input', function() {
+        document.getElementById('modal-description').addEventListener('input', async function() {
             if (currentCardId) {
-                getActiveBoard().cards[currentCardId].description = this.value;
                 const body = {
                     "description": this.value
                 }
-                saveData("update", "Card", body, currentCardId);
+                const result = await saveData("update", "Card", body, currentCardId);
+                if (result) {
+                    getActiveBoard().cards[currentCardId].description = this.value;
+                    addActivity()
+
+                }
             }
         });
         document.getElementById('modal-cover-btn').addEventListener('click', function(e) {
@@ -3435,7 +3526,7 @@
                     });
 
 
-                    addActivity(card, `added checklist "${clName}"`, CURRENT_USER_ID);
+                    addActivity();
 
                     renderModalChecklists();
                     renderBoard();
@@ -3475,7 +3566,7 @@
                     items: []
                 });
 
-                addActivity(card, `added checklist "${clName}"`, CURRENT_USER_ID);
+                addActivity();
 
                 renderModalChecklists();
                 renderBoard();
@@ -3514,7 +3605,7 @@
                     card.comments[editingCommentIndex].text = text;
                     card.comments[editingCommentIndex].edited = true;
                     card.comments[editingCommentIndex].timestamp = result.timestamp;
-                    addActivity(card, 'edited a comment', 'uid');
+                    addActivity();
                     editingCommentIndex = null;
                     document.getElementById('add-comment-btn').textContent = 'Post Comment';
                     const discardBtn = document.getElementById('discard-edit-btn');
@@ -3535,7 +3626,7 @@
                 result = await saveData("create", "Comment", body, currentCardId);
 
                 if (result) {
-                    addActivity(card, 'commented', 'uid');
+                    addActivity();
                     card.comments.push({
                         userId: result.user,
                         text: mainText,

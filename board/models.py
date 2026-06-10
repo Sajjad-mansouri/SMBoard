@@ -68,7 +68,7 @@ class BoardMembership(DateAbstractModel):
 	]
 	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_memberships")
 	board = models.ForeignKey(Board, on_delete=models.CASCADE, verbose_name=_("Board"), related_name="board_memberships")
-	member_type = models.CharField(_("Member Type"), choices=MEMBER_TYPES, max_length=8, default="observer")
+	member_type = models.CharField(_("Member Type"), choices=MEMBER_TYPES, max_length=8, default="member")
 	accepted = models.BooleanField(_("Accepted"), default=False)
 
 
@@ -140,7 +140,7 @@ class Card(DateAbstractModel):
 	cover_image = models.ImageField(_("Conver Image"), upload_to=card_cover_path, null=True, blank=True)
 	cover_image_fk = models.ForeignKey("CardImage", on_delete=models.SET_NULL, null=True, blank=True, related_name="cards")
 	cover_color = models.CharField(_("Background Color"), max_length=7, help_text="format:#00fca8", blank=True)
-	activities = GenericRelation("Activity")
+
 
 
 
@@ -320,11 +320,66 @@ class BoardWatch(DateAbstractModel):
 
 
 class Activity(DateAbstractModel):
+	class ActionChoices(models.TextChoices):
+		CREATE_BOARD = "create_board", "Create Board"
+		EDIT_BACKGROUND = "edit_background", "Edit Background"
+		EDIT_BOARD_TITLE = "edit_board_title", "Edit Board Title"
+		EDIT_BOARD_STATUS = "edit_board_status", "Edit Board Status"
+		CLOSE_BOARD = "close_board", "Close Board"
+		WATCH_BOARD = "watch_board", "Watch Board"
+		UNWATCH_BOARD = "unwatch_board", "UnWatch Board"
+		ADD_BOARD_MEMBER = "add_board_member", "Add Board Member"
+		REMOVE_BOARD_MEMBER = "remove_board_member", "Remove Board Member"
+
+
+
+
+
+		CREATE_LIST = "create_list", "Create List"#
+		EDIT_List_TITLE = "edit_list_title", "Edit List Title"#
+		REMOVE_LIST = "remove_list", "Remove List"#
+		ARCHIVE_LIST = "archive_list", "Archive List"#
+		UNARCHIVE_LIST = "unarchive_list", "UnArchive List"#
+		CHANGE_LISTS_ORDER = "change_lists_order", "Change List Order"
+
+
+		CREATE_CARD = "create_card", "Create Card"
+		REMOVE_CARD = "remove_card", "Remove Card"#
+		EDIT_CART_TITLE = "edit_card_title", "Edit Card Title"
+		EDIT_CARD_DESCRIPTION = "edit_card_description", "Edit Card Description"
+		EDIT_DUE_DATE = "edit_due_date", "Edit Due Date"
+		EDIT_START_DATE = "edit_start_date", "Edit Start Date"
+		EDIT_CARD_COMPLETED = 'edit_card_completed', 'Edit Card Completed'
+		SET_CARD_COVER = "set_card_cover", "Set Card Cover"
+		REMOVE_CARD_COVER = "remove_card_cover", "Remove Card Cover"
+		ADD_CHECKLIST = "add_checklist", "Add Checklist"
+		EDIT_CHECKLIST_NAME = "edit_checklist_name", "Edit Checklist Name"
+		REMOVE_CHECKLIST = "remove_checklist", "Remove Checklist"
+		ADD_CHECKLIST_ITEM = "add_checklist_item", "Add Checklist Item"
+		EDIT_CHECKLIST_ITEM_NAME = "edit_checklist_item_name", "Edit Checklist Item Name"
+		EDIT_CHECKLIST_ITEM_COMPLETED = "edit_checklist_item_completed", "Edit Checklist Item Completed"
+		REMOVE_CHECKLIST_ITEM = "remove_checklist_item", "Remove Checklist Item"
+		ADD_CARD_LABEL = "add_card_label", "Add Card Label"
+		REMOVE_CARD_LABEL = "remove_card_label", "Remove Card Label"
+		ARCHIVE_CARD = "archive_card", "Archive Card"
+		UNARCHIVE_CARD = "unarchive_card", "UnArchive Card"
+		ADD_ATTACHMENT = "add_attachment", "Add Attachment"
+		REMOVE_ATTACHMENT = "remove_attachment", "Remove Attachment"
+		WATCH_CARD = "watch_card", "Watch Card"
+		UNWATCH_CARD = "unwatch_card", "UnWatch Card"
+		ADD_CARD_MEMBER = "add_card_member", "Add Carl Member"
+		REMOVE_CARD_MEMBER = "remove_card_member", "Remove Carl Member"
+		COPY_CARD = "copy_card", "Copy Card"
+		MOVE_CARD = "move_card", "Move Card"
+		CHANGE_CARDS_ORDER = "change_cards_order", "Change Cards Order"
+
+
 	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_activities")
-	content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True)
-	object_id = models.PositiveIntegerField(null=True)
-	content_object = GenericForeignKey('content_type', 'object_id')
+	board = models.ForeignKey(Board,on_delete=models.CASCADE ,verbose_name=_("Board"), related_name="board_activities")
+	board_list = models.ForeignKey(BoardList,on_delete=models.SET_NULL, null=True, blank=True, verbose_name=_("List"), related_name="list_activities")
+	card = models.ForeignKey(Card,on_delete=models.SET_NULL, null=True, verbose_name=_("Card"), blank=True, related_name="card_activities")
 	text = models.TextField()
+	action_type = models.CharField(_("Action type"), choices=ActionChoices, max_length=50)
 
 
 	def __str__(self):

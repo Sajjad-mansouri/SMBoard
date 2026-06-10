@@ -1563,7 +1563,7 @@
             padding: 0 16px 8px;
             gap: 4px;
         }
-        .activity-filter-tab {
+        .activity-filter-tab, .activity-modal-filter-tab {
             padding: 6px 14px;
             border-radius: 20px;
             border: none;
@@ -1574,11 +1574,11 @@
             color: var(--text-color);
             transition: all 0.15s;
         }
-        .activity-filter-tab.active {
+        .activity-filter-tab.active, .activity-modal-filter-tab.active {
             background: var(--accent-color);
             color: #fff;
         }
-        .activity-filter-tab:hover:not(.active) {
+        .activity-filter-tab:hover:not(.active), .activity-modal-filter-tab:hover:not(.active) {
             background: var(--btn-hover);
         }
         @media (max-width: 768px) {
