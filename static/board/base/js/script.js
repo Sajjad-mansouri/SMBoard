@@ -35,7 +35,8 @@ document.addEventListener('click', function(e) {
 // Profile Dropdown Actions
 profileSettingsBtn.addEventListener('click', () => {
     profileDropdown.classList.remove('active');
-    alert('Opening Settings page...');
+    window.location.href = '/settings/';
+
 });
 
 

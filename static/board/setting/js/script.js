@@ -268,7 +268,7 @@
             }
 
             async function getCards(next = false, previous = false) {
-                
+
                 try {
                     let url;
                     if (next) {
@@ -284,7 +284,7 @@
                     if (response.ok) {
                         nextCardsPage = data.next
                         prevCardsPage = data.previous
-                        
+
                         return data
                     }
                 } catch (error) {
@@ -338,13 +338,28 @@
                 attachCardEvents();
             }
 
-            function renderBoards() {
+            async function getBoards() {
+                try {
+                    const url = origin + `/api/boards/`;
+                    const response = await auth.authenticatedRequest(url, null, "GET");
+                    const data = await response.json();
+                    if (response.ok) {
+                        return data
+                    }
+                } catch (error) {
+                    console.log(error)
+                }
+            }
+
+            async function renderBoards() {
                 boardsListDiv.innerHTML = '';
+                const boardsData = await getBoards()
+                console.log("boardsData", boardsData)
 
                 boardsData.forEach(board => {
                     const boardDiv = document.createElement('div');
                     boardDiv.className = 'board-card';
-                    boardDiv.style.background = board.color;
+                    boardDiv.style.background = board.background_color;
                     boardDiv.innerHTML = `
                         <span class="board-card-title">
                             ${escapeHtml(board.name)}
@@ -355,17 +370,12 @@
                                 ? `<button class="close-board-btn" data-id="${board.id}">🔒 Close</button>` 
                                 : `<button class="reopen-board-btn" data-id="${board.id}">🔓 Reopen</button>`
                             }
-                            <button class="remove-board-btn" data-id="${board.id}">🗑️ Remove</button>
+                            <button class="remove-board-btn" data-id="${board.id}" data-name="${board.name}">🗑️ Remove</button>
                         </div>
                     `;
                     boardsListDiv.appendChild(boardDiv);
                 });
 
-                const createNewCard = document.createElement('div');
-                createNewCard.className = 'board-card create-new';
-                createNewCard.id = 'create-new-board-card';
-                createNewCard.innerHTML = '<span class="board-card-title">+ Create New Board</span>';
-                boardsListDiv.appendChild(createNewCard);
 
                 attachBoardEvents();
             }
@@ -396,7 +406,7 @@
                             "archived": true
                         }
                         const result = await update(url, body)
-                        
+
                         if (result) {
                             showToast(`Card "<strong>${result.name}</strong>" has been archived.`, 'success');
 
@@ -415,7 +425,7 @@
                         }
                         const result = await update(url, body)
                         if (result) {
-                            
+
                             showToast(`Card "<strong>${result.name}</strong>" has been restored.`, 'success');
 
                             renderCards();
@@ -454,27 +464,35 @@
 
             function attachBoardEvents() {
                 document.querySelectorAll('.close-board-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                    btn.addEventListener('click', async (e) => {
                         e.stopPropagation();
                         const id = btn.getAttribute('data-id');
-                        const board = boardsData.find(b => b.id === id);
-                        if (board) {
-                            board.closed = true;
+                        const url = origin + `/api/boards/${id}/`
+                        const body = {
+                            "closed": true
+                        }
+                        const result = await update(url, body)
+                        if (result) {
+
                             renderBoards();
-                            showToast(`Board "<strong>${board.name}</strong>" has been closed.`, 'warning');
+                            showToast(`Board "<strong>${result.name}</strong>" has been closed.`, 'warning');
                         }
                     });
                 });
 
                 document.querySelectorAll('.reopen-board-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                    btn.addEventListener('click', async (e) => {
                         e.stopPropagation();
                         const id = btn.getAttribute('data-id');
-                        const board = boardsData.find(b => b.id === id);
-                        if (board) {
-                            board.closed = false;
+                        const url = origin + `/api/boards/${id}/`
+                        const body = {
+                            "closed": false
+                        }
+                        const result = await update(url, body)
+                        if (result) {
+
                             renderBoards();
-                            showToast(`Board "<strong>${board.name}</strong>" has been reopened.`, 'success');
+                            showToast(`Board "<strong>${result.name}</strong>" has been reopened.`, 'success');
                         }
                     });
                 });
@@ -483,21 +501,27 @@
                     btn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         const id = btn.getAttribute('data-id');
-                        const board = boardsData.find(b => b.id === id);
-                        if (board) {
-                            showModal({
-                                title: 'Remove Board',
-                                message: `Are you sure you want to remove <strong>"${board.name}"</strong>? This will permanently delete the board and all its data. This action cannot be undone.`,
-                                icon: '🗑️',
-                                confirmText: 'Remove Board',
-                                confirmClass: '',
-                                onConfirm: () => {
-                                    boardsData = boardsData.filter(b => b.id !== id);
+                        const boardName = btn.getAttribute('data-name');
+
+
+
+                        showModal({
+                            title: 'Remove Board',
+                            message: `Are you sure you want to remove <strong>"${boardName}"</strong>? This will permanently delete the board and all its data. This action cannot be undone.`,
+                            icon: '🗑️',
+                            confirmText: 'Remove Board',
+                            confirmClass: '',
+                            onConfirm: async () => {
+                                const url = origin + `/api/boards/${id}/`
+                                const result = await fetchDelete(url, {})
+                                if (result) {
                                     renderBoards();
-                                    showToast(`Board "<strong>${board.name}</strong>" has been removed.`, 'success');
+                                    showToast(`Board "<strong>${boardName}</strong>" has been removed.`, 'success');
+
                                 }
-                            });
-                        }
+                            }
+                        });
+
                     });
                 });
 
@@ -568,25 +592,27 @@
             showActiveBtn.style.border = 'none';
 
             // ---------- CREATE BOARD ----------
-            createBoardBtn.addEventListener('click', () => {
+            createBoardBtn.addEventListener('click', async () => {
                 const name = newBoardInput.value.trim();
                 if (name) {
-                    const newId = 'b' + Date.now();
-                    const colors = [
-                        'linear-gradient(135deg, #667eea, #764ba2)',
-                        'linear-gradient(135deg, #4facfe, #00f2fe)',
-                        '#eb5a46', '#61bd4f', '#f2d600', '#ff9f1a', '#0079bf'
-                    ];
-                    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-                    boardsData.push({
-                        id: newId,
-                        name,
-                        color: randomColor,
-                        closed: false
-                    });
-                    newBoardInput.value = '';
-                    renderBoards();
-                    showToast(`Board "<strong>${name}</strong>" created successfully!`, 'success');
+                    const bodyJSON = JSON.stringify({
+                        "name": name
+                    })
+                    const url = origin + `/api/boards/`
+                    try {
+                        const response = await auth.authenticatedRequest(url, bodyJSON, "POST")
+                        const data = await response.json()
+
+                        if (response.ok) {
+                            renderBoards();
+                            showToast(`Board "<strong>${data.names}</strong>" created successfully!`, 'success');
+
+                        }
+                    } catch (error) {
+                        showToast('Temporary issue. Please try again.', 'error');
+
+                    }
+
                 } else {
                     showToast('Please enter a board name.', 'error');
                 }
@@ -689,7 +715,7 @@
                     }
                 } catch (error) {
 
-                    showToast('some problem happen please try again later', 'error');
+                    showToast('Temporary issue. Please try again.', 'error');
                 }
                 // Simulate successful save
 
@@ -731,7 +757,7 @@
                     }
                 });
                 showToast('Notification settings saved successfully!', 'success');
-        console.log('Settings saved:', {
+                console.log('Settings saved:', {
                     frequency,
                     notifications
                 });
