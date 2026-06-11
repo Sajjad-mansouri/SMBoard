@@ -61,6 +61,8 @@ urlpatterns += [
 	path("activities/<int:board>/", board_views.ActivitytView.as_view(), name="activities"),
 	path("update-profile/", board_views.ProfileUpdateView.as_view(), name="update_profile"),
 	path("update-user/", board_views.UserUpdateView.as_view(), name="update_user"),
+	path("card-list/", board_views.CardListView.as_view(), name="card-list"),
+
 
 
 ]

@@ -113,16 +113,21 @@ class CardSerializer(serializers.ModelSerializer):
 	board = serializers.SerializerMethodField()
 	card_labels = CardLabelSerializer(many=True,read_only=True)
 	labels = serializers.SerializerMethodField()
+	board_list_name = serializers.SerializerMethodField()
+
 
 
 	class Meta:
 		model = Card
-		fields = ["id", "board_list", "name", "due_date", "board", "labels", "card_labels", "completed", "order"]
+		fields = ["id", "board_list", "board_list_name", "name", "due_date", "board", "labels", "card_labels", "completed", "order"]
 
 
 
 	def get_board(self, obj):
 		return obj.board_list.board.name
+
+	def get_board_list_name(self,obj):
+		return obj.board_list.name
 
 	def get_labels(self, obj):
 		return obj.card_labels.values_list("id", flat=True)
@@ -313,7 +318,7 @@ class CardNestedSerializer(CardSerializer):
 class CardArchivedSerializer(CardSerializer):
 	class Meta(CardSerializer.Meta):
 		model = Card
-		fields = ["archived"]
+		fields = ["archived", "name"]
 	def to_internal_value(self, data):
 		print(data)
 		return super().to_internal_value(data)

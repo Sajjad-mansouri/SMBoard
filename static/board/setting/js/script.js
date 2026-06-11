@@ -234,6 +234,28 @@
             const newBoardInput = document.getElementById('new-board-name');
             const createBoardBtn = document.getElementById('create-board-btn');
             const backToHomeBtn = document.getElementById('back-to-home-btn');
+            let nextCardsPage = "";
+            let prevCardsPage = "";
+
+    async function fetchDelete(url, body) {
+                try {
+                    const bodyJSON = JSON.stringify(body)
+
+
+                    const response = await auth.authenticatedRequest(url, bodyJSON, "DELETE", {})
+
+                    if (response.ok) {
+
+                        return true
+                    } else {
+                        return false
+                    }
+
+                } catch (error) {
+                    console.log(error)
+                    return false
+                }
+            }
 
             function escapeHtml(text) {
                 return String(text).replace(/[&<>"]/g, function(m) {
@@ -245,14 +267,37 @@
                 });
             }
 
-            function renderCards() {
-                const filtered = cardsData.filter(c => showArchivedCards ? c.archived === true : c.archived === false);
-                const totalPages = Math.ceil(filtered.length / CARDS_PER_PAGE) || 1;
+            async function getCards(next = false, previous = false) {
+                
+                try {
+                    let url;
+                    if (next) {
+                        url = nextCardsPage
+                    } else if (previous) {
+                        url = prevCardsPage
+                    } else {
 
-                if (currentCardsPage > totalPages) currentCardsPage = totalPages;
+                        url = origin + `/api/card-list/?archived=${showArchivedCards}`;
+                    }
+                    const response = await auth.authenticatedRequest(url, null, "GET");
+                    const data = await response.json();
+                    if (response.ok) {
+                        nextCardsPage = data.next
+                        prevCardsPage = data.previous
+                        
+                        return data
+                    }
+                } catch (error) {
+                    console.log(error)
+                }
 
-                const start = (currentCardsPage - 1) * CARDS_PER_PAGE;
-                const paginatedCards = filtered.slice(start, start + CARDS_PER_PAGE);
+            }
+
+            async function renderCards(next = false, previous = false) {
+                const data = await getCards(next, previous)
+
+                const totalPages = data.total_pages;
+                const paginatedCards = data.results
 
                 cardsTbody.innerHTML = '';
 
@@ -261,19 +306,24 @@
                 } else {
                     paginatedCards.forEach(card => {
                         const tr = document.createElement('tr');
+                        const labelElementsList = []
+                        card.card_labels.forEach(label => {
+                            labelElementsList.push(`<span style="background:${label.color};color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem;">${escapeHtml(label.name)}</span>`)
+                        })
+                        const labelElements = labelElementsList.join(" ")
                         tr.innerHTML = `
-                            <td><strong>${escapeHtml(card.title)}</strong></td>
-                            <td>${escapeHtml(card.list)}</td>
-                            <td><span style="background:${card.labelColor};color:white;padding:2px 8px;border-radius:10px;font-size:0.75rem;">${escapeHtml(card.label)}</span></td>
-                            <td>${escapeHtml(card.due)}</td>
+                            <td><strong>${escapeHtml(card.name)}</strong></td>
+                            <td>${escapeHtml(card.board_list_name)}</td>
+                            <td>${labelElements}</td>
+                            <td>${escapeHtml(card.due_date?card.due_date:"")}</td>
                             <td>${escapeHtml(card.board)}</td>
                             <td>
                                 <div class="flex-row">
                                     ${!card.archived 
                                         ? `<button class="btn btn-sm btn-outline archive-card-btn" data-id="${card.id}">📦 Archive</button>` 
-                                        : `<button class="btn btn-sm btn-outline unarchive-card-btn" data-id="${card.id}">📤 Restore</button>`
+                                        : `<button class="btn btn-sm btn-outline unarchive-card-btn" data-id="${card.id}">📤 Restore</button><button class="btn btn-sm btn-danger delete-card-btn" data-id="${card.id}" data-title="${card.name}">🗑️ Delete</button>`
                                     }
-                                    <button class="btn btn-sm btn-danger delete-card-btn" data-id="${card.id}">🗑️ Delete</button>
+                                    
                                 </div>
                             </td>
                         `;
@@ -281,9 +331,9 @@
                     });
                 }
 
-                pageIndicator.textContent = `Page ${currentCardsPage} of ${totalPages}`;
-                prevPageBtn.disabled = currentCardsPage <= 1;
-                nextPageBtn.disabled = currentCardsPage >= totalPages;
+                pageIndicator.textContent = `Page ${data.page} of ${data.total_pages}`;
+                prevPageBtn.disabled = data.previous == null;
+                nextPageBtn.disabled = data.next == null;
 
                 attachCardEvents();
             }
@@ -320,28 +370,54 @@
                 attachBoardEvents();
             }
 
+            async function update(url, body) {
+                try {
+                    const bodyJSON = JSON.stringify(body)
+                    const response = await auth.authenticatedRequest(url, bodyJSON, "PATCH", {}, "application/json")
+                    const data = response.json()
+                    if (response.ok) {
+                        return data
+                    } else {
+                        return false
+                    }
+                } catch (error) {
+                    console.log(error)
+                    return false
+                }
+            }
+
             function attachCardEvents() {
                 document.querySelectorAll('.archive-card-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                    btn.addEventListener('click', async (e) => {
                         e.stopPropagation();
                         const id = btn.getAttribute('data-id');
-                        const card = cardsData.find(c => c.id === id);
-                        if (card) {
-                            showToast(`Card "<strong>${card.title}</strong>" has been archived.`, 'success');
-                            card.archived = true;
+                        const url = origin + `/api/card/update-archived/${id}/`
+                        const body = {
+                            "archived": true
+                        }
+                        const result = await update(url, body)
+                        
+                        if (result) {
+                            showToast(`Card "<strong>${result.name}</strong>" has been archived.`, 'success');
+
                             renderCards();
                         }
                     });
                 });
 
                 document.querySelectorAll('.unarchive-card-btn').forEach(btn => {
-                    btn.addEventListener('click', (e) => {
+                    btn.addEventListener('click', async (e) => {
                         e.stopPropagation();
                         const id = btn.getAttribute('data-id');
-                        const card = cardsData.find(c => c.id === id);
-                        if (card) {
-                            showToast(`Card "<strong>${card.title}</strong>" has been restored.`, 'success');
-                            card.archived = false;
+                        const url = origin + `/api/card/update-archived/${id}/`
+                        const body = {
+                            "archived": false
+                        }
+                        const result = await update(url, body)
+                        if (result) {
+                            
+                            showToast(`Card "<strong>${result.name}</strong>" has been restored.`, 'success');
+
                             renderCards();
                         }
                     });
@@ -351,24 +427,27 @@
                     btn.addEventListener('click', (e) => {
                         e.stopPropagation();
                         const id = btn.getAttribute('data-id');
-                        const card = cardsData.find(c => c.id === id);
-                        if (card) {
-                            showModal({
-                                title: 'Delete Card',
-                                message: `Are you sure you want to permanently delete <strong>"${card.title}"</strong>? This action cannot be undone.`,
-                                icon: '🗑️',
-                                confirmText: 'Delete Permanently',
-                                confirmClass: '',
-                                onConfirm: () => {
-                                    cardsData = cardsData.filter(c => c.id !== id);
-                                    const filtered = cardsData.filter(c => showArchivedCards ? c.archived : !c.archived);
-                                    const totalPages = Math.ceil(filtered.length / CARDS_PER_PAGE) || 1;
-                                    if (currentCardsPage > totalPages) currentCardsPage = totalPages;
+                        const title = btn.getAttribute('data-title');
+
+
+
+                        showModal({
+                            title: 'Delete Card',
+                            message: `Are you sure you want to permanently delete <strong>"${title}"</strong>? This action cannot be undone.`,
+                            icon: '🗑️',
+                            confirmText: 'Delete Permanently',
+                            confirmClass: '',
+                            onConfirm: async () => {
+                                const url = origin + `/api/cards/${id}/`
+                                const result = await fetchDelete(url, {})
+                                if (result) {
                                     renderCards();
                                     showToast(`Card deleted successfully.`, 'success');
+
                                 }
-                            });
-                        }
+                            }
+                        });
+
                     });
                 });
             }
@@ -452,18 +531,11 @@
 
             // ---------- PAGINATION ----------
             prevPageBtn.addEventListener('click', () => {
-                if (currentCardsPage > 1) {
-                    currentCardsPage--;
-                    renderCards();
-                }
+                renderCards(false, true);
             });
             nextPageBtn.addEventListener('click', () => {
-                const filtered = cardsData.filter(c => showArchivedCards ? c.archived : !c.archived);
-                const totalPages = Math.ceil(filtered.length / CARDS_PER_PAGE);
-                if (currentCardsPage < totalPages) {
-                    currentCardsPage++;
-                    renderCards();
-                }
+                renderCards(true);
+
             });
 
             // ---------- FILTER TOGGLES ----------
@@ -659,7 +731,7 @@
                     }
                 });
                 showToast('Notification settings saved successfully!', 'success');
-                console.log('Settings saved:', {
+        console.log('Settings saved:', {
                     frequency,
                     notifications
                 });
@@ -667,8 +739,7 @@
 
             // ---------- INITIAL SETUP ----------
             applyConfiguration();
-            renderBoards();
-            renderCards();
+
 
             console.log('✅ Trello Settings Page Loaded Successfully');
             console.log('🔧 Mode:', CONFIG.IS_PYTHONANYWHERE ? 'PythonAnywhere' : 'Local Development');

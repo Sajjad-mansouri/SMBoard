@@ -1,6 +1,7 @@
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.contrib.sites.shortcuts import get_current_site
+import django_filters.rest_framework
 from rest_framework import viewsets, mixins, views
 from rest_framework.response import Response
 from rest_framework import status
@@ -15,6 +16,7 @@ from board.models import (
 	Activity
 	)
 from . import serializers
+from .pagination import CustomCursorPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission, BoardMembershipPermission, WatchBoardCardPermission
 
@@ -958,3 +960,14 @@ class UserUpdateView(UpdateAPIView):
 	serializer_class = serializers.UserSerializer
 	def get_object(self):
 		return self.request.user
+
+
+
+class CardListView(ListAPIView):
+	serializer_class = serializers.CardNestedSerializer
+	pagination_class = CustomCursorPagination
+	filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
+	filterset_fields = ['archived',]
+
+	def get_queryset(self):
+		return Card.objects.filter(board_list__board__owner=self.request.user)
