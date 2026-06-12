@@ -856,3 +856,37 @@
             gap: 8px;
             margin-top: 12px;
         }
+        .danger-zone {
+            border: 1px solid var(--danger-color);
+            border-radius: var(--border-radius);
+            padding: 20px;
+            margin-top: 16px;
+            background: #fff5f5;
+        }
+
+        .danger-zone-title {
+            color: var(--danger-color);
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .danger-zone-description {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+        }
+
+        .btn-danger-outline {
+            background: transparent;
+            border: 1px solid var(--danger-color);
+            color: var(--danger-color);
+        }
+
+        .btn-danger-outline:hover {
+            background: var(--danger-color);
+            color: white;
+        }

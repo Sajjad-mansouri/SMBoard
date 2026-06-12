@@ -1,0 +1,92 @@
+{% load i18n %}{% autoescape off %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background-color: #dc3545;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .content {
+            background-color: #f8f9fa;
+            padding: 30px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .warning-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+            color: #6c757d;
+            font-size: 12px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #dc3545;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        ul {
+            margin: 15px 0;
+        }
+        li {
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>{% translate "Account Deleted" %}</h1>
+    </div>
+    
+    <div class="content">
+        <p>{% blocktranslate %}Hello,{% endblocktranslate %}</p>
+        
+        <p>{% blocktranslate %}We're writing to confirm that your user account at <strong>{{ site_name }}</strong> has been successfully deleted.{% endblocktranslate %}</p>
+        
+        <p><strong>{% translate "Your account and all associated data have been permanently removed from our system." %}</strong></p>
+        
+        <div class="warning-box">
+            <h3>{% translate "What happens now:" %}</h3>
+            <ul>
+                <li>{% blocktranslate %}✓ You will no longer be able to log in to {{ site_name }}{% endblocktranslate %}</li>
+                <li>{% translate "✓ You can create a new account at any time" %}</li>
+            </ul>
+        </div>
+                
+        <p>{% blocktranslate %}We're sad to see you go! If you ever change your mind, you're always welcome back.{% endblocktranslate %}</p>
+        
+        <p>{% translate "Thanks for being part of our community!" %}</p>
+        
+        <p>
+            {% translate "Best regards," %}<br>
+            {% blocktranslate %}The {{ site_name }} team{% endblocktranslate %}
+        </p>
+    </div>
+    
+</body>
+</html>
+
+{% endautoescape %}

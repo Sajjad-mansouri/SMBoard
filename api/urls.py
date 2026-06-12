@@ -62,6 +62,8 @@ urlpatterns += [
 	path("update-profile/", board_views.ProfileUpdateView.as_view(), name="update_profile"),
 	path("update-user/", board_views.UserUpdateView.as_view(), name="update_user"),
 	path("card-list/", board_views.CardListView.as_view(), name="card-list"),
+	path("delete-account/", board_views.UserDestroyView.as_view(), name="delete-account"),
+
 
 
 

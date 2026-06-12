@@ -237,7 +237,7 @@
             let nextCardsPage = "";
             let prevCardsPage = "";
 
-    async function fetchDelete(url, body) {
+            async function fetchDelete(url, body) {
                 try {
                     const bodyJSON = JSON.stringify(body)
 
@@ -721,7 +721,41 @@
 
 
             });
+            document.getElementById('delete-account-btn').addEventListener('click', () => {
+                showModal({
+                    title: 'Delete Account',
+                    message: `
+                        <p style="margin-bottom:12px;">Are you absolutely sure you want to delete your account?</p>
+                        <p style="margin-bottom:12px;"><strong>This action cannot be undone.</strong> All of your data will be permanently removed including:</p>
+                        <ul style="margin-left:20px;margin-bottom:12px;">
+                            <li>Your profile and personal information</li>
+                            <li>All boards you own</li>
+                            <li>All cards assigned to you</li>
+                            <li>Comments and activity history</li>
+                        </ul>
+                        <p>Please type <strong>DELETE</strong> to confirm:</p>
+                        <input type="text" id="delete-confirm-input" class="form-input" style="margin-top:8px;" placeholder="Type DELETE to confirm">
+                    `,
+                    icon: '⚠️',
+                    confirmText: 'Delete My Account',
+                    confirmClass: '',
+                    onConfirm: async () => {
+                        const confirmInput = document.getElementById('delete-confirm-input');
+                        if (confirmInput && confirmInput.value === 'DELETE') {
+                            const url = origin + `/api/delete-account/`
+                            const result = await fetchDelete(url, {})
+                            if (result) {
+                                showToast('Your account has been scheduled for deletion. You will be logged out.', 'warning', 5000);
+                                console.log('Account deletion confirmed');
+                                window.location.href = "/"
 
+                            }
+                        } else {
+                            showToast('Please type DELETE to confirm account deletion.', 'error');
+                        }
+                    }
+                });
+            });
             // ---------- NOTIFICATION SETTINGS ----------
             const selectAllCheckbox = document.getElementById('select-all-notifications');
             const notificationCheckboxes = document.querySelectorAll('.notification-checkbox');

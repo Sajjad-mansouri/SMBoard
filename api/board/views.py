@@ -1,11 +1,14 @@
 from django.db.models import Q
 from django.contrib.auth import get_user_model
 from django.contrib.sites.shortcuts import get_current_site
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.contrib.sites.shortcuts import get_current_site
 import django_filters.rest_framework
 from rest_framework import viewsets, mixins, views
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView, get_object_or_404, GenericAPIView, CreateAPIView
+from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView, get_object_or_404, GenericAPIView, CreateAPIView, DestroyAPIView
 from board.models import (
 	Board, Card, CheckList, 
 	ChecklistItem, Comment, 
@@ -971,3 +974,39 @@ class CardListView(ListAPIView):
 
 	def get_queryset(self):
 		return Card.objects.filter(board_list__board__owner=self.request.user)
+
+
+
+
+def send_deletion_notification(request, user_data):
+	username = user_data.get("username")
+	user_email = user_data.get("email")
+	current_site = get_current_site(request)
+
+	text_content = render_to_string("board/email/delete_account.txt", {"site_name":current_site.name})
+	html_content = render_to_string("board/email/delete_account.html", {"site_name":current_site.name})
+
+	email = EmailMultiAlternatives(
+			subject=f"Account Deleted",
+			body=text_content,
+			from_email="temp@gmail.com",
+			to=[user_email]
+		)
+
+	email.attach_alternative(html_content, "text/html")
+	email.send(fail_silently=False)
+
+
+class UserDestroyView(DestroyAPIView):
+
+	def perform_destroy(self, instance):
+		user_data = {
+		"id":instance.id,
+		"username":instance.username,
+		"email":instance.email
+		}
+		instance.delete()
+		send_deletion_notification(self.request, user_data)
+
+	def get_object(self):
+		return self.request.user

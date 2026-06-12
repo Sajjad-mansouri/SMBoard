@@ -1,0 +1,20 @@
+{% load i18n %}
+{% autoescape off %}
+
+{# Text version #}
+{% blocktranslate %}
+You're receiving this email because your user account at {{ site_name }} has been successfully deleted.
+{% endblocktranslate %}
+
+{% translate "Your account and all associated data have been permanently removed from our system." %}
+
+{% translate "What happens now:" %}
+- {% translate "You will no longer be able to log in to {{ site_name }}" %}
+- {% translate "You can create a new account at any time" %}
+
+
+{% translate "Thanks for being part of our community!" %}
+
+{% blocktranslate %}The {{ site_name }} team{% endblocktranslate %}
+
+{%endautoescape%}
