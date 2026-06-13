@@ -1,0 +1,11 @@
+Hi {{recipient}},
+You have a new activity in this workspace.
+
+Activity details:
+
+	User: {{actor_user}}
+	Action: {{activity_action_type}}
+	Message: {{activity_text|safe}}
+
+You can view this activity directly in your board:
+{{board_link}}

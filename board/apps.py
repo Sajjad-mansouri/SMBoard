@@ -10,6 +10,8 @@ class BoardConfig(AppConfig):
     def ready(self):
         from . import signals
         from django.db.models.signals import post_delete, post_save
-        from .models import BoardMembership, Board
+        from .models import BoardMembership, Board, Activity
         post_delete.connect(signals.delete_card_membership, sender=BoardMembership, dispatch_uid="my_unique_identifier")
         post_save.connect(signals.add_owner_membership, sender=Board, dispatch_uid="add_owner_membership")
+        post_save.connect(signals.send_instant_notification, sender=Activity, dispatch_uid="send_activity_notification")
+

@@ -18,10 +18,10 @@ class ProfileAdmin(admin.ModelAdmin):
 
 
 @admin.register(Notification)
-class UserAdmin(admin.ModelAdmin):
+class NotificationAdmin(admin.ModelAdmin):
 	list_display = ["id", "user", "email_frequency"]
 
 
 @admin.register(NotificationDelivery)
-class UserAdmin(admin.ModelAdmin):
-	list_display = ["id", "Activity", "recipient"]
+class NotificationDeliveryAdmin(admin.ModelAdmin):
+	list_display = ["id", "activity", "recipient"]

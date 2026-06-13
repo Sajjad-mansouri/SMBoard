@@ -1,6 +1,5 @@
 from django.db.models import Q
 from django.contrib.auth import get_user_model
-from django.contrib.sites.shortcuts import get_current_site
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.contrib.sites.shortcuts import get_current_site
@@ -18,15 +17,44 @@ from board.models import (
 	BoardWatch, LinkAttachment,
 	Activity
 	)
+from django.contrib.sites.models import Site
+from django.urls import reverse
+from account.models import Notification
+from board.tasks import send_email_task
 from . import serializers
 from .pagination import CustomCursorPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission, BoardMembershipPermission, WatchBoardCardPermission
 
+def send_instant_notification(request, instance):
+    field = instance.action_type
+    notifications = Notification.objects.filter(email_frequency="instantly",**{field:True})
+    current_site = Site.objects.get_current()
+    protocol = "https" if request.is_secure() else "http"
+    activity_link = reverse("board:board_detail", kwargs={"pk":instance.board.pk})
+    board_link = f"{protocol}://{current_site}/{activity_link}"
+
+
+    for notification in notifications:
+        kwargs = {
+        "board":instance.board.name,
+        "board_link":board_link,
+        "recipient":notification.user.username,
+        "recipient_email":notification.user.email,
+        "activity_id":instance.id,
+        "actor_user":instance.user.username,
+        "current_site_domain":current_site.domain,
+        "activity_text":instance.text,
+        "activity_action_type":instance.action_type
+        }
+        send_email_task.delay(**kwargs)
+
+
+
 class ActivityLog:
 	@staticmethod
-	def log(user, board,board_list, card, action_type, text):
-		Activity.objects.create(
+	def log(request, user, board,board_list, card, action_type, text):
+		activity = Activity.objects.create(
 			user=user,
 			board=board, 
 			board_list=board_list, 
@@ -34,6 +62,9 @@ class ActivityLog:
 			action_type=action_type, 
 			text=text
 			)
+
+		send_instant_notification(request, activity)
+
 
 
 UserModel = get_user_model()
@@ -51,6 +82,7 @@ class BoardViewSet(viewsets.ModelViewSet):
 		action_type = "create_board"
 		text = f"{instance.name} created"
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance, 
 			board_list=None, 
@@ -92,6 +124,7 @@ class BoardViewSet(viewsets.ModelViewSet):
 
 		for action in actions:
 			ActivityLog.log(
+				request=self.request,
 				user=self.request.user,
 				board=instance, 
 				board_list=None, 
@@ -173,6 +206,7 @@ class CardViewSet(viewsets.ModelViewSet):
 		action_type = "create_card"
 		text = f"The '{instance.name}' card in the {instance.board_list.name} list was created"
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.board_list.board, 
 			board_list=instance.board_list, 
@@ -244,6 +278,7 @@ class CardViewSet(viewsets.ModelViewSet):
 
 		for action in actions:
 			ActivityLog.log(
+				request=self.request,
 				user=self.request.user,
 				board=instance.board_list.board, 
 				board_list=instance.board_list, 
@@ -282,6 +317,7 @@ class CardArchivedUpdateView(UpdateAPIView):
 			actions.append((action_type, text))	
 		for action in actions:
 			ActivityLog.log(
+				request=self.request,
 				user=self.request.user,
 				board=instance.board_list.board, 
 				board_list=instance.board_list, 
@@ -304,6 +340,7 @@ class ChecklistViewSet(viewsets.ModelViewSet):
 		action_type = "add_checklist"
 		text = f"'{instance.name}' checklist added"
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -327,6 +364,7 @@ class ChecklistViewSet(viewsets.ModelViewSet):
 
 		for action in actions:
 			ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -341,6 +379,7 @@ class ChecklistViewSet(viewsets.ModelViewSet):
 		text = f"The '{instance.name}' checklist in '{instance.card.name}' card was removed"
 
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -365,6 +404,7 @@ class ChecklistItemViewSet(viewsets.ModelViewSet):
 		action_type = "add_checklist_item"
 		text = f"'{instance.name}' item added to '{instance.checklist.name}' in '{instance.checklist.card.name}' card"
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.checklist.card.board_list.board, 
 			board_list=instance.checklist.card.board_list, 
@@ -394,6 +434,7 @@ class ChecklistItemViewSet(viewsets.ModelViewSet):
 
 		for action in actions:
 			ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.checklist.card.board_list.board, 
 			board_list=instance.checklist.card.board_list, 
@@ -408,6 +449,7 @@ class ChecklistItemViewSet(viewsets.ModelViewSet):
 		text = f"The '{instance.name}' item in '{instance.checklist.name}' checklist was removed"
 
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.checklist.card.board_list.board, 
 			board_list=instance.checklist.card.board_list, 
@@ -451,6 +493,7 @@ class CardFileViewSet(viewsets.ModelViewSet):
 		action_type = "add_attachment"
 		text = f"'{instance.get_name()}' attachment added to '{instance.card.name}'"
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -466,6 +509,7 @@ class CardFileViewSet(viewsets.ModelViewSet):
 		text = f"The '{instance.get_name()}' attachment in '{instance.card.name}' card was removed"
 
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -489,6 +533,7 @@ class CardImageViewSet(viewsets.ModelViewSet):
 		action_type = "add_attachment"
 		text = f"'{instance.get_name()}' attachment added to '{instance.card.name}'"
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -504,6 +549,7 @@ class CardImageViewSet(viewsets.ModelViewSet):
 		text = f"The '{instance.get_name()}' attachment in '{instance.card.name}' card was removed"
 
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -525,6 +571,7 @@ class CardLabelViewSet(viewsets.ModelViewSet):
 		action_type = "add_card_label"
 		text = f"'{instance.name}' label added to'{instance.card.name}' card"
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -539,6 +586,7 @@ class CardLabelViewSet(viewsets.ModelViewSet):
 		text = f"The '{instance.name}' label in '{instance.card.name}' card was removed"
 
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -561,6 +609,7 @@ class BoardListViewSet(viewsets.ModelViewSet):
 		action_type = "create_list"
 		text = f"'{instance.name}' list added to board"
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.board, 
 			board_list=instance, 
@@ -584,6 +633,7 @@ class BoardListViewSet(viewsets.ModelViewSet):
 
 		for action in actions:
 			ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.board, 
 			board_list=instance, 
@@ -598,6 +648,7 @@ class BoardListViewSet(viewsets.ModelViewSet):
 		text = f"The '{instance.name}' list was removed"
 
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.board, 
 			board_list=instance, 
@@ -633,6 +684,7 @@ class BoardListArchivedUpdateView(UpdateAPIView):
 			actions.append((action_type, text))
 		for action in actions:
 			ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.board, 
 			board_list=instance, 
@@ -660,6 +712,7 @@ class BoardListOrderUpdating(views.APIView):
 			action_type = "change_lists_order"
 			text = f"Lists order changed"
 			ActivityLog.log(
+				request=self.request,
 				user=self.request.user,
 				board=instances[0].board, 
 				board_list=None, 
@@ -693,6 +746,7 @@ class CardOrderUpdating(views.APIView):
 			action_type = "change_cards_order"
 			text = f"Cards of '{instances[0].board_list.name}' list, order changed"
 			ActivityLog.log(
+				request=self.request,
 				user=self.request.user,
 				board=instances[0].board_list.board, 
 				board_list=instances[0].board_list, 
@@ -718,6 +772,7 @@ class CardMemberViewSet(viewsets.ModelViewSet):
 		action_type = "add_card_member"
 		text = f"'{instance.user.username}' added to '{instance.card.name}'"
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -733,6 +788,7 @@ class CardMemberViewSet(viewsets.ModelViewSet):
 		text = f"The '{instance.user.username}' removed from '{instance.card.name}' card"
 
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -773,6 +829,7 @@ class BoardMemberViewSet(viewsets.ModelViewSet):
 		action_type = "add_board_member"
 		text = f"'{instance.user.username}' added to '{instance.board.name}'"
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.board, 
 			board_list=None, 
@@ -788,6 +845,7 @@ class BoardMemberViewSet(viewsets.ModelViewSet):
 		text = f"The '{instance.user.username}' removed from board"
 
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.board, 
 			board_list=None, 
@@ -817,6 +875,7 @@ class ToggleWatchMixin:
 
 
 				ActivityLog.log(
+					request=self.request,
 					user=self.request.user,
 					board=instance.card.board_list.board, 
 					board_list=instance.card.board_list, 
@@ -836,6 +895,7 @@ class ToggleWatchMixin:
 
 
 				ActivityLog.log(
+					request=self.request,
 					user=self.request.user,
 					board=instance.board, 
 					board_list=None, 
@@ -873,6 +933,7 @@ class LinkAttachmentViewSet(viewsets.ModelViewSet):
 		action_type = "add_attachment"
 		text = f"'{instance.file}' link added to '{instance.card.name}'"
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -888,6 +949,7 @@ class LinkAttachmentViewSet(viewsets.ModelViewSet):
 		text = f"The '{instance.file}' link in '{instance.card.name}' card was removed"
 
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.card.board_list.board, 
 			board_list=instance.card.board_list, 
@@ -912,6 +974,7 @@ class CopyCardView(GenericAPIView):
 		text = f"The '{instance.name}' card copied "
 
 		ActivityLog.log(
+			request=self.request,
 			user=self.request.user,
 			board=instance.board_list.board, 
 			board_list=instance.board_list, 

@@ -42,38 +42,52 @@ class Notification(models.Model):
 	user = models.OneToOneField(User, on_delete=models.CASCADE)
 
 	#email on 
-	board_background_edited = models.BooleanField(default=False)
-	board_title_edited = models.BooleanField(default=False)
-	board_status_edited = models.BooleanField(default=False)
-	board_closed = models.BooleanField(default=False)
+	create_board = models.BooleanField(default=False)
+	edit_background = models.BooleanField(default=False)
+	edit_board_title = models.BooleanField(default=False)
+	edit_board_status = models.BooleanField(default=False)
+	close_board = models.BooleanField(default=False)
+	watch_board = models.BooleanField(default=False)
+	unwatch_board = models.BooleanField(default=False)
+	add_board_member = models.BooleanField(default=False)
+	remove_board_member = models.BooleanField(default=False)
+	create_list = models.BooleanField(default=False)
+	edit_list_title = models.BooleanField(default=False)
+	remove_list = models.BooleanField(default=False)
+	archive_list = models.BooleanField(default=False)
+	unarchive_list = models.BooleanField(default=False)
+	change_lists_order = models.BooleanField(default=False)
+	create_card = models.BooleanField(default=False)
+	remove_card = models.BooleanField(default=False)
+	edit_card_title = models.BooleanField(default=False)
+	edit_card_description = models.BooleanField(default=False)
+	edit_due_date = models.BooleanField(default=False)
+	edit_start_date = models.BooleanField(default=False)
+	edit_card_completed = models.BooleanField(default=False)
+	set_card_cover = models.BooleanField(default=False)
+	remove_card_cover = models.BooleanField(default=False)
+	add_checklist = models.BooleanField(default=False)
+	edit_checklist_name = models.BooleanField(default=False)
+	remove_checklist = models.BooleanField(default=False)
+	add_checklist_item = models.BooleanField(default=False)
+	edit_checklist_item_name = models.BooleanField(default=False)
+	edit_checklist_item_completed = models.BooleanField(default=False)
+	remove_checklist_item = models.BooleanField(default=False)
+	add_card_label = models.BooleanField(default=False)
+	remove_card_label = models.BooleanField(default=False)
+	archive_card = models.BooleanField(default=False)
+	unarchive_card = models.BooleanField(default=False)
+	add_attachment = models.BooleanField(default=False)
+	remove_attachment = models.BooleanField(default=False)
+	watch_card = models.BooleanField(default=False)
+	unwatch_card = models.BooleanField(default=False)
+	add_card_member = models.BooleanField(default=False)
+	remove_card_member = models.BooleanField(default=False)
+	copy_card = models.BooleanField(default=False)
+	move_card = models.BooleanField(default=False)
+	change_cards_order = models.BooleanField(default=False)
 
 
-	list_created = models.BooleanField(default=False)
-	list_title_edited = models.BooleanField(default=False)
-	list_removed = models.BooleanField(default=False)
-	list_archived = models.BooleanField(default=False)
-	list_order_changed = models.BooleanField(default=False)
-
-
-	card_created = models.BooleanField(default=False)
-	card_title_edited = models.BooleanField(default=False)
-	card_completed_edited = models.BooleanField(default=False)
-	card_archived = models.BooleanField(default=False)
-	card_description_edited = models.BooleanField(default=False)
-	card_due_date_edited = models.BooleanField(default=False)
-	card_start_date_edited = models.BooleanField(default=False)
-	card_cover_set = models.BooleanField(default=False)
-	card_cover_removed = models.BooleanField(default=False)
-	checklist_added = models.BooleanField(default=False)
-	checklist_removed = models.BooleanField(default=False)
-	checklist_item_added = models.BooleanField(default=False)
-	checklist_item_edited_completed = models.BooleanField(default=False)
-	checklist_item_removed = models.BooleanField(default=False)
-	label_added = models.BooleanField(default=False)
-	label_removed = models.BooleanField(default=False)
-	attachment_added = models.BooleanField(default=False)
-	card_order_changed = models.BooleanField(default=False)
-	comment_added = models.BooleanField(default=False)
 
 
 
@@ -99,8 +113,17 @@ class Notification(models.Model):
 class NotificationDelivery(models.Model):
 	from board.models import Activity
 	
-	Activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="activity_delivered_notifications")
+	activity = models.ForeignKey(Activity, on_delete=models.CASCADE, related_name="activity_delivered_notifications")
 	recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_delivered_notifications")
 
 	created_at = models.DateTimeField(auto_now_add=True)
+
 	updated_at = models.DateTimeField(auto_now=True)
+
+	class Meta:
+		constraints = [
+			models.UniqueConstraint(
+					fields = ["activity", "recipient"],
+					name="unique_notification_delivery"
+				)
+		]
