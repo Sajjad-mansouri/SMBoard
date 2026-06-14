@@ -86,6 +86,9 @@ class Notification(models.Model):
 	copy_card = models.BooleanField(default=False)
 	move_card = models.BooleanField(default=False)
 	change_cards_order = models.BooleanField(default=False)
+	add_comment = models.BooleanField(default=False)
+	remove_comment = models.BooleanField(default=False)
+
 
 
 
@@ -96,7 +99,8 @@ class Notification(models.Model):
 		choices=[
 				("daily","Daily"),
 				("weekly","Weekly"),
-				("instantly", "Instantly")
+				("instantly", "Instantly"),
+				("never", "Never")
 			],
 		default="instantly"
 

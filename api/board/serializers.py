@@ -12,7 +12,7 @@ from board.models import (
 	BoardWatch, CardWatch, LinkAttachment,
 	Activity
 	)
-from account.models import Profile
+from account.models import Profile, Notification
 from rest_framework.generics import get_object_or_404
 
 UserModel = get_user_model()
@@ -430,3 +430,12 @@ class CardWatchSerializer(serializers.ModelSerializer):
 		return obj
 
 
+class NotificationSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = Notification
+		fields = "__all__"
+	def to_internal_value(self, data):
+		request = self.context["request"]
+		data["user"] = request.user.id
+
+		return super().to_internal_value(data)

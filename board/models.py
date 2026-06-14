@@ -372,6 +372,10 @@ class Activity(DateAbstractModel):
 		COPY_CARD = "copy_card", "Copy Card"
 		MOVE_CARD = "move_card", "Move Card"
 		CHANGE_CARDS_ORDER = "change_cards_order", "Change Cards Order"
+		ADD_COMMENT = "add_comment", "Add Comment"
+		REMOVE_COMMENT = "remove_comment", "Remove Comment"
+
+
 
 
 	user = models.ForeignKey(UserModel, on_delete=models.CASCADE, verbose_name=_("User"), related_name="user_activities")

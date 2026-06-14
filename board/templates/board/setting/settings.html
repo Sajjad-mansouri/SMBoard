@@ -179,8 +179,9 @@
                     <div class="form-group">
                         <select class="form-input" id="notification-frequency">
                             <option value="never">Never</option>
-                            <option value="periodically" selected>Periodically</option>
-                            <option value="instantly">Instantly</option>
+                            <option value="daily" >daily</option>
+                            <option value="weekly" >weekly</option>
+                            <option value="instantly" >Instantly</option>
                         </select>
                     </div>
                 </div>
@@ -195,51 +196,198 @@
                         </label>
                     </div>
                     <div class="switch-group">
-                        <span class="switch-label">💬 Comments</span>
+                        <span class="switch-label">Edit Board Background</span>
                         <label class="switch">
-                            <input type="checkbox" class="notification-checkbox" >
+                            <input type="checkbox" class="notification-checkbox" name="edit_background">
                             <span class="slider"></span>
                         </label>
                     </div>
                     <div class="switch-group">
-                        <span class="switch-label">📅 Due Dates</span>
+                        <span class="switch-label">Edit Board Title</span>
                         <label class="switch">
-                            <input type="checkbox" class="notification-checkbox" >
+                            <input type="checkbox" class="notification-checkbox" name="edit_board_title" >
                             <span class="slider"></span>
                         </label>
                     </div>
                     <div class="switch-group">
-                        <span class="switch-label">👤 Removed from Card</span>
+                        <span class="switch-label">Close Board</span>
                         <label class="switch">
-                            <input type="checkbox" class="notification-checkbox" >
+                            <input type="checkbox" class="notification-checkbox" name="close_board" >
                             <span class="slider"></span>
                         </label>
                     </div>
                     <div class="switch-group">
-                        <span class="switch-label">📎 Attachment Added</span>
+                        <span class="switch-label">Add List</span>
                         <label class="switch">
-                            <input type="checkbox" class="notification-checkbox">
+                            <input type="checkbox" class="notification-checkbox" name="create_list" >
                             <span class="slider"></span>
                         </label>
                     </div>
                     <div class="switch-group">
-                        <span class="switch-label">🆕 Cards Created</span>
+                        <span class="switch-label">Edit List Title</span>
                         <label class="switch">
-                            <input type="checkbox" class="notification-checkbox">
+                            <input type="checkbox" class="notification-checkbox" name="edit_list_title" >
                             <span class="slider"></span>
                         </label>
                     </div>
                     <div class="switch-group">
-                        <span class="switch-label">↔️ Cards Moved</span>
+                        <span class="switch-label">Remove List</span>
                         <label class="switch">
-                            <input type="checkbox" class="notification-checkbox">
+                            <input type="checkbox" class="notification-checkbox" name="remove_list" >
                             <span class="slider"></span>
                         </label>
                     </div>
                     <div class="switch-group">
-                        <span class="switch-label">📦 Cards Archived</span>
+                        <span class="switch-label">Archive List</span>
                         <label class="switch">
-                            <input type="checkbox" class="notification-checkbox">
+                            <input type="checkbox" class="notification-checkbox" name="archive_list" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Add Card</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="create_card" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Remove Card</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="remove_card" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Edit Card Title</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="edit_card_title" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Edit Card Description</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="edit_card_description" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Edit Start Date</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="edit_start_date" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Edit Due Date</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="edit_due_date" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Complete Card</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="edit_card_completed" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Set Cover</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="set_card_cover" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Remove Cover</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="remove_card_cover" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Add Checklist</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="add_checklist" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Remove Checklist</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="remove_checklist" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Add Checklist Item</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="add_checklist_item" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Remove Checklist Item</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="remove_checklist_item" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Complete Checklist Item</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="edit_checklist_item_completed" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Add Label</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="add_card_label" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Remove Label</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="remove_card_label" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Archive Card</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="archive_card" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Add Attechment</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="add_attachment" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Remove Attachment</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="remove_attachment" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Add Comment</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="add_comment" >
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    <div class="switch-group">
+                        <span class="switch-label">Remove Comment</span>
+                        <label class="switch">
+                            <input type="checkbox" class="notification-checkbox" name="remove_comment" >
                             <span class="slider"></span>
                         </label>
                     </div>

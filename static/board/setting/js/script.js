@@ -5,13 +5,20 @@
             const auth = new Auth()
 
             const CONFIG = {
-                IS_PYTHONANYWHERE: false,
-                LOCAL_SETTINGS: {
-                    CELERY_BROKER_URL: 'amqp://localhost:5672//',
-                    EMAIL_BACKEND: 'django.core.mail.backends.smtp.EmailBackend',
-                    NOTIFICATION_ENABLED: true
-                }
+
             };
+
+            async function prepareConfig() {
+                const url = origin + '/api/setting-config/'
+                const response = await auth.authenticatedRequest(url, null, "GET");
+                const data = await response.json();
+                console.log(response, data)
+                CONFIG["IS_PYTHONANYWHERE"] = data.host_async_ability
+                CONFIG["NOTIFICATION"] = data.notification_setting
+
+            }
+
+            console.log(CONFIG)
 
             // Mock existing usernames for validation
             const existingUsernames = ['johndoe', 'admin', 'test', 'user', 'trello'];
@@ -107,7 +114,8 @@
             // ============================================
             // APPLY CONFIGURATION
             // ============================================
-            function applyConfiguration() {
+            async function applyConfiguration() {
+                await prepareConfig()
                 const pythonanywhereBanner = document.getElementById('pythonanywhere-banner');
                 const localDevBanner = document.getElementById('local-dev-banner');
                 const frequencyCard = document.getElementById('notification-frequency-card');
@@ -760,46 +768,84 @@
             const selectAllCheckbox = document.getElementById('select-all-notifications');
             const notificationCheckboxes = document.querySelectorAll('.notification-checkbox');
 
-            selectAllCheckbox.addEventListener('change', () => {
-                if (!CONFIG.IS_PYTHONANYWHERE) {
-                    notificationCheckboxes.forEach(checkbox => {
-                        checkbox.checked = selectAllCheckbox.checked;
-                    });
-                }
-            });
+            async function getAndPopulateCheckBoxes() {
+                const url = origin + `/api/notification-settings/${CONFIG["NOTIFICATION"]}/`
+                try {
+                    const response = await auth.authenticatedRequest(url, null, "GET");
+                    const data = await response.json();
 
-            notificationCheckboxes.forEach(checkbox => {
-                checkbox.addEventListener('change', () => {
-                    if (!CONFIG.IS_PYTHONANYWHERE) {
-                        const allChecked = Array.from(notificationCheckboxes).every(cb => cb.checked);
-                        selectAllCheckbox.checked = allChecked;
+                    if (response.ok) {
+                        Object.entries(data).forEach(([key, value]) => {
+                            const notif = document.querySelector(`.notification-checkbox[name="${key}"]`)
+                            if (notif) {
+
+                                notif.checked = value
+
+                            }
+                        })
+                        selectAllCheckbox.addEventListener('change', () => {
+                            if (!CONFIG.IS_PYTHONANYWHERE) {
+                                notificationCheckboxes.forEach(checkbox => {
+                                    checkbox.checked = selectAllCheckbox.checked;
+                                });
+                            }
+                        });
+
+                        notificationCheckboxes.forEach(checkbox => {
+                            checkbox.addEventListener('change', () => {
+                                if (!CONFIG.IS_PYTHONANYWHERE) {
+                                    const allChecked = Array.from(notificationCheckboxes).every(cb => cb.checked);
+                                    selectAllCheckbox.checked = allChecked;
+                                }
+                            });
+                        });
                     }
-                });
-            });
+                } catch (error) {
+                    console.log(error)
+                }
 
-            document.getElementById('save-settings-btn').addEventListener('click', () => {
+            }
+
+
+
+            document.getElementById('save-settings-btn').addEventListener('click', async () => {
                 if (CONFIG.IS_PYTHONANYWHERE) {
-                    showToast('Notification settings are not available on PythonAnywhere.', 'warning');
+                    showToast(`Notification settings are not available on ${origin}.`, 'warning');
                     return;
                 }
 
+                const notifications = {};
                 const frequency = document.getElementById('notification-frequency').value;
-                const notifications = [];
+                notifications["email_frequency"] = frequency
                 notificationCheckboxes.forEach(cb => {
                     if (cb.checked) {
-                        notifications.push(cb.parentElement.previousElementSibling.textContent.trim());
+                        notifications[cb.getAttribute("name")] = true;
+                    } else {
+
+                        notifications[cb.getAttribute("name")] = false;
                     }
+
                 });
-                showToast('Notification settings saved successfully!', 'success');
-                console.log('Settings saved:', {
-                    frequency,
-                    notifications
-                });
+
+
+                const url = origin + `/api/notification-settings/${CONFIG["NOTIFICATION"]}/`
+                const body = notifications
+                const result = await update(url, body)
+
+                if (result) {
+                    showToast('Notification settings saved successfully!', 'success');
+
+                }
+
             });
 
             // ---------- INITIAL SETUP ----------
-            applyConfiguration();
 
+            async function runSequentially() {
+                await applyConfiguration();
+                getAndPopulateCheckBoxes()
+            }
+            runSequentially()
 
             console.log('✅ Trello Settings Page Loaded Successfully');
             console.log('🔧 Mode:', CONFIG.IS_PYTHONANYWHERE ? 'PythonAnywhere' : 'Local Development');

@@ -1,4 +1,5 @@
 from django.db.models import Q
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
@@ -468,6 +469,35 @@ class CommentViewSet(viewsets.ModelViewSet):
 		
 		return Comment.objects.filter(q).distinct()
 
+	def perform_create(self, serializer):
+		instance = serializer.save()
+		action_type = "add_comment"
+		text = f"'{instance.user.username}' adds Comment to the '{instance.card.name}' card"
+		ActivityLog.log(
+			request=self.request,
+			user=self.request.user,
+			board=instance.card.board_list.board, 
+			board_list=instance.card.board_list, 
+			card=instance.card, 
+			action_type=action_type, 
+			text=text)
+
+
+	def perform_destroy(self, instance):
+		instance.delete()
+
+		action_type = "remove_comment"
+		text = f"'{instance.user.username}' remove his comment"
+
+		ActivityLog.log(
+			request=self.request,
+			user=self.request.user,
+			board=instance.card.board_list.board, 
+			board_list=instance.card.board_list, 
+			card=instance.card, 
+			action_type=action_type, 
+			text=text
+		)
 
 
 
@@ -1073,3 +1103,22 @@ class UserDestroyView(DestroyAPIView):
 
 	def get_object(self):
 		return self.request.user
+
+
+class SettingConfig(views.APIView):
+	permission_classes = [IsAuthenticated]
+	def get(self, request, *args, **kwargs):
+		print(settings.HOST_ASYNC_ABILITY)
+		return Response({"host_async_ability":settings.HOST_ASYNC_ABILITY, "notification_setting":request.user.notification.id})
+
+
+
+class NotificationSettingViewset(
+							mixins.RetrieveModelMixin,   
+							mixins.UpdateModelMixin,     
+							viewsets.GenericViewSet):
+	serializer_class = serializers.NotificationSerializer
+
+	def get_object(self):
+		return self.request.user.notification
+

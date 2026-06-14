@@ -24,6 +24,8 @@ router.register(r'board-lists', board_views.BoardListViewSet, basename='board_li
 router.register(r'card-members', board_views.CardMemberViewSet, basename='card_member')
 router.register(r'board-members', board_views.BoardMemberViewSet, basename='board_member')
 router.register(r'link-attachments', board_views.LinkAttachmentViewSet, basename='link_attachments')
+router.register(r'notification-settings', board_views.NotificationSettingViewset, basename='notification_setting')
+
 
 
 
@@ -61,8 +63,9 @@ urlpatterns += [
 	path("activities/<int:board>/", board_views.ActivitytView.as_view(), name="activities"),
 	path("update-profile/", board_views.ProfileUpdateView.as_view(), name="update_profile"),
 	path("update-user/", board_views.UserUpdateView.as_view(), name="update_user"),
-	path("card-list/", board_views.CardListView.as_view(), name="card-list"),
-	path("delete-account/", board_views.UserDestroyView.as_view(), name="delete-account"),
+	path("card-list/", board_views.CardListView.as_view(), name="card_list"),
+	path("delete-account/", board_views.UserDestroyView.as_view(), name="delete_account"),
+	path("setting-config/", board_views.SettingConfig.as_view(), name="setting_config"),
 
 
 

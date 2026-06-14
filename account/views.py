@@ -15,7 +15,7 @@ from django.views.generic.edit import CreateView, DeleteView
 from django.views.generic.base import TemplateView
 from django.contrib.auth.mixins import LoginRequiredMixin
 
-from .models import Profile
+from .models import Profile, Notification
 from . import forms
 
 UserModel = get_user_model()
@@ -109,6 +109,7 @@ class RegistrationConfirmView(PasswordContextMixin, TemplateView):
                     self.user.is_active=True
                     self.user.save()
                     Profile.objects.create(user=self.user)
+                    Notification.objects.create(user=self.user)
                     return super().dispatch(*args, **kwargs)
             else:
                 if self.token_generator.check_token(self.user, token):
