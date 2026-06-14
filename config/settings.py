@@ -166,7 +166,19 @@ from django.urls import reverse_lazy
 LOGIN_URL = reverse_lazy("account:login")
 AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend", "account.backends.MyBackend"]
 
+from celery.schedules import crontab
 
+CELERY_BEAT_SCHEDULE = {
+    "daily-activities":{
+        "task":"board.tasks.daily_notification",
+        "schedule":crontab(hour=9, minute=0),
+    },
+    "weekly-activities":{
+        "task":"board.tasks.weekly_notification",
+        "schedule":crontab(hour=9, minute=0, day_of_week=1),
+    },
+}
 
-CELERY_BROKER_URL = 'amqp://guest:guest@localhost:5672//'
+CELERY_BROKER_URL = config('CELERY_BROKER_URL')
 SITE_ID=1
+SITE_DOMAIN = config('SITE_DOMAIN')

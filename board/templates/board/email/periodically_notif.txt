@@ -1,0 +1,18 @@
+Hi {{recipient}},
+
+You have {{activities|length}} new activity(ies) in this workspace.
+
+{% for activity in activities %}
+Activity #{{forloop.index}}:
+	User: {{activity.user}}
+	boar: {{activity.board.name}}
+	Action: {{activity.action_type}}
+	Message: {{activity.text|safe}}
+
+{% endfor %}
+
+You can view these activities directly in your workstations:
+{{workstation_link}}
+
+---
+This is an automated message. Please do not reply.
