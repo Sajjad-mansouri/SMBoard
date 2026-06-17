@@ -27,29 +27,35 @@ from .pagination import CustomCursorPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission, BoardMembershipPermission, WatchBoardCardPermission
 
+def get_current_site_address(request):
+	current_site = get_current_site(request)
+	site_name = current_site.name
+	domain = current_site.domain
+	protocol = "https" if request.is_secure() else "http"
+	site_address = f"{protocol}://{current_site}"
+	return site_name, site_address
+
 def send_instant_notification(request, instance):
-    field = instance.action_type
-    notifications = Notification.objects.filter(email_frequency="instantly",**{field:True})
-    current_site = Site.objects.get_current()
-    protocol = "https" if request.is_secure() else "http"
-    activity_link = reverse("board:board_detail", kwargs={"pk":instance.board.pk})
-    board_link = f"{protocol}://{current_site}/{activity_link}"
+	field = instance.action_type
+	notifications = Notification.objects.filter(email_frequency="instantly",**{field:True})
+	site_name, site_address = get_current_site_address(request)
+	activity_link = reverse("board:board_detail", kwargs={"pk":instance.board.pk})
+	board_link = f"{site_address}/{activity_link}"
 
 
-    for notification in notifications:
-        kwargs = {
-        "board":instance.board.name,
-        "board_link":board_link,
-        "recipient":notification.user.username,
-        "recipient_email":notification.user.email,
-        "activity_id":instance.id,
-        "actor_user":instance.user.username,
-        "current_site_domain":current_site.domain,
-        "activity_text":instance.text,
-        "activity_action_type":instance.action_type
-        }
-        send_email_task.delay(**kwargs)
-
+	for notification in notifications:
+		kwargs = {
+		"board":instance.board.name,
+		"board_link":board_link,
+		"recipient":notification.user.username,
+		"recipient_email":notification.user.email,
+		"activity_id":instance.id,
+		"actor_user":instance.user.username,
+		"current_site_domain":current_site.domain,
+		"activity_text":instance.text,
+		"activity_action_type":instance.action_type
+		}
+		send_email_task.delay(**kwargs)
 
 
 class ActivityLog:
@@ -1037,11 +1043,11 @@ class PublicBoardAddress(views.APIView):
 	def get(self, request, *args, **kwargs):
 		board_id = kwargs.get("pk")
 
-		current_site = get_current_site(request)
-		use_https = False
+
 		board = get_object_or_404(Board, id=board_id, owner=request.user, status="public")
-		protocol = "https" if use_https else "http"
-		board_address = f'{protocol}//{current_site}/public/{board.short_uuid}/{board.slug}/'
+		site_name, site_address = get_current_site_address(request)
+
+		board_address = f'{site_address}/public/{board.short_uuid}/{board.slug}/'
 		return Response({"board_address":board_address}, status=status.HTTP_200_OK)
 
 
@@ -1074,10 +1080,10 @@ class CardListView(ListAPIView):
 def send_deletion_notification(request, user_data):
 	username = user_data.get("username")
 	user_email = user_data.get("email")
-	current_site = get_current_site(request)
+	site_name, site_address = get_current_site_address(request)
 
-	text_content = render_to_string("board/email/delete_account.txt", {"site_name":current_site.name})
-	html_content = render_to_string("board/email/delete_account.html", {"site_name":current_site.name})
+	text_content = render_to_string("board/email/delete_account.txt", {"site_name":site_name, "site_address":site_address})
+	html_content = render_to_string("board/email/delete_account.html", {"site_name":site_name, "site_address":site_address})
 
 	email = EmailMultiAlternatives(
 			subject=f"Account Deleted",
@@ -1122,3 +1128,26 @@ class NotificationSettingViewset(
 	def get_object(self):
 		return self.request.user.notification
 
+
+def message_feedback(request, name, user_email, message):
+	site_name, site_address = get_current_site_address(request)
+
+	text_content = render_to_string("board/email/received_message.txt", {"site_name":site_name, "site_address":site_address, "name":name, "email":user_email, "message":message})
+	html_content = render_to_string("board/email/received_message.html", {"site_name":site_name, "site_address":site_address, "name":name, "email":user_email, "message":message})
+
+	email = EmailMultiAlternatives(
+			subject=f"Your message has been received",
+			body=text_content,
+			from_email="temp@gmail.com",
+			to=[user_email]
+		)
+
+	email.attach_alternative(html_content, "text/html")
+	email.send(fail_silently=False)
+class ContactMessage(CreateAPIView):
+	permission_classes = [AllowAny]
+	serializer_class = serializers.EmailInbocSerializer
+
+	def perform_create(self, serializer):
+		instance = serializer.save()
+		message_feedback(self.request, instance.name, instance.email, instance.message)

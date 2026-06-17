@@ -12,7 +12,7 @@ from board.models import (
 	BoardWatch, CardWatch, LinkAttachment,
 	Activity
 	)
-from account.models import Profile, Notification
+from account.models import Profile, Notification, EmailInbox
 from rest_framework.generics import get_object_or_404
 
 UserModel = get_user_model()
@@ -439,3 +439,9 @@ class NotificationSerializer(serializers.ModelSerializer):
 		data["user"] = request.user.id
 
 		return super().to_internal_value(data)
+
+
+class EmailInbocSerializer(serializers.ModelSerializer):
+	class Meta:
+		model = EmailInbox
+		fields = ["name", "email", "message"]

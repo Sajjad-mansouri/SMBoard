@@ -1,0 +1,234 @@
+{%load static%}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMBoard — Manage Projects and Tasks </title>
+    <meta name="description" content="A Trello-inspired project management platform built with Django, Django REST Framework, PostgreSQL, Celery, Redis, Docker, and JavaScript.">
+    <link rel="stylesheet" type="text/css" href="{%static 'board/landing/css/style.css'%}">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Crect x='2' y='2' width='12' height='12' rx='3' fill='%233B5BDB' opacity='0.9'/%3E%3Crect x='18' y='2' width='12' height='12' rx='3' fill='%233B5BDB' opacity='0.6'/%3E%3Crect x='2' y='18' width='12' height='12' rx='3' fill='%233B5BDB' opacity='0.75'/%3E%3Crect x='18' y='18' width='12' height='12' rx='3' fill='%233B5BDB' opacity='0.45'/%3E%3C/svg%3E">
+</head>
+<body>
+    <header class="navbar" id="navbar" role="banner">
+        <div class="container nav-container">
+            <a href="#hero" class="nav-logo" aria-label="SMBoard Home">
+                <span class="logo-icon">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                        <rect x="2" y="2" width="12" height="12" rx="3" fill="currentColor" opacity="0.9"/>
+                        <rect x="18" y="2" width="12" height="12" rx="3" fill="currentColor" opacity="0.6"/>
+                        <rect x="2" y="18" width="12" height="12" rx="3" fill="currentColor" opacity="0.75"/>
+                        <rect x="18" y="18" width="12" height="12" rx="3" fill="currentColor" opacity="0.45"/>
+                    </svg>
+                </span>
+                <span class="logo-text">SMBoard</span>
+            </a>
+            <nav class="nav-links" id="navLinks" role="navigation" aria-label="Main navigation">
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#technology" class="nav-link">Technology</a>
+                <a href="#about" class="nav-link">About Developer</a>
+                <a href="#contact" class="nav-link">Contact</a>
+                <a href="{%url 'account:login'%}" class="btn btn-outline btn-sm nav-btn-login">Login</a>
+                <a href="{%url 'account:register'%}" class="btn btn-primary btn-sm nav-btn-register">Register</a>
+            </nav>
+            <button class="hamburger" id="hamburger" aria-label="Toggle navigation menu" aria-expanded="false">
+                <span class="hamburger-line"></span><span class="hamburger-line"></span><span class="hamburger-line"></span>
+            </button>
+        </div>
+    </header>
+
+    <main id="main-content">
+        <!-- HERO SECTION (unchanged except dashboard mockup replaced with image) -->
+        <section class="hero" id="hero" aria-labelledby="hero-heading">
+            <div class="container hero-container">
+                <div class="hero-content">
+                    <span class="hero-badge">Django Project</span>
+                    <h1 id="hero-heading" class="hero-title">Manage Projects and Tasks <span class="hero-highlight">Efficiently</span></h1>
+                    <p class="hero-description">A Trello-inspired project management platform built with Django, Django REST Framework, SQL, Celery, RabbitMQ, and JavaScript.</p>
+                    <div class="hero-buttons">
+                        <a href="{{source_code_url}}" class="btn btn-outline btn-lg">View Source Code</a>
+                    </div>
+                    <div class="hero-stats">
+
+                    </div>
+                </div>
+                <div class="hero-screenshot" id="heroIllustration" aria-hidden="true">
+                    <img src="{{dashboard_img_url}}"
+                         alt="Dashboard board view screenshot" loading="lazy">
+                </div>
+            </div>
+            <div class="hero-bg-shape" aria-hidden="true"></div>
+        </section>
+
+        <!-- FEATURES SECTION (unchanged) -->
+        <section class="features section" id="features" aria-labelledby="features-heading">
+            <div class="container">
+                <div class="section-header"><span class="section-tag">✨ Core Features</span><h2 id="features-heading" class="section-title">Everything You Need to Manage Projects</h2><p class="section-subtitle">Powerful board, list, and card management inspired by Trello.</p></div>
+                <div class="features-grid">
+                    <article class="feature-card reveal" data-reveal="up"><div class="feature-icon"></div><h3 class="feature-card-title">Board Management</h3><ul class="feature-list"><li>Create unlimited boards</li><li>Public & private visibility</li><li>Custom backgrounds & colors</li></ul></article>
+                    <article class="feature-card reveal" data-reveal="up" data-delay="100"><div class="feature-icon"></div><h3 class="feature-card-title">List Management</h3><ul class="feature-list"><li>Create & reorder lists</li><li>Edit titles inline</li><li>Archive completed lists</li><li>Drag-and-drop ordering</li></ul></article>
+                    <article class="feature-card reveal" data-reveal="up" data-delay="200"><div class="feature-icon"></div><h3 class="feature-card-title">Card Management</h3><ul class="feature-list"><li>Labels, start & due dates</li><li>Attachments & covers</li><li>Comments & activity history</li><li>Member assignments & archiving</li></ul></article>
+                </div>
+            </div>
+        </section>
+
+        <!-- NOTIFICATIONS SECTION (unchanged) -->
+        <section class="notifications section section-alt" id="notifications" aria-labelledby="notifications-heading">
+            <div class="container">
+                <div class="section-header"><span class="section-tag">🔔 Notification System</span><h2 id="notifications-heading" class="section-title">Stay Informed, Never Miss a Beat</h2><p class="section-subtitle">Configure notifications for all major board, list, and card actions. Processed asynchronously for a seamless experience.</p></div>
+                <div class="notifications-layout">
+                    <div class="notifications-info reveal" data-reveal="left">
+                        <div class="info-highlight-box"><div class="highlight-icon">⚡</div><div><strong>Async Processing</strong><p>Instant notifications are processed asynchronously using Celery workers. Daily and weekly notification scheduled using Celery Beat.</p></div></div>
+                        <ul class="notification-feature-list"><li>📧 Instant email notifications</li><li>📊 Daily email notifications</li><li>📅 Weekly email notifications</li><li>🔕 Option to disable notifications</li></ul>
+                    </div>
+                    <div class="notification-screenshot reveal" data-reveal="right">
+                        <img src="{{setting_notif_img_url}}"
+                             alt="Notification preferences settings screenshot" loading="lazy">
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TECHNOLOGY SECTION (unchanged) -->
+        <section class="technology section" id="technology" aria-labelledby="tech-heading">
+            <div class="container">
+                <div class="section-header"><span class="section-tag">🛠️ Technology Stack</span><h2 id="tech-heading" class="section-title">Built With Modern, Production-Grade Tools</h2><p class="section-subtitle">A comprehensive stack designed for scalability, reliability, and real-world deployment.</p></div>
+                <div class="tech-category"><h3 class="tech-category-title">Backend</h3><div class="tech-grid"><div class="tech-card reveal" data-reveal="scale"><span class="tech-emoji">🐍</span><strong>Django</strong><span>Web framework</span></div><div class="tech-card reveal" data-reveal="scale" data-delay="50"><span class="tech-emoji">🔗</span><strong>Django REST</strong><span>API toolkit</span></div><div class="tech-card reveal" data-reveal="scale" data-delay="100"><span class="tech-emoji">🐘</span><strong>SQL</strong><span>Database</span></div><div class="tech-card reveal" data-reveal="scale" data-delay="150"><span class="tech-emoji">🥬</span><strong>Celery</strong><span>Async tasks</span></div><div class="tech-card reveal" data-reveal="scale" data-delay="200"><span class="tech-emoji">🔴</span><strong>RabbitMQ</strong><span>Broker</span></div></div></div>
+                
+                <div class="tech-category"><h3 class="tech-category-title">Frontend</h3><div class="tech-grid"><div class="tech-card reveal" data-reveal="scale"><span class="tech-emoji">📄</span><strong>HTML5</strong><span>Markup</span></div><div class="tech-card reveal" data-reveal="scale" data-delay="50"><span class="tech-emoji">🎨</span><strong>CSS3</strong><span>Styling</span></div><div class="tech-card reveal" data-reveal="scale" data-delay="100"><span class="tech-emoji">⚡</span><strong>JavaScript</strong><span>Interactivity</span></div></div></div>
+            </div>
+        </section>
+
+        <!-- SCREENSHOTS SECTION (NEW BEAUTIFUL CARDS) -->
+        <section class="screenshots section section-alt" id="screenshots" aria-labelledby="screenshots-heading">
+            <div class="container">
+                <div class="section-header">
+                    <span class="section-tag">📸 Screenshots</span>
+                    <h2 id="screenshots-heading" class="section-title">See SMBoard in Action</h2>
+                    <p class="section-subtitle">Click any screenshot to view it full-size. Replace these placeholder images with your own application screenshots.</p>
+                </div>
+                <div class="screenshots-grid" id="screenshotsGrid">
+                    <!-- Card 1: Board View -->
+                    <div class="screenshot-card reveal" data-reveal="up" data-screenshot="board">
+                        <h3 class="screenshot-card-title">📋 Board View</h3>
+                        <div class="screenshot-img-wrapper">
+                            <img src="{{board_menu_img_url}}"
+                                 alt="Board View Screenshot" class="screenshot-img" loading="lazy">
+                            <div class="screenshot-overlay"><span>🔍 Click to enlarge</span></div>
+                        </div>
+                    </div>
+                    <!-- Card 2: Card Details -->
+                    <div class="screenshot-card reveal" data-reveal="up" data-delay="100" data-screenshot="card">
+                        <h3 class="screenshot-card-title">🃏 Card Details</h3>
+                        <div class="screenshot-img-wrapper">
+                            <img src="{{card_img_url}}"
+                                 alt="Card Details Screenshot" class="screenshot-img" loading="lazy">
+                            <div class="screenshot-overlay"><span>🔍 Click to enlarge</span></div>
+                        </div>
+                    </div>
+                    <!-- Card 3: Notification Settings -->
+                    <div class="screenshot-card reveal" data-reveal="up" data-delay="200" data-screenshot="notifications">
+                        <h3 class="screenshot-card-title">Member Management</h3>
+                        <div class="screenshot-img-wrapper">
+                            <img src="{{member_management_img_url}}"
+                                 alt="Notification Settings Screenshot" class="screenshot-img" loading="lazy">
+                            <div class="screenshot-overlay"><span>🔍 Click to enlarge</span></div>
+                        </div>
+                    </div>
+                    <!-- Card 4: Activity Timeline -->
+                    <div class="screenshot-card reveal" data-reveal="up" data-delay="300" data-screenshot="activity">
+                        <h3 class="screenshot-card-title">📜 Activity Timeline</h3>
+                        <div class="screenshot-img-wrapper">
+                            <img src="{{board_activity_img_url}}"
+                                 alt="Activity Timeline Screenshot" class="screenshot-img" loading="lazy">
+                            <div class="screenshot-overlay"><span>🔍 Click to enlarge</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- LIGHTBOX (UPDATED TO SHOW IMAGE) -->
+        <div class="lightbox" id="lightbox" aria-hidden="true">
+            <div class="lightbox-overlay" id="lightboxOverlay"></div>
+            <div class="lightbox-content" id="lightboxContent">
+                <button class="lightbox-close" id="lightboxClose" aria-label="Close lightbox">&times;</button>
+                <div class="lightbox-title" id="lightboxTitle"></div>
+                <img src="" alt="" class="lightbox-img" id="lightboxImg">
+            </div>
+        </div>
+
+        <!-- ABOUT DEVELOPER SECTION (unchanged) -->
+        <section class="about section" id="about" aria-labelledby="about-heading">
+            <div class="container">
+                <div class="section-header"><span class="section-tag">👨‍💻 About the Developer</span><h2 id="about-heading" class="section-title">Built to Demonstrate Real-World Backend Engineering</h2></div>
+                <div class="about-card reveal" data-reveal="up">
+
+                    <div class="about-skills-grid">
+                        <div class="about-skill-item">✅ Django Development</div>
+                        <div class="about-skill-item">✅ REST API Design & Implementation</div>
+                        <div class="about-skill-item">✅ Authentication & Authorization</div>
+                        <div class="about-skill-item">✅ Database Modeling</div>
+                        <div class="about-skill-item">✅ Asynchronous Task Processing (Celery)</div>
+                        <div class="about-skill-item">✅ Scheduled Jobs (Celery Beat)</div>
+                        <div class="about-skill-item">✅ Email Notification Architecture</div>
+                    </div>
+                    <div class="about-buttons">
+                        <a href="{{github}}" class="btn btn-github btn-lg">
+                            <svg class="social-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+                            GitHub Profile
+                        </a>
+                        <a href="{{linkedln}}" class="btn btn-linkedin btn-lg">
+                            <svg class="social-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                            LinkedIn
+                        </a>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CONTACT SECTION (unchanged) -->
+        <section class="contact-section-wrapper" id="contact" aria-labelledby="contact-heading">
+            <div class="container">
+                <div class="section-header"><span class="section-tag">📬 Get in Touch</span><h2 id="contact-heading" class="section-title">Let's Work Together</h2><p class="section-subtitle">Have a question or want to discuss opportunities? Send me a message.</p></div>
+                <div class="contact-card reveal" data-reveal="up">
+                    <div class="contact-layout">
+                        <form class="contact-form" id="contactForm" novalidate>
+                            <div class="form-group"><label for="name" class="form-label">👤 Name</label><input type="text" id="name" name="name" class="form-input" placeholder="Your Name" required minlength="2"><span class="form-error" id="nameError"></span></div>
+                            <div class="form-group"><label for="email" class="form-label">✉️ Email</label><input type="email" id="email" name="email" class="form-input" placeholder="user@email.com" required><span class="form-error" id="emailError"></span></div>
+                            <div class="form-group"><label for="message" class="form-label">💬 Message</label><textarea id="message" name="message" class="form-input form-textarea" placeholder="Tell me about your project, idea, or just say hello..." required minlength="10" rows="5"></textarea><span class="form-error" id="messageError"></span></div>
+                            <button type="submit" class="btn btn-primary btn-lg form-submit-btn">📨 Send Message</button>
+                            <div class="form-feedback" id="formFeedback" aria-live="polite"></div>
+                        </form>
+                        <div class="contact-info-sidebar">
+                            <div class="contact-info-card"><span class="contact-info-icon">✉️</span><strong>Email</strong><span>{{email}}</span></div>
+                            <div class="contact-info-card"><span class="contact-info-icon">✉️</span><strong>telegram</strong><span>@{{telegram}}</span></div>
+
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container footer-container">
+            <div class="footer-brand">
+                <a href="#hero" class="nav-logo footer-logo"><span class="logo-icon"><svg width="28" height="28" viewBox="0 0 32 32"><rect x="2" y="2" width="12" height="12" rx="3" fill="currentColor" opacity="0.9"/><rect x="18" y="2" width="12" height="12" rx="3" fill="currentColor" opacity="0.6"/><rect x="2" y="18" width="12" height="12" rx="3" fill="currentColor" opacity="0.75"/><rect x="18" y="18" width="12" height="12" rx="3" fill="currentColor" opacity="0.45"/></svg></span><span>SMBoard</span></a>
+                <p class="footer-tagline">A production-ready project management platform built to showcase Django development expertise.</p>
+            </div>
+            <div class="footer-links-group">
+                <div class="footer-link-column"><strong>Project</strong><a href="#features">Features</a><a href="#technology">Tech Stack</a><a href="#screenshots">Screenshots</a></div>
+                <div class="footer-link-column"><strong>Developer</strong><a href="#about">About</a><a href="{{github}}">GitHub</a><a href="{{linkedln}}">LinkedIn</a></div>
+                <div class="footer-link-column"><strong>Support</strong><a href="#contact">Contact</a></div>
+            </div>
+        </div>
+        <div class="footer-bottom"><div class="container"><p>&copy; <span id="currentYear"></span> SMBoard. Built with ❤️ to demonstrate real-world engineering skills.</p></div></div>
+    </footer>
+<script src="{%static 'authentication/js/auth.js'%}"></script>
+<script type="text/javascript" src="{%static 'board/landing/js/script.js'%}"></script>
+
+</body>
+</html>

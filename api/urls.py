@@ -66,6 +66,8 @@ urlpatterns += [
 	path("card-list/", board_views.CardListView.as_view(), name="card_list"),
 	path("delete-account/", board_views.UserDestroyView.as_view(), name="delete_account"),
 	path("setting-config/", board_views.SettingConfig.as_view(), name="setting_config"),
+	path("message/", board_views.ContactMessage.as_view(), name="message"),
+
 
 
 

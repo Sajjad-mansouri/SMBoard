@@ -131,3 +131,29 @@ class NotificationDelivery(models.Model):
 					name="unique_notification_delivery"
 				)
 		]
+
+
+class AboutMe(models.Model):
+	bio = models.TextField()
+
+class Connection(models.Model):
+	title = models.CharField(max_length=150, help_text="github,linkedln,...")
+	address = models.CharField(max_length=150)
+
+class EmailInbox(models.Model):
+	name = models.CharField(max_length=150)
+	email = models.EmailField(max_length=150)
+	message = models.TextField()
+
+
+class AboutSite(models.Model):
+	title = models.CharField(max_length=150, blank=True)
+	api_endpoints = models.CharField(max_length=20,blank=True)
+	data_models = models.CharField(max_length=20,blank=True)
+	source_code_page = models.URLField()
+
+class AboutSiteImage(models.Model):
+
+	title = models.CharField(max_length=50, blank=True)
+	slug = models.SlugField()
+	img = models.ImageField(upload_to="about_site/")

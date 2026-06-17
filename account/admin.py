@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.safestring import mark_safe
-from .models import User, Profile, Notification, NotificationDelivery
+from .models import User, Profile, Notification, NotificationDelivery, AboutMe, Connection, EmailInbox, AboutSite,AboutSiteImage
 
 @admin.register(User)
 class UserAdmin(UserAdmin):
@@ -25,3 +25,26 @@ class NotificationAdmin(admin.ModelAdmin):
 @admin.register(NotificationDelivery)
 class NotificationDeliveryAdmin(admin.ModelAdmin):
 	list_display = ["id", "activity", "recipient"]
+
+
+
+
+@admin.register(AboutMe)
+class AboutMeAdmin(admin.ModelAdmin):
+	list_display = ["id", "bio"]
+
+@admin.register(Connection)
+class ConnectionAdmin(admin.ModelAdmin):
+	list_display = ["title", "address"]
+
+@admin.register(EmailInbox)
+class EmailInboxAdmin(admin.ModelAdmin):
+	list_display = ["id", "name", "email"]
+
+@admin.register(AboutSite)
+class AboutSiteAdmin(admin.ModelAdmin):
+	list_display = ["id", "title", "source_code_page"]
+
+@admin.register(AboutSiteImage)
+class AboutSiteImageAdmin(admin.ModelAdmin):
+	list_display = ["id", "title",]

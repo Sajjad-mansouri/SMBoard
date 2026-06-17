@@ -1,0 +1,21 @@
+Hello {{name}},
+
+Thank you for taking the time to send me a message through my portfolio.
+
+I will review it and get back to you shortly.
+
+
+Here is a summary of your message:
+--------------------------------------------------
+Name: {{name}}
+Email: {{email}}
+Message:
+{{message}}
+--------------------------------------------------
+
+If you did not submit this request, please ignore this email.
+
+Best regards,
+Sajjad Mansouri
+Backend Developer
+{{site_name}} ({{site_address}})
