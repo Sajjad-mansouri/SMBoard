@@ -80,6 +80,8 @@ urlpatterns += [
 	path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
 	path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
 	path("login/", api_auth_views.LoginApiView.as_view(), name="login"),
+	path("logout/", api_auth_views.LogoutApiView.as_view(), name="logout"),
+
 
 	]
 

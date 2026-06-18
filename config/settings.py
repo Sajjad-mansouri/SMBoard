@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     #third party
     'rest_framework',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     'django_filters',
 
 ]
@@ -157,7 +158,7 @@ REST_FRAMEWORK = {
             'rest_framework.throttling.UserRateThrottle'
             ],
     'DEFAULT_THROTTLE_RATES': {
-            'anon': '5/day',
+            'anon': '100/day',
             'user': '50/day'
             }
 }

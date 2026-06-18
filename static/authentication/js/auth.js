@@ -1,8 +1,8 @@
 class Auth {
 	constructor() {
 
-		this.baseAPIUrl = "http://localhost:8000/api";
-		this.loginAPIUrl = "http://localhost:8000/api/login/";
+		this.baseAPIUrl = origin + "/api";
+		this.loginAPIUrl = origin + "/api/login/";
 
 
 		this.refreshToken = localStorage.getItem("refreshToken");
@@ -186,15 +186,23 @@ class Auth {
 	async logout() {
 		if (this.refreshToken) {
 			try {
-				const url = `${this.baseAPIUrl}/account/logout/`
-				const response = this.authenticatedRequest(url, null, "POST")
+				const url = `${this.baseAPIUrl}/logout/`
+				const jsonBody = JSON.stringify({
+					"refresh": this.refreshToken
+				})
+				const response = await this.authenticatedRequest(url, jsonBody, "POST")
+				if (response.ok) {
+					const data = await response.json()
+
+					this.clearTokens()
+					window.location.href = origin
+				}
 
 			} catch (error) {
 				console.log("logout error", error)
 			}
 		}
-		this.clearTokens()
-		window.location.href = "account/login/"
+
 	}
 
 	async clearTokens() {
