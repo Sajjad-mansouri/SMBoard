@@ -219,7 +219,7 @@
         // color: "#0079bf",
         // cards: 12,
         try {
-
+        console.log("******getContentData*****")
             const boardResponse = await auth.authenticatedRequest(`api/boards/`, null, "GET")
             const guestBoardResponse = await auth.authenticatedRequest(`api/guest-boards/`, null, "GET")
 
@@ -228,7 +228,7 @@
             let boardData = await boardResponse.json()
             let guestBoardData = await guestBoardResponse.json()
 
-            console.log(boardData)
+
             boardData = [...boardData.filter(b => b.closed == false)]
 
             if (boardResponse.ok && guestBoardResponse.ok) {
@@ -319,9 +319,9 @@
     }
 
     function openDeleteConfirmation(boardId) {
-        console.log(closedBoards)
+
         const board = [...closedBoards].find(b => b.id === Number(boardId));
-        console.log(board, boardId)
+
         if (!board) return;
         boardToDeleteId = boardId;
         deleteBoardNameSpan.textContent = board.title;
@@ -330,7 +330,7 @@
 
     async function deleteBoardPermanently(boardId) {
         // Remove from your or guest
-        console.log("delete this", boardId)
+
         try {
             const response = await auth.authenticatedRequest(`api/boards/${boardId}/`, "", "DELETE")
 

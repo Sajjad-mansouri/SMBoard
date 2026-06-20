@@ -775,6 +775,7 @@
                     const data = await response.json();
 
                     if (response.ok) {
+                        document.getElementById('notification-frequency').value = data.email_frequency;
                         Object.entries(data).forEach(([key, value]) => {
                             const notif = document.querySelector(`.notification-checkbox[name="${key}"]`)
                             if (notif) {
@@ -815,7 +816,7 @@
                 }
 
                 const notifications = {};
-                const frequency = document.getElementById('notification-frequency').value;
+        const frequency = document.getElementById('notification-frequency').value;
                 notifications["email_frequency"] = frequency
                 notificationCheckboxes.forEach(cb => {
                     if (cb.checked) {

@@ -28,10 +28,6 @@ class ActivitySerializer(serializers.ModelSerializer):
 	def to_internal_value(self, data):
 		request = self.context["request"]
 		data["user"] = request.user.id
-		print("to internal value", data)
-		reqeust = self.context["request"]
-		print("initial value", request.data)
-
 		return super().to_internal_value(data)
 
 	def get_timestamp(self, obj):

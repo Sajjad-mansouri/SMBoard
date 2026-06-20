@@ -14,7 +14,7 @@ class UserRegistrationForm(UserCreationForm):
 
 	class Meta:
 		model = UserModel
-		fields = ("first_name", "last_name", "email")
+		fields = ("first_name", "last_name", "email", "username")
 
 
 	def send_mail(

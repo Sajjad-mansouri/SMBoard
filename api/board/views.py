@@ -37,7 +37,9 @@ def get_current_site_address(request):
 
 def send_instant_notification(request, instance):
 	field = instance.action_type
+	
 	notifications = Notification.objects.filter(email_frequency="instantly",**{field:True})
+	
 	site_name, site_address = get_current_site_address(request)
 	activity_link = reverse("board:board_detail", kwargs={"pk":instance.board.pk})
 	board_link = f"{site_address}/{activity_link}"
@@ -47,11 +49,13 @@ def send_instant_notification(request, instance):
 		kwargs = {
 		"board":instance.board.name,
 		"board_link":board_link,
+		"recipient_id":notification.user.id,
 		"recipient":notification.user.username,
 		"recipient_email":notification.user.email,
 		"activity_id":instance.id,
 		"actor_user":instance.user.username,
-		"current_site_domain":current_site.domain,
+		"site_name":site_name,
+		"site_address":site_address,
 		"activity_text":instance.text,
 		"activity_action_type":instance.action_type
 		}
@@ -1088,7 +1092,7 @@ def send_deletion_notification(request, user_data):
 	email = EmailMultiAlternatives(
 			subject=f"Account Deleted",
 			body=text_content,
-			from_email="temp@gmail.com",
+			from_email=settings.DEFAULT_FROM_EMAIL,
 			to=[user_email]
 		)
 
@@ -1114,7 +1118,7 @@ class UserDestroyView(DestroyAPIView):
 class SettingConfig(views.APIView):
 	permission_classes = [IsAuthenticated]
 	def get(self, request, *args, **kwargs):
-		print(settings.HOST_ASYNC_ABILITY)
+		
 		return Response({"host_async_ability":settings.HOST_ASYNC_ABILITY, "notification_setting":request.user.notification.id})
 
 
@@ -1138,7 +1142,7 @@ def message_feedback(request, name, user_email, message):
 	email = EmailMultiAlternatives(
 			subject=f"Your message has been received",
 			body=text_content,
-			from_email="temp@gmail.com",
+			from_email=settings.DEFAULT_FROM_EMAIL,
 			to=[user_email]
 		)
 

@@ -83,15 +83,14 @@ class Auth {
 		try {
 
 			const response = await this.fetchPost("POST", this.loginAPIUrl, body)
-
+			const data = await response.json()
 			if (!response.ok) {
 
 				return {
 					"ok": false,
-					"data": await response.json()
+					"data": data
 				}
 			}
-			const data = await response.json()
 			this.setToken(data.access, data.refresh)
 
 
@@ -126,18 +125,21 @@ class Auth {
 		const body = JSON.stringify({
 			"refresh": this.refreshToken
 		})
+
 		try {
 			const response = await this.fetchPost("POST", refreshUrl, body)
+			const data = await response.json()
 
 			if (!response.ok) {
+
 				throw new Error('Token refresh failed');
 			}
-			const data = await response.json()
 			this.setAccessToken(data.access)
 			return true
 
 
 		} catch (error) {
+
 			this.logout()
 			return false
 
@@ -166,17 +168,22 @@ class Auth {
 		}
 
 		let response = await fetchObject(fetchType, url, body, headers)
+
 		if (response.status === 401) {
 			const refreshed = await this.refreshAccessToken();
 
 			if (refreshed) {
+
 				headers = {
 					"Authorization": `Bearer ${this.accessToken}`
 				}
 				response = await fetchObject(fetchType, url, body, headers, contentType)
 
+
 			} else {
+
 				this.logout()
+
 				throw new Error('Session expired');
 			}
 		}
@@ -184,6 +191,7 @@ class Auth {
 		return response
 	}
 	async logout() {
+
 		if (this.refreshToken) {
 			try {
 				const url = `${this.baseAPIUrl}/logout/`
@@ -191,17 +199,14 @@ class Auth {
 					"refresh": this.refreshToken
 				})
 				const response = await this.authenticatedRequest(url, jsonBody, "POST")
-				if (response.ok) {
-					const data = await response.json()
-
-					this.clearTokens()
-					window.location.href = origin
-				}
 
 			} catch (error) {
 				console.log("logout error", error)
 			}
 		}
+
+		this.clearTokens()
+		window.location.href = origin
 
 	}
 

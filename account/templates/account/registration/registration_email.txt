@@ -1,0 +1,18 @@
+{% load i18n %}{% autoescape off %}
+{% blocktranslate %}You're receiving this email because you created an account at {{ site_name }}.{% endblocktranslate %}
+
+{% translate "To complete your registration and activate your account, please verify your email address by clicking the link below:" %}
+{% block verify_link %}
+{{ protocol }}://{{ domain }}{% url 'account:register-confirm' uidb64=uid token=token %}
+{% endblock %}
+
+{% translate "Thank you for choosing us!" %}
+
+{% blocktranslate %}If you didn't create an account with us, you can safely ignore this message.{% endblocktranslate %}
+
+{% translate "Best regards," %}
+{% translate "Sajjad Mansouri" %}
+{% translate "Backend Developer" %}
+{{ site_name }} - {{ protocol }}://{{ domain }}
+
+{% endautoescape %}

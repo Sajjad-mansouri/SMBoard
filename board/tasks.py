@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from django.db import transaction
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.forms.models import model_to_dict
 from django.template.loader import render_to_string
 from django.contrib.sites.shortcuts import get_current_site
 from django.contrib.auth import get_user_model
@@ -33,7 +34,9 @@ def get_board_url(board_id):
 def send_email_task(**kwargs):
 
     try:
-        activity = Activity.objects.get(id=kwargs.get("activity_id"))
+        recipient_id = kwargs.get("recipient_id")
+        q = (Q(board__board_memberships__user_id=recipient_id) & Q(id=kwargs.get("activity_id"))) & ~Q(user_id=recipient_id)
+        activity = Activity.objects.get(q)
         recipient = UserModel.objects.get(username=kwargs.get("recipient"))
     except (Activity.DoesNotExist, UserModel.DoesNotExist):
         logger.warning("Email task skipped.Activity or recipient missing.")
@@ -76,11 +79,16 @@ def send_bulk_activity_email_task(recipient_id, recipient, recipient_email, days
             return
 
         now = timezone.now()
-        q = Q(created__gte=now - timedelta(days=days))
+        action_types = recipient.user_activities.values_list("action_type", flat=True).distinct()
+        user_notificaiton = model_to_dict(recipient.notification)
+        enabled_notification = [key for key, value in user_notificaiton.items() if value is True]
+        
+        
+        q = (Q(created__gte=now - timedelta(days=days)) & Q(board__board_memberships__user_id=recipient_id) & Q(action_type__in=enabled_notification)) & ~Q(user_id=recipient_id)
         activities = Activity.objects.filter(q)
         activities = activities.exclude(activity_delivered_notifications__recipient=recipient_id).distinct()
         if activities:
-            kwargs = {"activities":activities, "recipient":recipient,"workstation_link":settings.SITE_DOMAIN}
+            kwargs = {"activities":activities, "recipient":recipient,"site_address":settings.SITE_ADDRESS}
             text_content = render_to_string("board/email/periodically_notif.txt", kwargs)
             html_content = render_to_string("board/email/periodically_notif.html", kwargs)
 

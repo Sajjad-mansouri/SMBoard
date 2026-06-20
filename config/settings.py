@@ -147,7 +147,14 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 MEDIA_ROOT='media'
 MEDIA_URL = 'media/'
 EMAIL_BACKEND = config('EMAIL_BACKEND')
-
+EMAIL_HOST = config('EMAIL_HOST')
+EMAIL_PORT = config('EMAIL_PORT')
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', cast=bool)
+EMAIL_USE_SSL = config('EMAIL_USE_SSL', cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL')
+print(EMAIL_HOST, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD)
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES':(
@@ -158,8 +165,8 @@ REST_FRAMEWORK = {
             'rest_framework.throttling.UserRateThrottle'
             ],
     'DEFAULT_THROTTLE_RATES': {
-            'anon': '100/day',
-            'user': '50/day'
+            'anon': '1000/day',
+            'user': '5000/day'
             }
 }
 
@@ -167,7 +174,7 @@ from datetime import timedelta
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
-    'ROTATE_REFRESH_TOKENS': True,
+    # 'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,
 }
 
@@ -180,7 +187,9 @@ from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     "daily-activities":{
         "task":"board.tasks.daily_notification",
-        "schedule":crontab(hour=9, minute=0),
+        # "schedule":crontab(hour=9, minute=0),
+        "schedule":crontab(minute='*/1'),
+
     },
     "weekly-activities":{
         "task":"board.tasks.weekly_notification",
@@ -190,5 +199,5 @@ CELERY_BEAT_SCHEDULE = {
 
 CELERY_BROKER_URL = config('CELERY_BROKER_URL')
 SITE_ID=1
-SITE_DOMAIN = config('SITE_DOMAIN')
+SITE_ADDRESS = config('SITE_ADDRESS')
 HOST_ASYNC_ABILITY = config("HOST_ASYNC_ABILITY", cast=bool)

@@ -15,6 +15,9 @@ You're receiving this email because your user account at {{ site_name }} has bee
 
 {% translate "Thanks for being part of our community!" %}
 
-{% blocktranslate %}The {{ site_name }} team{% endblocktranslate %}
+{% translate "Best regards," %}
+{% translate "Sajjad Mansouri" %}
+{% translate "Backend Developer" %}
+{{ site_name }} - {{ site_address }}
 
-{%endautoescape%}
+{% endautoescape %}

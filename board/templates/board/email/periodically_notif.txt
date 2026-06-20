@@ -12,7 +12,7 @@ Activity #{{forloop.index}}:
 {% endfor %}
 
 You can view these activities directly in your workstations:
-{{workstation_link}}
+{{site_address}}
 
 ---
 This is an automated message. Please do not reply.

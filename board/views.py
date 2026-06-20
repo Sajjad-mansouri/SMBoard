@@ -20,6 +20,7 @@ class BoardDetail(LoginRequiredMixin, DetailView):
 	template_name = "board/board/main.html"
 
 	def get_queryset(self):
+		print("filter",Board.objects.filter(Q(owner=self.request.user)))
 		q = (Q(owner=self.request.user) | Q(board_memberships__user=self.request.user)) & Q(closed=False)
 		return Board.objects.filter(q).distinct()
 

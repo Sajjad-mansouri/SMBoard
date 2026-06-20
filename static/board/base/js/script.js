@@ -16,11 +16,11 @@ document.getElementById('profile-avatar-btn').onclick = (e) => {
 
     const dropdown = document.getElementById('profile-dropdown');
     dropdown.classList.toggle('hidden');
-    console.log(dropdown.width)
+
     if (!dropdown.classList.contains('hidden')) {
         const rect = e.target.getBoundingClientRect();
         dropdown.style.position = 'fixed';
-        console.log(rect)
+
         dropdown.style.top = rect.bottom + 4 + 'px';
         dropdown.style.left = rect.left - dropdown.offsetWidth + 'px';
     }
@@ -39,7 +39,9 @@ profileSettingsBtn.addEventListener('click', () => {
 
 });
 
-
+profileLogoutBtn.addEventListener("click", () => {
+    auth.logout()
+})
 
 function highlightMatch(text, query) {
     const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');

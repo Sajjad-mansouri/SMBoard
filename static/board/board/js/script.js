@@ -2,42 +2,7 @@
     const auth = new Auth()
     const STORAGE_KEY = 'SM_board_data';
 
-    const defaultData = {
-        activeBoardId: 'board1',
-        boards: [{
-            id: 'board1',
-            title: 'My Board',
-            background: '#f0f2f5',
-            boardMembers: ['user1', 'user2'],
-            memberRoles: {
-                'user1': 'admin',
-                'user2': 'member'
-            },
-            boardVisibility: 'public',
-            joinRequests: [],
-            boardWatched: false,
-            boardClosed: false,
-            archivedLists: [],
-            lists: [{
-                id: 'list1',
-                title: 'To Do',
-                cardIds: ['card1']
-            }, {
-                id: 'list2',
-                title: 'In Progress',
-                cardIds: ['card2']
-            }, {
-                id: 'list3',
-                title: 'Done',
-                cardIds: []
-            }],
-            cards: {
-
-            }
-        }],
-        users: [],
-        labels: []
-    };
+    const defaultData = {};
     let appState = JSON.parse(JSON.stringify(defaultData));
     let showArchived = false;
     let CURRENT_USER_ID;
@@ -111,7 +76,7 @@
                 return data
 
             } else {
-                
+
                 return false
             }
 
@@ -125,8 +90,8 @@
 
     async function fetchDelete(url, body) {
         try {
-            const bodyJSON = JSON.stringify(body)
 
+            const bodyJSON = JSON.stringify(body)
 
             const response = await auth.authenticatedRequest(url, bodyJSON, "DELETE", {})
 
@@ -400,7 +365,7 @@
             } else if (func == "delete") {
                 path = `link-attachments/${objId}/`
                 const url = origin + "/api/" + path
-                
+
                 result = await fetchDelete(url, body)
 
 
@@ -617,7 +582,7 @@
         card["comments"] = comments
         card["attachments"] = attachments
         card["activities"] = cardData.card_activities
-        
+
 
         return card
     }
@@ -626,10 +591,10 @@
         const cards = {}
         const labels = []
         let card
-        
+
         data.board_lists.forEach(list => {
             list.list_cards.forEach(cardData => {
-                
+
                 card = cardDataExtract(cardData)
 
                 labels.push(...cardData["card_labels"])
@@ -689,8 +654,8 @@
         const boardMenuBar = document.getElementById('board-menu-bar');
         let elementVisibility = "";
         let disabled = ""
-        
-        
+
+
         if (board.memberRoles[CURRENT_USER_ID] != "admin") {
             elementVisibility = "hide"
             disabled = "disabled"
@@ -721,7 +686,7 @@
         <button class="board-menu-btn" id="board-menu-dots-btn" title="Board menu">⋯</button>
     </div>
         `
-        
+
         boardMenuBar.insertAdjacentHTML("beforeend", boardMenuRight)
     }
     async function loadData() {
@@ -808,12 +773,12 @@
 
 
                 board.activities = []
-                
+
                 Object.entries(board.cards).forEach(([key, card]) => {
                     card.activities = []
 
                 })
-                
+
                 activities.forEach(activity => {
                     if (activity.card) {
 
@@ -989,7 +954,7 @@
             disabled = "disabled"
         }
         div.innerHTML =
-            `<div class="list-header"><span class="drag-handle" draggable="true">⋮⋮</span><input type="text" class="list-title" data-previous-title="${escapeHtml(list.title)}" value="${escapeHtml(list.title)}" data-list-id="${list.id}" /><div class="list-header-actions ${elementVisibility}"><div style="position:relative;"><button class="icon-btn list-menu-btn" ${disabled} data-list-id="${list.id}" title="List actions">⋯</button><div class="list-menu-dropdown hidden" data-list-id="${list.id}"><div class="list-menu-dropdown-item" data-action="archive-list">📦 Archive List</div></div></div></div></div><div class="list-cards" data-list-id="${list.id}"></div><div class="list-actions"><button class="add-card-btn" data-list-id="${list.id}">+ Add Card</button></div>`;
+            `<div class="list-header"><span class="drag-handle" draggable="true"></span><input type="text" class="list-title" data-previous-title="${escapeHtml(list.title)}" value="${escapeHtml(list.title)}" data-list-id="${list.id}" /><div class="list-header-actions ${elementVisibility}"><div style="position:relative;"><button class="icon-btn list-menu-btn" ${disabled} data-list-id="${list.id}" title="List actions">⋯</button><div class="list-menu-dropdown hidden" data-list-id="${list.id}"><div class="list-menu-dropdown-item" data-action="archive-list">📦 Archive List</div></div></div></div></div><div class="list-cards" data-list-id="${list.id}"></div><div class="list-actions"><button class="add-card-btn" data-list-id="${list.id}">+ Add Card</button></div>`;
         const cardsContainer = div.querySelector('.list-cards');
         list.cardIds.forEach(cid => {
 
@@ -1234,13 +1199,12 @@
             "board_list": targetListId
         }
         const result = await saveData("update", "Card", body, cardId)
-        
+
         if (result) {
             const oldList = b.lists.find(l => l.cardIds.includes(cardId));
             const card = b.cards[cardId]
             const newList = b.lists.find(l => l.id == targetListId);
             // 
-            
 
 
 
@@ -1319,7 +1283,7 @@
         const body = {
             "archived": card.archived ? false : true
         }
-        
+
         const result = await saveData("update", "ArchiveCard", body, card.id);
         if (result) {
             card.archived = !card.archived;
@@ -1956,7 +1920,7 @@
             div.className = 'attachment-card';
 
             const i = att.id
-            
+
             div.setAttribute("data-attid", att.id)
             div.setAttribute("data-type", att.type)
 
@@ -2669,12 +2633,12 @@
     function renderActivityModalContent(filter = 'all') {
         const board = getActiveBoard();
         const allActivities = [];
-        
+
 
         Object.values(board.cards).forEach(card => {
             if (filter === 'comments') {
                 card.comments.forEach(c => {
-                    
+
                     allActivities.push({
                         type: 'comment',
                         cardId: card.id,
@@ -2708,9 +2672,9 @@
             }
         });
         if (filter != "comments") {
-            
+
             board.activities.forEach(activity => {
-                
+
                 if (activity.card == null) {
 
                     allActivities.push({
@@ -2732,7 +2696,7 @@
             container.innerHTML = '<p style="color:var(--text-secondary);padding:8px;">No activity yet.</p>';
             return;
         }
-        
+
         allActivities.slice(0, 50).forEach(act => {
             const user = getUserById(act.user);
             const time = new Date(act.timestamp).toLocaleString();
@@ -3101,14 +3065,6 @@
 
 
 
-        document.getElementById('profile-logout-btn').onclick = () => {
-            document.getElementById(
-                'profile-dropdown').classList.add('hidden');
-            alert('Logged out (demo)');
-        };
-
-
-
         document.getElementById('add-list-btn').onclick = () => {
             document.getElementById('add-list-btn').classList.add('hidden');
             document.getElementById('add-list-form').classList.remove('hidden');
@@ -3218,7 +3174,7 @@
                     "board": board.id,
                     "search": searchVal
                 }
-                
+
                 const result = await saveData("create", "BoardMember", body);
                 if (result) {
                     board.boardMembers.push(result.user.id);
