@@ -9,6 +9,8 @@ from ..models import (
 					board_image_path,#function
 					BoardList,
 					list_cover_path,#function
+					Card,
+					card_cover_path,#function
 					)
 
 
@@ -118,3 +120,55 @@ class BoardListModelTests(TestCase):
 
 		if board_list.cover_image and os.path.exists(board_list.cover_image.path):
 			os.remove(board_list.cover_image.path)
+
+class CardModelTests(TestCase):
+	def setUp(self):
+		self.user = User.objects.create_user(username="sajjad", password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.user, name="Project")
+		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+
+
+	def test_string_representation(self):
+		card = Card.objects.create(board_list=self.board_list, name="card1")
+		expected_string = f"card1 is card of  {self.board_list} list"
+		self.assertEqual(str(card), expected_string)
+
+
+	def test_card_cover_path_resolution(self):
+		"""Verify the card_cover_path callable creates the exact expected multi-tier path"""
+
+		card = Card.objects.create(board_list=self.board_list, name="card1")
+		now = timezone.now()
+		file_name = "cover.jpg"
+		generated_path = card_cover_path(card, file_name)
+
+		expected_path = f"{self.user.id}/{self.board.name}/{self.board_list.name}/card1/card_cover/{now.year}/{now.month}/{now.day}/{file_name}"
+
+		self.assertEqual(generated_path, expected_path)
+
+	def test_default_ordering_meta(self):
+		card2 = Card.objects.create(board_list=self.board_list, name="card2", order=2)
+		card1 = Card.objects.create(board_list=self.board_list, name="card1", order=1)
+		card3 = Card.objects.create(board_list=self.board_list, name="card3", order=3)
+
+		cards = list(Card.objects.filter(board_list=self.board_list))
+		self.assertEqual(cards[0], card1)
+		self.assertEqual(cards[1], card2)
+		self.assertEqual(cards[2], card3)
+
+	def test_file_upload_retain_correct_path_in_db(self):
+
+		dummy_image = SimpleUploadedFile(
+			name="test_cover.png",
+			content=b'\x47\x49\x46',
+			content_type="image/png"
+			)
+
+		card = Card.objects.create(board_list=self.board_list, name="card1", cover_image=dummy_image)
+		now = timezone.now()
+		expected_path = f"{self.user.id}/{self.board.name}/{self.board_list.name}/card1/card_cover/{now.year}/{now.month}/{now.day}/test_cover.png"
+
+		self.assertEqual(card.cover_image.name, expected_path)
+
+		if card.cover_image and os.path.exists(card.cover_image.path):
+			os.remove(card.cover_image.path)

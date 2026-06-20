@@ -118,7 +118,7 @@ class BoardList(DateAbstractModel):
 
 def card_cover_path(instance, file_name):
 
-	return "{owner}/{board}/{card}/card_cover/{list}/{year}/{month}/{day}/{file_name}".format(
+	return "{owner}/{board}/{list}/{card}/card_cover/{year}/{month}/{day}/{file_name}".format(
 										owner=instance.board_list.board.owner_id,
 										board=instance.board_list.board.name, 
 										list=instance.board_list.name,
@@ -145,7 +145,7 @@ class Card(DateAbstractModel):
 
 
 	def __str__(self):
-		return f"{self.name} is card of  {self.board_list} list "
+		return f"{self.name} is card of  {self.board_list} list"
 
 	class Meta:
 		verbose_name = _("Card")
