@@ -88,7 +88,7 @@ class BoardMembership(DateAbstractModel):
 
 
 def list_cover_path(instance, file_name):
-
+	created = timezone.now()
 	return "{owner}/{board}/list_files/{list}/{year}/{month}/{day}/{file_name}".format(
 										owner=instance.board.owner_id,
 										board=instance.board.name, 
