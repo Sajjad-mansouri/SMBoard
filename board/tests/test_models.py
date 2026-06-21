@@ -23,6 +23,7 @@ from ..models import (
 					LinkAttachment,
 					attachment_path,#function
 					Comment,
+					CardWatch
 					)
 
 
@@ -421,4 +422,26 @@ class CommentModelTests(TestCase):
 		comments = list(Comment.objects.filter(card=self.card))
 		self.assertEqual(comments[0], comment_two)
 		self.assertEqual(comments[1], comment_one)
+
+
+
+class CardWatchModelTests(TestCase):
+	def setUp(self):
+		
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.user, name="Project")
+		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+		self.card = Card.objects.create(board_list=self.board_list, name="card1")
+
+
+	def test_string_representation(self):
+		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+		card_watch = CardWatch.objects.create(card=self.card, user=self.user, watch=True)
+		watch = "watch"
+		self.assertEqual(str(card_watch), f"{self.user} {watch} {self.card}")
+
+	def test_comment_default_value(self):
+		"""Ensure unassigned fields fallback to correct defaults (watch=False)."""
+		card_watch = CardWatch.objects.create(card=self.card, user=self.user)
+		self.assertFalse(card_watch.watch)
 
