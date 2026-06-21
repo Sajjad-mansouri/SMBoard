@@ -200,3 +200,31 @@ class BoardMembershipdModelTests(TestCase):
 
 		with self.assertRaises(IntegrityError):
 			duplicate_membership.save()
+
+class BoardOwnerMembershipSignalTests(TestCase):
+
+	def setUp(self):
+		self.owner = User.objects.create_user(username="test_user", password="secure_pass_1234")
+
+	def test_board_creationg_trigger_membership_signal(self):
+		"""Ensure post_save signal automatically handles admin registration for the owner."""
+
+		self.assertEqual(BoardMembership.objects.count(), 0)
+
+		board = Board.objects.create(owner=self.owner, name="Project")
+
+		self.assertEqual(BoardMembership.objects.count(), 1)
+
+		membership = BoardMembership.objects.first()
+		self.assertEqual(membership.board, board)
+		self.assertEqual(membership.member_type, "admin")
+		self.assertEqual(membership.accepted, True)
+
+	def test_board_update_does_not_duplicate_membership(self):
+		"""Ensure modifying an existing board doesn't fire duplicate membership entries."""
+		
+		board = Board.objects.create(owner=self.owner, name="Project")
+		self.assertEqual(BoardMembership.objects.count(), 1)
+		board.name = "New Project"
+		board.save()
+		self.assertEqual(BoardMembership.objects.count(), 1)
