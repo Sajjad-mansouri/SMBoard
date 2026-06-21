@@ -15,7 +15,8 @@ from ..models import (
 					BoardMembership,
 					CardMembership,
 					CardLabel,
-					CheckList
+					CheckList,
+					ChecklistItem
 					)
 
 
@@ -286,10 +287,26 @@ class CheckListModelTests(TestCase):
 
     def test_card_label_string_representation(self):
         """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-        label = CheckList.objects.create(
+        checklist = CheckList.objects.create(
             card=self.card, 
-            name="Fix Bug", 
+            name="Fix Bug"
         )
         
         expected_string = f"Fix Bug is {self.card} checklist"
-        self.assertEqual(str(label), expected_string)
+        self.assertEqual(str(checklist), expected_string)
+
+class ChecklistItemModelTests(TestCase):
+    def setUp(self):
+        
+        self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+        self.board = Board.objects.create(owner=self.user, name="Project")
+        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        self.card = Card.objects.create(board_list=self.board_list, name="card1")
+        self.checklist = CheckList.objects.create(card=self.card, name="Fix Bug")
+
+    def test_card_label_string_representation(self):
+        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+        checklist_item = ChecklistItem.objects.create(checklist=self.checklist, name="Logging", is_completed=True)
+        
+        expected_string = f"Logging is {self.checklist} checklist True"
+        self.assertEqual(str(checklist_item), expected_string)
