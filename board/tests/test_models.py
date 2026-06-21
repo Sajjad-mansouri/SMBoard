@@ -23,7 +23,8 @@ from ..models import (
 					LinkAttachment,
 					attachment_path,#function
 					Comment,
-					CardWatch
+					CardWatch,
+					BoardWatch
 					)
 
 
@@ -440,8 +441,25 @@ class CardWatchModelTests(TestCase):
 		watch = "watch"
 		self.assertEqual(str(card_watch), f"{self.user} {watch} {self.card}")
 
-	def test_comment_default_value(self):
+	def test_card_watch_default_value(self):
 		"""Ensure unassigned fields fallback to correct defaults (watch=False)."""
 		card_watch = CardWatch.objects.create(card=self.card, user=self.user)
 		self.assertFalse(card_watch.watch)
 
+
+class BoardWatchModelTests(TestCase):
+	def setUp(self):
+		
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.user, name="Project")
+
+	def test_string_representation(self):
+		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+		board_watch = BoardWatch.objects.create(board=self.board, user=self.user, watch=True)
+		watch = "watch"
+		self.assertEqual(str(board_watch), f"{self.user} {watch} {self.board}")
+
+	def test_board_watch_default_value(self):
+		"""Ensure unassigned fields fallback to correct defaults (watch=False)."""
+		board_watch = BoardWatch.objects.create(board=self.board, user=self.user)
+		self.assertFalse(board_watch.watch)
