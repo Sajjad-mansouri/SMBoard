@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from django.contrib.auth import get_user_model
-
+from ..models import Board, BoardMembership
 from account.models import AboutSiteImage, Connection, AboutSite
 
 User = get_user_model()
@@ -110,3 +110,39 @@ class SettingsViewTests(TestCase):
 
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "board/setting/settings.html")
+
+class BoardDetailViewTests(TestCase):
+	def setUp(self):
+		self.owner = User.objects.create_user(username="owner", email="owner@email.com",password="secure_pass_1234")
+		self.member = User.objects.create_user(username="member", email="member@email.com",password="secure_pass_1234")
+		self.stranger = User.objects.create_user(username="stranger", email="stranger@email.com",password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.owner, name="Project")
+		BoardMembership.objects.create(user=self.member, board=self.board)
+		self.url = reverse("board:board_detail", kwargs={"pk":self.board.id})
+
+	def test_unauthenticated_user_cannot_access_board(self):
+		response = self.client.get(self.url)
+
+		self.assertEqual(response.status_code, 302)
+
+	def test_owner_can_access_board(self):
+		self.client.login(username="owner", password="secure_pass_1234")
+		response = self.client.get(self.url)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "board/board/main.html")
+
+	def test_member_can_access_board(self):
+		self.client.login(username="member", password="secure_pass_1234")
+		response = self.client.get(self.url)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "board/board/main.html")
+
+	def test_can_not_access_closed_board(self):
+		self.board.closed = True
+		self.board.save()
+		self.client.login(username="owner", password="secure_pass_1234")
+		response = self.client.get(self.url)
+
+		self.assertEqual(response.status_code, 404)
