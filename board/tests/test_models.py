@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django.contrib.auth import get_user_model
 from django.db.utils import IntegrityError
+from django.contrib.contenttypes.models import ContentType
 from django.core.files.uploadedfile import SimpleUploadedFile
 from ..models import (
 					Board, 
@@ -21,6 +22,7 @@ from ..models import (
 					CardImage,
 					LinkAttachment,
 					attachment_path,#function
+					Comment,
 					)
 
 
@@ -377,4 +379,46 @@ class LinkAttachmentTests(TestCase):
 		link = LinkAttachment.objects.create(card=self.card, user=self.user)
 
 		self.assertEqual(str(link), f"{self.user} link")
+
+
+class CommentModelTests(TestCase):
+	def setUp(self):
+		
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.user, name="Project")
+		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+		self.card = Card.objects.create(board_list=self.board_list, name="card1")
+
+
+	def test_string_representation(self):
+		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+		comment = Comment.objects.create(card=self.card, user=self.user, content="this is comment")
+
+		self.assertEqual(str(comment), f"{self.user} comment {self.card}")
+
+	def test_comment_default_value(self):
+		"""Ensure unassigned fields fallback to correct defaults (edited=False)."""
+		comment = Comment.objects.create(card=self.card, user=self.user, content="this is comment")
+		self.assertFalse(comment.edited)
+
+
+	def test_generic_foreign_key_reply_resolution(self):
+		"""Verify the GenericForeignKey cleanly maps a comment as a reply to another comment"""
+
+		parent_comment = Comment.objects.create(card=self.card, user=self.user, content="parent comment")
+
+		child_comment = Comment.objects.create(card=self.card, user=self.user, content="child comment", reply_content_object=parent_comment)
+
+		self.assertEqual(child_comment.reply_content_object, parent_comment)
+		self.assertEqual(child_comment.reply_object_id, parent_comment.id)
+		self.assertEqual(child_comment.reply_content_type, ContentType.objects.get_for_model(Comment))
+
+
+	def test_comment_ordering_meta(self):
+		comment_one = Comment.objects.create(user=self.user, card=self.card, content="Oldest Comment")
+		comment_two = Comment.objects.create(user=self.user, card=self.card, content="Newest Comment")
+
+		comments = list(Comment.objects.filter(card=self.card))
+		self.assertEqual(comments[0], comment_two)
+		self.assertEqual(comments[1], comment_one)
 
