@@ -12,7 +12,8 @@ from ..models import (
 					list_cover_path,#function
 					Card,
 					card_cover_path,#function
-					BoardMembership
+					BoardMembership,
+					CardMembership
 					)
 
 
@@ -222,9 +223,33 @@ class BoardOwnerMembershipSignalTests(TestCase):
 
 	def test_board_update_does_not_duplicate_membership(self):
 		"""Ensure modifying an existing board doesn't fire duplicate membership entries."""
-		
+
 		board = Board.objects.create(owner=self.owner, name="Project")
 		self.assertEqual(BoardMembership.objects.count(), 1)
 		board.name = "New Project"
 		board.save()
 		self.assertEqual(BoardMembership.objects.count(), 1)
+
+
+class CardMembershipdModelTests(TestCase):
+	def setUp(self):
+		self.owner = User.objects.create_user(username="owner", password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.owner, name="Project")
+		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+		self.card = Card.objects.create(board_list=self.board_list, name="card1")
+		self.invitee = User.objects.create_user(username="invited",email="invited@email.com" ,password="secure_pass_1234")
+
+
+	def test_string_representation(self):
+
+		membership = CardMembership.objects.create(user=self.invitee, card=self.card)
+		expected_string = f"{self.invitee} is {self.card} card member"
+		self.assertEqual(str(membership), expected_string)
+
+
+	def test_user_card_uniqueness_constraint(self):
+		CardMembership.objects.create(user=self.invitee, card=self.card)
+		duplicate_membership = CardMembership(user=self.invitee, card=self.card)
+
+		with self.assertRaises(IntegrityError):
+			duplicate_membership.save()
