@@ -16,7 +16,11 @@ from ..models import (
 					CardMembership,
 					CardLabel,
 					CheckList,
-					ChecklistItem
+					ChecklistItem,
+					CardFile,
+					CardImage,
+					LinkAttachment,
+					attachment_path,#function
 					)
 
 
@@ -259,54 +263,118 @@ class CardMembershipdModelTests(TestCase):
 
 
 class CardLabelModelTests(TestCase):
-    def setUp(self):
-        
-        self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-        self.board = Board.objects.create(owner=self.user, name="Project")
-        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
-        self.card = Card.objects.create(board_list=self.board_list, name="card1")
+	def setUp(self):
+		
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.user, name="Project")
+		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+		self.card = Card.objects.create(board_list=self.board_list, name="card1")
 
-    def test_card_label_string_representation(self):
-        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-        label = CardLabel.objects.create(
-            card=self.card, 
-            name="Urgent Fix", 
-            color="#ff0055"
-        )
-        
-        expected_string = f"Urgent Fix is {self.card} label"
-        self.assertEqual(str(label), expected_string)
+	def test_card_label_string_representation(self):
+		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+		label = CardLabel.objects.create(
+			card=self.card, 
+			name="Urgent Fix", 
+			color="#ff0055"
+		)
+		
+		expected_string = f"Urgent Fix is {self.card} label"
+		self.assertEqual(str(label), expected_string)
 
 class CheckListModelTests(TestCase):
-    def setUp(self):
-        
-        self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-        self.board = Board.objects.create(owner=self.user, name="Project")
-        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
-        self.card = Card.objects.create(board_list=self.board_list, name="card1")
+	def setUp(self):
+		
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.user, name="Project")
+		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+		self.card = Card.objects.create(board_list=self.board_list, name="card1")
 
-    def test_card_label_string_representation(self):
-        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-        checklist = CheckList.objects.create(
-            card=self.card, 
-            name="Fix Bug"
-        )
-        
-        expected_string = f"Fix Bug is {self.card} checklist"
-        self.assertEqual(str(checklist), expected_string)
+	def test_card_label_string_representation(self):
+		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+		checklist = CheckList.objects.create(
+			card=self.card, 
+			name="Fix Bug"
+		)
+		
+		expected_string = f"Fix Bug is {self.card} checklist"
+		self.assertEqual(str(checklist), expected_string)
 
 class ChecklistItemModelTests(TestCase):
-    def setUp(self):
-        
-        self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-        self.board = Board.objects.create(owner=self.user, name="Project")
-        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
-        self.card = Card.objects.create(board_list=self.board_list, name="card1")
-        self.checklist = CheckList.objects.create(card=self.card, name="Fix Bug")
+	def setUp(self):
+		
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.user, name="Project")
+		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+		self.card = Card.objects.create(board_list=self.board_list, name="card1")
+		self.checklist = CheckList.objects.create(card=self.card, name="Fix Bug")
 
-    def test_card_label_string_representation(self):
-        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-        checklist_item = ChecklistItem.objects.create(checklist=self.checklist, name="Logging", is_completed=True)
-        
-        expected_string = f"Logging is {self.checklist} checklist True"
-        self.assertEqual(str(checklist_item), expected_string)
+	def test_card_label_string_representation(self):
+		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+		checklist_item = ChecklistItem.objects.create(checklist=self.checklist, name="Logging", is_completed=True)
+		
+		expected_string = f"Logging is {self.checklist} checklist True"
+		self.assertEqual(str(checklist_item), expected_string)
+
+
+class CardAttachmentTests(TestCase):
+	def setUp(self):
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.user, name="Project")
+		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+		self.card = Card.objects.create(board_list=self.board_list, name="card1")
+
+
+	def test_card_file_string_representation(self):
+		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+		card_file = CardFile.objects.create(card=self.card, user=self.user)
+		card_image = CardImage.objects.create(card=self.card, user=self.user)
+
+		
+
+		self.assertEqual(str(card_file), f"{self.user} file")
+		self.assertEqual(str(card_image), f"{self.user} image")
+
+
+
+	def test_filename_extraction_and_upload_paths(self):
+		"""Test path resolution and extraction for both model types simultaneously."""
+		now = timezone.now()
+		expected_path_prefix = f"{self.user.id}/{self.board.name}/{self.board_list.name}/{self.card.name}/card_attachments/{now.year}/{now.month}/{now.day}" 
+		dummy_file = SimpleUploadedFile(name="file.csv",content=b'data')
+		card_file = CardFile.objects.create(card=self.card, user=self.user, file=dummy_file)
+		self.assertEqual(card_file.get_name(), "file.csv")
+		self.assertEqual(card_file.file.name, f"{expected_path_prefix}/file.csv")
+
+
+		dummy_image = SimpleUploadedFile(name="file.png",content=b'pixels')
+		card_image = CardImage.objects.create(card=self.card, user=self.user, file=dummy_image)
+		self.assertEqual(card_image.get_name(), "file.png")
+		self.assertEqual(card_image.file.name, f"{expected_path_prefix}/file.png")
+
+		for obj in [card_file, card_image]:
+			if obj.file and os.path.exists(obj.file.path):
+				os.remove(obj.file.path)
+
+	def test_attachmenet_path_resolution(self):
+
+		card_file = CardFile.objects.create(card=self.card, user=self.user)
+		file_name = "file.csv"
+		now = timezone.now()
+		generated_path = attachment_path(card_file, file_name)
+		expected_path = f"{self.user.id}/{self.board.name}/{self.board_list.name}/{self.card.name}/card_attachments/{now.year}/{now.month}/{now.day}/{file_name}"
+		self.assertEqual(expected_path, generated_path)
+
+class LinkAttachmentTests(TestCase):
+	def setUp(self):
+		
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.user, name="Project")
+		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+		self.card = Card.objects.create(board_list=self.board_list, name="card1")
+
+	def test_string_representation(self):
+		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+		link = LinkAttachment.objects.create(card=self.card, user=self.user)
+
+		self.assertEqual(str(link), f"{self.user} link")
+

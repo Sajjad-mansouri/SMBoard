@@ -264,7 +264,7 @@ class LinkAttachment(AttachmentAbstractModel):
 	file = models.URLField(_("Link"))
 
 	def __str__(self):
-		return f"{self.user} links"
+		return f"{self.user} link"
 
 	class Meta:
 		verbose_name = _("Link Attachment")
