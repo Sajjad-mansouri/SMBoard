@@ -14,7 +14,8 @@ from ..models import (
 					card_cover_path,#function
 					BoardMembership,
 					CardMembership,
-					CardLabel
+					CardLabel,
+					CheckList
 					)
 
 
@@ -273,4 +274,22 @@ class CardLabelModelTests(TestCase):
         )
         
         expected_string = f"Urgent Fix is {self.card} label"
+        self.assertEqual(str(label), expected_string)
+
+class CheckListModelTests(TestCase):
+    def setUp(self):
+        
+        self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+        self.board = Board.objects.create(owner=self.user, name="Project")
+        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        self.card = Card.objects.create(board_list=self.board_list, name="card1")
+
+    def test_card_label_string_representation(self):
+        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+        label = CheckList.objects.create(
+            card=self.card, 
+            name="Fix Bug", 
+        )
+        
+        expected_string = f"Fix Bug is {self.card} checklist"
         self.assertEqual(str(label), expected_string)
