@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.utils import timezone
 from django.utils.text import slugify
 from django.contrib.auth import get_user_model
+from django.db.utils import IntegrityError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from ..models import (
 					Board, 
@@ -11,6 +12,7 @@ from ..models import (
 					list_cover_path,#function
 					Card,
 					card_cover_path,#function
+					BoardMembership
 					)
 
 
@@ -172,3 +174,29 @@ class CardModelTests(TestCase):
 
 		if card.cover_image and os.path.exists(card.cover_image.path):
 			os.remove(card.cover_image.path)
+
+class BoardMembershipdModelTests(TestCase):
+	def setUp(self):
+		self.owner = User.objects.create_user(username="owner", password="secure_pass_1234")
+		self.invitee = User.objects.create_user(username="invited",email="invited@email.com" ,password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.owner, name="Project")
+
+	def test_string_representation(self):
+
+		membership = BoardMembership.objects.create(user=self.invitee, board=self.board, member_type="admin")
+		expected_string = f"{self.invitee} is {self.board} board admin member"
+		self.assertEqual(str(membership), expected_string)
+
+	def test_membership_default_value(self):
+		membership = BoardMembership.objects.create(user=self.invitee, board=self.board)
+		self.assertEqual(membership.member_type, "member")
+		self.assertFalse(membership.accepted)
+
+
+
+	def test_user_board_uniqueness_constraint(self):
+		BoardMembership.objects.create(user=self.invitee, board=self.board)
+		duplicate_membership = BoardMembership(user=self.invitee, board=self.board)
+
+		with self.assertRaises(IntegrityError):
+			duplicate_membership.save()
