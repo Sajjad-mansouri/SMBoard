@@ -92,3 +92,21 @@ class LandingPageViewTests(TestCase):
 		for site_image in site_images:
 			if site_image.img and os.path.exists(site_image.img.path):
 				os.remove(site_image.img.path)
+
+class SettingsViewTests(TestCase):
+	def setUp(self):
+		self.url = reverse("board:settings")
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+
+	def test_unauthenticated_user_is_redirected_to_login(self):
+		response = self.client.get(self.url)
+		login_url = reverse("account:login")
+		expected_redirect_url = f"{login_url}?next={self.url}"
+		self.assertRedirects(response, expected_redirect_url, status_code=302)
+
+	def test_authenticated_user_can_access_settings(self):
+		self.client.login(username="test_user", password="secure_pass_1234")
+		response = self.client.get(self.url)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "board/setting/settings.html")
