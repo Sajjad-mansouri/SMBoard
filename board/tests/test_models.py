@@ -24,7 +24,8 @@ from ..models import (
 					attachment_path,#function
 					Comment,
 					CardWatch,
-					BoardWatch
+					BoardWatch,
+					Activity
 					)
 
 
@@ -463,3 +464,26 @@ class BoardWatchModelTests(TestCase):
 		"""Ensure unassigned fields fallback to correct defaults (watch=False)."""
 		board_watch = BoardWatch.objects.create(board=self.board, user=self.user)
 		self.assertFalse(board_watch.watch)
+
+
+class ActivityModelTests(TestCase):
+	def setUp(self):
+		
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+		self.board = Board.objects.create(owner=self.user, name="Project")
+
+	def test_string_representation(self):
+		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+		activity = Activity.objects.create(user=self.user, board=self.board, text="board created", action_type="create_board")
+
+		self.assertEqual(str(activity), f"{self.user} board created")
+
+	def test_activity_ordering_meta(self):
+		activity_older = Activity.objects.create(user=self.user, board=self.board, text="board created", action_type="create_board")
+
+		activity_newer = Activity.objects.create(user=self.user, board=self.board, text="list created", action_type="create_list")
+
+
+		activities = list(Activity.objects.all())
+		self.assertEqual(activities[0], activity_newer)
+		self.assertEqual(activities[1], activity_older)
