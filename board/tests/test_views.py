@@ -146,3 +146,75 @@ class BoardDetailViewTests(TestCase):
 		response = self.client.get(self.url)
 
 		self.assertEqual(response.status_code, 404)
+
+class PublicBoardDetailViewTests(TestCase):
+	def setUp(self):
+		self.owner = User.objects.create_user(username="owner", password="secure_pass_1234")
+
+		self.public_board = Board.objects.create(
+				owner=self.owner,
+				name="public project",
+				slug="public-project-board",
+				short_uuid = "a1b2c3d4",
+				status="public"
+
+			)
+
+
+		self.private_board = Board.objects.create(
+				owner=self.owner,
+				name="private project",
+				slug="private-project-board",
+				short_uuid = "e5f6g7h8",
+				status="private"
+
+			)
+
+		self.url_name = "board:public_board_detail"
+
+	def test_anonymous_user_can_access_public_board(self):
+		url = reverse(
+				self.url_name,
+				kwargs={
+				"short_uuid":self.public_board.short_uuid,
+				"slug":self.public_board.slug
+				}
+			)
+		response = self.client.get(url)
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "board/board/public.html")
+
+	def test_cannot_access_private_board_via_public_view(self):
+		url = reverse(
+				self.url_name,
+				kwargs={
+				"short_uuid":self.private_board.short_uuid,
+				"slug":self.private_board.slug
+				}
+			)
+		response = self.client.get(url)
+		self.assertEqual(response.status_code, 404)
+
+	def test_mismatch_slug(self):
+
+		url = reverse(
+				self.url_name,
+				kwargs={
+				"short_uuid":self.public_board.short_uuid,
+				"slug":"malicious-altered-slug-text"
+				}
+			)
+		response = self.client.get(url)
+		self.assertEqual(response.status_code, 404)
+
+	def test_mismatch_short_uuid(self):
+
+		url = reverse(
+				self.url_name,
+				kwargs={
+				"short_uuid":"wrong123",
+				"slug":self.public_board.slug
+				}
+			)
+		response = self.client.get(url)
+		self.assertEqual(response.status_code, 404)
