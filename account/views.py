@@ -41,7 +41,6 @@ class RegistrationView(CreateView):
     subject_template_name = "account/registration/registration_subject.txt"
     success_url = reverse_lazy("account:registration_done")
     template_name = "account/registration/register.html"
-    title = _("Register")
     token_generator = default_token_generator
 
     def form_valid(self, form):
@@ -164,8 +163,6 @@ class RegistrationConfirmView(PasswordContextMixin, TemplateView):
 
 class LoginView(auth_views.LoginView):
     template_name = "account/registration/login.html"
-
-
 
 
 class PasswordResetView(auth_views. PasswordResetView):
