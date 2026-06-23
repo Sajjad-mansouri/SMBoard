@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.utils.translation import gettext as _
 from django.http import JsonResponse
 from django.core import mail
-from account.views import RegistrationView
+from account.views import RegistrationView,RegistrationDoneView
 
 User = get_user_model()
 
@@ -261,3 +261,58 @@ class RegistrationViewTests(TestCase):
 		
 		# Check that user was not created
 		self.assertEqual(User.objects.count(), 0)
+
+class RegistrationDoneViewTests(TestCase):
+	def setUp(self):
+
+		self.url = reverse("account:registration_done")
+		self.valid_email = "example@email.com"
+
+	def test_registeration_view_done_url_exists(self):
+		"""Test that the view is accessible"""
+		response = self.client.get(self.url)
+		self.assertEqual(response.status_code, 200)
+
+	def test_registration_view_done_template_used(self):
+		"""Test that correct template is used"""
+		response = self.client.get(self.url)
+		self.assertTemplateUsed(response, "account/registration/registration_done.html")
+
+	def test_registration_done_view_context_contains_title(self):
+		"""Test that context contains the title"""
+		custome_title = "custome_title"
+		with patch("account.views.RegistrationDoneView.title",custome_title):
+			response = self.client.get(self.url)
+
+			self.assertIn("title", response.context)
+			self.assertEqual(response.context["title"], custome_title)
+
+	def test_registration_done_view_title_is_set(self):
+		"""Test that title attribute is set correctly"""
+		response = self.client.get(self.url)
+		self.assertEqual(response.context["title"], _("Activition Email sent"))
+
+	def test_registration_done_view_email_from_session(self):
+		"""Test that email is retrieved from session correctly"""
+		session = self.client.session
+		session["email"] = self.valid_email
+		session.save()
+
+		response = self.client.get(self.url)
+
+		self.assertEqual(response.context["email"], self.client.session["email"])
+
+	def test_registration_done_view_no_email_in_session(self):
+		"""Test that context returns None when email not in session"""
+		session = self.client.session
+		session.flush()
+
+		response = self.client.get(self.url)
+
+		self.assertIn('email', response.context)
+		self.assertIsNone(response.context["email"])
+
+	def test_registration_done_view_inherits_from_templateview(self):
+		"""Test that view properly inherits from TemplateView"""
+		from django.views.generic.base import TemplateView
+		self.assertTrue(issubclass(RegistrationDoneView, TemplateView))
