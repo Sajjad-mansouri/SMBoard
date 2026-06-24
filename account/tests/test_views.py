@@ -6,8 +6,20 @@ from django.contrib.auth import get_user_model
 from django.utils.translation import gettext as _
 from django.http import JsonResponse
 from django.core import mail
-from account.views import RegistrationView,RegistrationDoneView
 
+from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ImproperlyConfigured
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+
+from account.views import (
+	RegistrationView,
+	RegistrationDoneView,
+	RegistrationConfirmView,
+	INTERNAL_REGISTRATION_SESSION_TOKEN,
+)
+
+from account.models import Profile, Notification
 User = get_user_model()
 
 class RegistrationViewTests(TestCase):
@@ -316,3 +328,145 @@ class RegistrationDoneViewTests(TestCase):
 		"""Test that view properly inherits from TemplateView"""
 		from django.views.generic.base import TemplateView
 		self.assertTrue(issubclass(RegistrationDoneView, TemplateView))
+
+class RegistrationConfirmViewTests(TestCase):
+
+	def setUp(self):
+		self.factory = RequestFactory()
+		self.user = User.objects.create_user(username="test_user", email="test@email.com", password="secure_pass_1234", is_active=False)
+		user_pk_bytes = force_bytes(User._meta.pk.value_to_string(self.user))
+		self.uidb64 = urlsafe_base64_encode(user_pk_bytes)
+		self.token = default_token_generator.make_token(self.user)
+
+
+	def get_url(self, uidb64, token):
+		return reverse("account:register-confirm", kwargs={"uidb64":uidb64, "token":token})
+
+	# Dispatch validation
+	def test_dispatch_requires_uidb64(self):
+		request = self.factory.get("/")
+		view = RegistrationConfirmView()
+		with self.assertRaises(ImproperlyConfigured):
+			view.dispatch(request, token=self.token)
+
+	def test_dispatch_requires_token(self):
+		request = self.factory.get("/")
+		view = RegistrationConfirmView()
+		with self.assertRaises(ImproperlyConfigured):
+			view.dispatch(request, uidb64=self.uidb64)
+
+
+	# get_user
+	def test_get_user_return_user(self):
+		view = RegistrationConfirmView()
+		self.assertEqual(view.get_user(self.uidb64), self.user)
+
+
+	def test_get_user_return_none_for_invalid_uid(self):
+		view = RegistrationConfirmView()
+		self.assertIsNone(view.get_user("invalid"))
+
+	def test_get_user_return_none_for_nonexistent_user(self):
+		uidb64 = urlsafe_base64_encode(
+			force_bytes(999999)
+		)
+		view = RegistrationConfirmView()
+		self.assertIsNone(view.get_user(uidb64))
+
+	# First request
+
+	def test_valid_token_redirects_to_confirm_url(self):
+		url = self.get_url(self.uidb64, self.token)
+		response = self.client.get(url)
+		self.assertEqual(response.status_code, 302)
+		self.assertIn("confirm-registration", response.url)
+
+	def test_valid_token_stored_in_session(self):
+		url = self.get_url(self.uidb64, self.token)
+
+		response = self.client.get(url)
+		session = self.client.session
+		self.assertEqual(session[INTERNAL_REGISTRATION_SESSION_TOKEN], self.token)
+
+	# Invalid flows
+	def test_invalid_token_shows_unsuccessful_page(self):
+		url = self.get_url(self.uidb64, "invalid")
+
+		response = self.client.get(url)
+		self.user.refresh_from_db()
+		self.assertFalse(self.user.is_active)
+		self.assertFalse(response.context["validlink"])
+
+	def test_invalid_uidb_shows_unsuccessful_page(self):
+		url = self.get_url("invalid", self.token)
+
+		response = self.client.get(url)
+		self.user.refresh_from_db()
+		self.assertFalse(self.user.is_active)
+		self.assertFalse(response.context["validlink"])
+
+	def test_expired_token_shows_unsuccessful_page(self):
+
+		url = self.get_url(self.uidb64, self.token)
+		self.user.set_password("another_secure_pass_1234")
+		self.user.save()
+		response = self.client.get(url)
+
+		self.assertFalse(self.user.is_active)
+		self.assertFalse(response.context["validlink"])
+
+
+	# Context
+	def test_context_for_valid_link(self):
+		view = RegistrationConfirmView()
+		view.validlink = True
+		context = view.get_context_data()
+		self.assertTrue(context["validlink"])
+
+	def test_context_for_invalid_link(self):
+		view = RegistrationConfirmView()
+		view.validlink = False
+		context = view.get_context_data()
+		self.assertFalse(context["validlink"])
+		self.assertEqual(context["title"], "Password reset unsuccessful")
+
+
+	#security
+	def test_redirect_url_does_not_contain_original_token(self):
+		url = self.get_url(self.uidb64, self.token)
+
+		response = self.client.get(url)
+
+		self.assertIn("confirm-registration", response.url)
+		self.assertNotIn(self.token, response.url)
+
+
+	# Full confirmation flow
+
+	def test_confirmation_activate_user(self):
+		url = self.get_url(self.uidb64, self.token)
+		response = self.client.get(url)#redirect
+		self.client.get(response.url)
+
+		self.user.refresh_from_db()
+		self.assertTrue(self.user.is_active)
+
+	def test_confirmation_creates_profile(self):
+		url = self.get_url(self.uidb64, self.token)
+		response = self.client.get(url)#redirect
+		self.client.get(response.url)
+		self.assertTrue(Profile.objects.filter(user=self.user).exists())
+
+	def test_confirmation_creates_notification(self):
+		url = self.get_url(self.uidb64, self.token)
+		response = self.client.get(url)#redirect
+		self.client.get(response.url)
+		self.assertTrue(Notification.objects.filter(user=self.user).exists())
+
+	def test_confirmation_renders_success_page(self):
+		url = self.get_url(self.uidb64, self.token)
+		response = self.client.get(url)#redirect
+		response = self.client.get(response.url)
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "account/registration/registration_complete.html")
+		self.assertTrue(response.context)
