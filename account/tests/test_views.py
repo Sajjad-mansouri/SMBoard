@@ -504,4 +504,17 @@ class PasswordResetViewTests(TestCase):
 	def test_unkown_email_redirects(self):
 		response = self.client.post(self.url, {"email":"unknown@email.com",})
 		self.assertRedirects(response, reverse("account:password_reset_done"))
-		
+
+
+class PasswordResetDoneViewTests(TestCase):
+
+	def setUp(self):
+		self.url = reverse("account:password_reset_done")
+
+	def test_page_load(self):
+		response = self.client.get(self.url)
+		self.assertEqual(response.status_code, 200)
+
+	def test_use_correct_template(self):
+		response = self.client.get(self.url)
+		self.assertTemplateUsed(response, "account/registration/pass_reset_done.html")
