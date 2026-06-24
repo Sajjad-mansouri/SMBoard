@@ -470,3 +470,38 @@ class RegistrationConfirmViewTests(TestCase):
 		self.assertEqual(response.status_code, 200)
 		self.assertTemplateUsed(response, "account/registration/registration_complete.html")
 		self.assertTrue(response.context)
+
+class PasswordResetViewTests(TestCase):
+
+	def setUp(self):
+		self.url = reverse("account:password_reset")
+
+	def test_password_reset_page_loads(self):
+		response = self.client.get(self.url)
+		self.assertEqual(response.status_code, 200)
+
+	def test_uses_custom_template(self):
+		response = self.client.get(self.url)
+		self.assertTemplateUsed(response, "account/registration/pass_reset_form.html")
+
+	def test_valid_email_redirects(self):
+		user = User.objects.create_user(username="test_user", email="test@email.com",password="secure_pass_1234")
+		response = self.client.post(self.url, {"email":"test@email.com",})
+		self.assertEqual(response.status_code, 302)
+		self.assertRedirects(response, reverse("account:password_reset_done"))
+
+	def test_password_reset_email_sent(self):
+		user = User.objects.create_user(username="test_user", email="test@email.com",password="secure_pass_1234")
+		response = self.client.post(self.url, {"email":"test@email.com",})
+		self.assertEqual(len(mail.outbox),1)
+
+	def test_email_contain_reset_link(self):
+		user = User.objects.create_user(username="test_user", email="test@email.com",password="secure_pass_1234")
+		response = self.client.post(self.url, {"email":"test@email.com",})
+		email = mail.outbox[0]
+		self.assertIn("reset", email.body.lower())	
+
+	def test_unkown_email_redirects(self):
+		response = self.client.post(self.url, {"email":"unknown@email.com",})
+		self.assertRedirects(response, reverse("account:password_reset_done"))
+		
