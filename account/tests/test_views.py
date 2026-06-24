@@ -1,4 +1,5 @@
 import json
+import re
 from unittest.mock import patch, Mock
 from django.test import TestCase, RequestFactory
 from django.urls import reverse
@@ -504,6 +505,8 @@ class PasswordResetViewTests(TestCase):
 	def test_unkown_email_redirects(self):
 		response = self.client.post(self.url, {"email":"unknown@email.com",})
 		self.assertRedirects(response, reverse("account:password_reset_done"))
+		self.assertEqual(len(mail.outbox),0)
+
 
 
 class PasswordResetDoneViewTests(TestCase):
@@ -518,3 +521,71 @@ class PasswordResetDoneViewTests(TestCase):
 	def test_use_correct_template(self):
 		response = self.client.get(self.url)
 		self.assertTemplateUsed(response, "account/registration/pass_reset_done.html")
+
+
+class PasswordResetWorkflowTests(TestCase):
+
+	def setUp(self):
+		User.objects.create_user(username="test_user", email="test@email.com", password="secure_pass_1234")
+	def test_full_password_reset_integration_flow(self):
+		reset_url = reverse("account:password_reset")
+		# Verify page layout
+		response = self.client.get(reset_url)
+		self.assertEqual(response.status_code, 200)
+		self.assertTemplateUsed(response, "account/registration/pass_reset_form.html")
+
+		# Submit valid user email payload
+		post_response = self.client.post(reset_url, {"email":"test@email.com"})
+
+		# Verify redirect to 'Done' placeholder view
+		expected_done_url = reverse("account:password_reset_done")
+		self.assertRedirects(post_response, expected_done_url)
+
+		# Follow redirect and verify its template rendering
+		done_page_response = self.client.get(expected_done_url)
+		self.assertEqual(done_page_response.status_code, 200)
+		self.assertTemplateUsed(done_page_response, "account/registration/pass_reset_done.html")
+
+		# STEP 2: Intercept Outbox & Extract Cryptographic Reset Link
+		self.assertEqual(len(mail.outbox), 1)
+		email = mail.outbox[0]
+		self.assertIn("test@email.com", email.to)
+
+
+		url_match = re.search(r"http.+/reset/[^/\s]+/[^/\s]+/", email.body)
+		self.assertTrue(url_match, "Could not find valid password reset link format in email body.")
+		confirm_initial_url = url_match.group(0)
+
+		# STEP 3: Load Confirm Page & Post New Password
+		confirm_response = self.client.get(confirm_initial_url)
+		self.assertEqual(confirm_response.status_code, 302)
+		confirm_url = confirm_response.url
+
+		confirm_get_response = self.client.get(confirm_url)
+		self.assertEqual(confirm_get_response.status_code, 200)
+		self.assertTemplateUsed(confirm_get_response, "account/registration/pass_reset_confirm.html")
+
+		new_password_data = {
+			"new_password1": "NewSecurePass1234!",
+			"new_password2": "NewSecurePass1234!",
+		}
+
+		post_response = self.client.post(confirm_url, data=new_password_data)
+		expected_complete_url = reverse("account:password_reset_complete")
+		self.assertRedirects(post_response, expected_complete_url)
+
+		# STEP 4: Verify Database State Change & Complete View Renders
+		complete_page_response = self.client.get(expected_complete_url)
+		self.assertEqual(complete_page_response.status_code, 200)
+		self.assertTemplateUsed(complete_page_response, "account/registration/pass_reset_complete.html")
+
+		login_access = self.client.login(username="test_user", password="NewSecurePass1234!")
+		self.assertTrue(login_access, "Authentication failed with the newly generated password layout.")
+
+	def test_unknown_email_behavior_does_not_leak_user_presence(self):
+			"""Ensure submitting a non-existent email safely routes to Done without errors or mail outbox generation."""
+			reset_url = reverse("account:password_reset")
+			response = self.client.post(reset_url, {"email": "stranger@danger.com"})
+			
+			self.assertRedirects(response, reverse("account:password_reset_done"))
+			self.assertEqual(len(mail.outbox), 0)
