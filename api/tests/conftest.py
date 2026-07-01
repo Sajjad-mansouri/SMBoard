@@ -21,6 +21,8 @@ class UserFactory(DjangoModelFactory):
 	first_name = factory.Faker("first_name")
 	last_name = factory.Faker("last_name")
 
+
+
 class BoardFactory(DjangoModelFactory):
 	"""Factory for creating Board instance"""
 
@@ -52,6 +54,7 @@ class CardFactory(DjangoModelFactory):
 def user(db):
 	"""create and return basic User"""
 	return UserFactory()
+
 
 @pytest.fixture
 def another_user(db):

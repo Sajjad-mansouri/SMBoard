@@ -58,14 +58,12 @@ class UserSerializer(serializers.ModelSerializer):
 		return obj.get_full_name()
 
 	def update(self, instance, validated_data):
-		profile_data = validated_data.pop('profile')
+		profile_data = validated_data.pop('profile', {})
 
 		profile = instance.profile
-		print(validated_data)
-		instance.first_name = validated_data.get('first_name', instance.first_name)
-		instance.last_name = validated_data.get('last_name', instance.last_name)
-		instance.username = validated_data.get('username', instance.username)
-		instance.email = validated_data.get('email', instance.email)
+		for field in ("username", "email", "first_name", "last_name"):
+			if field in validated_data:
+				setattr(instance, field, validated_data[field])
 		instance.save()
 
 		profile.bio = profile_data.get("bio", profile.bio)

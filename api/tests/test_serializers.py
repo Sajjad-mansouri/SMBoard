@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
 from django.core.files.uploadedfile import SimpleUploadedFile
 from board.models import Activity
-from ..board.serializers import ActivitySerializer, ProfileSerializer
+from ..board.serializers import ActivitySerializer, ProfileSerializer, UserSerializer
 from account.models import Profile
 
 
@@ -284,3 +284,204 @@ class TestProfileSerializer:
         assert serializer.fields["user"].read_only is False
         assert serializer.fields["profile_image"].read_only is False
         assert serializer.fields["bio"].read_only is False
+
+
+@pytest.mark.django_db
+class TestUserSerializer:
+    """Test suite for UserSerializer."""
+
+
+    @pytest.fixture
+    def user_with_profile(self, user):
+        profile = Profile.objects.create(user=user, bio="Backend Developer")
+        return user
+
+    @pytest.fixture
+    def update_data(self):
+        return {
+            "username": "new_username",
+            "email": "new@example.com",
+            "first_name": "new_test_user",
+            "last_name": "new_last_name",
+            "profile": {
+                "bio": "Updated bio",
+            },
+        }
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(self, user_with_profile):
+        serializer = UserSerializer(user_with_profile)
+
+        expected_fields = {
+            "id",
+            "username",
+            "email",
+            "profile_image",
+            "fullname",
+            "first_name",
+            "last_name",
+            "profile",
+        }
+
+        assert set(serializer.data.keys()) == expected_fields
+
+    def test_serializer_returns_correct_values(self, user_with_profile):
+        serializer = UserSerializer(user_with_profile)
+
+        assert serializer.data["id"] == user_with_profile.id
+        assert serializer.data["username"] == user_with_profile.username
+        assert serializer.data["email"] == user_with_profile.email
+        assert serializer.data["first_name"] == user_with_profile.first_name
+        assert serializer.data["last_name"] == user_with_profile.last_name
+
+    def test_serializer_returns_fullname(self, user_with_profile):
+        serializer = UserSerializer(user_with_profile)
+
+        assert (
+            serializer.data["fullname"]
+            == user_with_profile.get_full_name()
+        )
+
+    def test_serializer_returns_empty_profile_image_when_none(
+        self,
+        user_with_profile,
+    ):
+        serializer = UserSerializer(user_with_profile)
+
+        assert serializer.data["profile_image"] == ""
+
+    def test_serializer_serializes_nested_profile(self, user_with_profile):
+        serializer = UserSerializer(user_with_profile)
+
+        assert serializer.data["profile"]["user"] == user_with_profile.id
+        assert serializer.data["profile"]["bio"] == "Backend Developer"
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_all_user_fields(
+        self,
+        user_with_profile,
+        update_data,
+    ):
+        serializer = UserSerializer(
+            instance=user_with_profile,
+            data=update_data,
+            partial=True
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated_user = serializer.save()
+
+        assert updated_user.username == update_data["username"]
+        assert updated_user.email == update_data["email"]
+        assert updated_user.first_name == update_data["first_name"]
+        assert updated_user.last_name == update_data["last_name"]
+
+    def test_update_profile_bio(
+        self,
+        user_with_profile,
+        update_data,
+    ):
+        serializer = UserSerializer(
+            instance=user_with_profile,
+            data=update_data,
+            partial=True
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated_user = serializer.save()
+
+        assert updated_user.profile.bio == "Updated bio"
+
+    def test_update_returns_same_instance(
+        self,
+        user_with_profile,
+        update_data,
+    ):
+        serializer = UserSerializer(
+            instance=user_with_profile,
+            data=update_data,
+            partial=True
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.pk == user_with_profile.pk
+
+    def test_partial_update_only_user_field(
+        self,
+        user_with_profile,
+    ):
+        old_email = user_with_profile.email
+        old_last_name = user_with_profile.last_name
+        old_bio = user_with_profile.profile.bio
+
+        serializer = UserSerializer(
+            instance=user_with_profile,
+            data={
+                "first_name": "updated_name",
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.first_name == "updated_name"
+        assert updated.email == old_email
+        assert updated.last_name == old_last_name
+        assert updated.profile.bio == old_bio
+
+    def test_partial_update_only_profile(
+        self,
+        user_with_profile,
+    ):
+        old_username = user_with_profile.username
+
+        serializer = UserSerializer(
+            instance=user_with_profile,
+            data={
+                "profile": {
+                    "bio": "Only profile updated",
+                }
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.username == old_username
+        assert updated.profile.bio == "Only profile updated"
+
+    def test_update_without_profile_data_keeps_existing_profile(
+        self,
+        user_with_profile,
+    ):
+        old_bio = user_with_profile.profile.bio
+
+        serializer = UserSerializer(
+            instance=user_with_profile,
+            data={
+                "username": "updated_username",
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.username == "updated_username"
+        assert updated.profile.bio == old_bio
