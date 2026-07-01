@@ -3,14 +3,15 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
 from django.core.files.uploadedfile import SimpleUploadedFile
-from board.models import Activity, Board, CardLabel, Card
+from board.models import Activity, Board, CardLabel, Card, ChecklistItem, CheckList
 from ..board.serializers import (
     ActivitySerializer, 
     ProfileSerializer, 
     UserSerializer, 
     BoardSerializer,
     CardLabelSerializer,
-    CardSerializer
+    CardSerializer,
+    CheckListItemSerializer
     )
 from account.models import Profile
 
@@ -971,3 +972,116 @@ class TestCardSerializer:
 
         assert updated.name == "Updated card"
         assert updated.completed is True
+
+
+
+@pytest.mark.django_db
+class TestCheckListItemSerializer:
+    """Test suite for CheckListItemSerializer."""
+
+    @pytest.fixture
+    def checklist(self, card):
+        return CheckList.objects.create(card=card, name="Check List")
+
+    @pytest.fixture
+    def valid_data(self, checklist):
+        return {
+            "checklist": checklist.id,
+            "name": "Write unit tests",
+            "is_completed": False,
+        }
+
+    @pytest.fixture
+    def checklist_item(self, checklist):
+        return ChecklistItem.objects.create(
+            checklist=checklist,
+            name="Write unit tests",
+            is_completed=False,
+        )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data):
+        serializer = CheckListItemSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize(
+        "field",
+        [
+            "checklist",
+            "name",
+        ],
+    )
+    def test_required_fields(self, valid_data, field):
+        data = valid_data.copy()
+        data.pop(field)
+
+        serializer = CheckListItemSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert field in serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(self, checklist_item):
+        serializer = CheckListItemSerializer(checklist_item)
+
+        expected_fields = {
+            "id",
+            "name",
+            "is_completed",
+            "checklist",
+        }
+
+        assert set(serializer.data.keys()) == expected_fields
+
+    def test_serializer_outputs_correct_values(self, checklist_item):
+        serializer = CheckListItemSerializer(checklist_item)
+
+        assert serializer.data["id"] == checklist_item.id
+        assert serializer.data["name"] == checklist_item.name
+        assert serializer.data["is_completed"] == checklist_item.is_completed
+        assert serializer.data["checklist"] == checklist_item.checklist.id
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_checklist_item(self, valid_data):
+        serializer = CheckListItemSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+        item = serializer.save()
+
+        assert isinstance(item, ChecklistItem)
+        assert item.checklist.id == valid_data["checklist"]
+        assert item.name == valid_data["name"]
+        assert item.is_completed is False
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_checklist_item(self, checklist_item):
+        serializer = CheckListItemSerializer(
+            instance=checklist_item,
+            data={
+                "name": "Review unit tests",
+                "is_completed": True,
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.name == "Review unit tests"
+        assert updated.is_completed is True
+        assert updated.checklist == checklist_item.checklist
