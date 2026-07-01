@@ -3,8 +3,14 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
 from django.core.files.uploadedfile import SimpleUploadedFile
-from board.models import Activity, Board
-from ..board.serializers import ActivitySerializer, ProfileSerializer, UserSerializer, BoardSerializer
+from board.models import Activity, Board, CardLabel
+from ..board.serializers import (
+    ActivitySerializer, 
+    ProfileSerializer, 
+    UserSerializer, 
+    BoardSerializer,
+    CardLabelSerializer
+    )
 from account.models import Profile
 
 
@@ -693,3 +699,113 @@ class TestBoardSerializer:
 
         assert updated.name == "Updated Board"
         assert updated.owner == board.owner
+
+
+
+@pytest.mark.django_db
+class TestCardLabelSerializer:
+    """Test suite for CardLabelSerializer."""
+
+    @pytest.fixture
+    def valid_data(self, card):
+        return {
+            "card": card.id,
+            "name": "Bug",
+            "color": "#ff0000",
+        }
+
+    @pytest.fixture
+    def label(self, card):
+        return CardLabel.objects.create(
+            card=card,
+            name="Bug",
+            color="#ff0000",
+        )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data):
+        serializer = CardLabelSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize(
+        "field",
+        [
+            "card",
+            "name",
+            "color",
+        ],
+    )
+    def test_required_fields(self, valid_data, field):
+        data = valid_data.copy()
+        data.pop(field)
+
+        serializer = CardLabelSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert field in serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(self, label):
+        serializer = CardLabelSerializer(label)
+
+        expected_fields = {
+            "id",
+            "name",
+            "color",
+            "card",
+        }
+
+        assert set(serializer.data.keys()) == expected_fields
+
+    def test_serializer_outputs_correct_values(self, label):
+        serializer = CardLabelSerializer(label)
+
+        assert serializer.data["id"] == label.id
+        assert serializer.data["name"] == label.name
+        assert serializer.data["color"] == label.color
+        assert serializer.data["card"] == label.card.id
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_label(self, valid_data):
+        serializer = CardLabelSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+        label = serializer.save()
+
+        assert isinstance(label, CardLabel)
+        assert label.card.id == valid_data["card"]
+        assert label.name == valid_data["name"]
+        assert label.color == valid_data["color"]
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_label(self, label):
+        serializer = CardLabelSerializer(
+            instance=label,
+            data={
+                "name": "Feature",
+                "color": "#00ff00",
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.name == "Feature"
+        assert updated.color == "#00ff00"
+        assert updated.card == label.card
