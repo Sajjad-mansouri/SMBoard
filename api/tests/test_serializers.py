@@ -2,8 +2,19 @@ import pytest
 
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
+from django.http import Http404
 from django.core.files.uploadedfile import SimpleUploadedFile
-from board.models import Activity, Board, CardLabel, Card, ChecklistItem, CheckList
+from board.models import (
+    Activity, 
+    Board, 
+    CardLabel, 
+    Card, 
+    ChecklistItem, 
+    CheckList, 
+    Comment, 
+    CardImage, 
+    CardFile, 
+    LinkAttachment)
 from ..board.serializers import (
     ActivitySerializer, 
     ProfileSerializer, 
@@ -12,9 +23,14 @@ from ..board.serializers import (
     CardLabelSerializer,
     CardSerializer,
     CheckListItemSerializer,
-    CheckListSerializer
+    CheckListSerializer,
+    CardCommentSerializer,
+    CardImage,
+    CardFile,
+    LinkAttachment
     )
 from account.models import Profile
+
 
 
 
@@ -1225,3 +1241,317 @@ class TestCheckListSerializer:
 
         assert updated.name == "Updated Checklist"
         assert updated.card == checklist.card
+
+
+@pytest.mark.django_db
+class TestCardCommentSerializer:
+    """Test suite for CardCommentSerializer."""
+
+
+
+    @pytest.fixture
+    def valid_data(self, card):
+        return {
+            "card": card.id,
+            "content": "Test comment",
+        }
+
+    @pytest.fixture
+    def serializer_context(self, api_request):
+        return {"request": api_request}
+
+    @pytest.fixture
+    def comment(self, user, card):
+        return Comment.objects.create(
+            user=user,
+            card=card,
+            content="Test comment",
+        )
+
+    @pytest.fixture
+    def card_image(self, card, user):
+        test_image = SimpleUploadedFile(
+                "file.jpg",
+                b"fake content",
+                "image/jpg"
+            )
+        return CardImage.objects.create(card=card, user=user, file=test_image)
+
+    @pytest.fixture
+    def card_file(self, card, user):
+        test_file = SimpleUploadedFile(
+                "file.csv",
+                b"fake content",
+                "text/csv"
+            )
+        return CardFile.objects.create(card=card, user=user, file=test_file)
+
+    @pytest.fixture
+    def link_attachment(self, card, user):
+        link = "https://www.test.com"
+        return LinkAttachment.objects.create(card=card, user=user, file=link)
+
+    @pytest.fixture
+    def comment_with_image_attachment(self, user, card, card_image):
+        return Comment.objects.create(user=user, card=card, reply_content_object=card_image)
+
+    @pytest.fixture
+    def comment_with_file_attachment(self, user, card, card_file):
+        return Comment.objects.create(user=user, card=card, reply_content_object=card_file)
+
+    @pytest.fixture
+    def comment_with_link_attachment(self, user, card, link_attachment):
+        return Comment.objects.create(user=user, card=card, reply_content_object=link_attachment)
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(
+        self,
+        valid_data,
+        serializer_context,
+    ):
+        serializer = CardCommentSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_user_is_taken_from_request(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = CardCommentSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["user"] == user
+
+    def test_payload_user_is_overwritten(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+        another_user,
+    ):
+        data = valid_data.copy()
+        data["user"] = another_user.id
+
+        serializer = CardCommentSerializer(
+            data=data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["user"] == user
+
+    def test_missing_request_context_raises_key_error(
+        self,
+        valid_data,
+    ):
+        serializer = CardCommentSerializer(data=valid_data)
+
+        with pytest.raises(KeyError):
+            serializer.is_valid()
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(
+        self,
+        comment,
+    ):
+        serializer = CardCommentSerializer(comment)
+
+        assert set(serializer.data.keys()) == {
+            "id",
+            "user",
+            "content",
+            "timestamp",
+            "edited",
+            "card",
+            "reply",
+        }
+
+    def test_serializer_outputs_correct_values(
+        self,
+        comment,
+    ):
+        serializer = CardCommentSerializer(comment)
+
+        assert serializer.data["id"] == comment.id
+        assert serializer.data["user"] == comment.user.id
+        assert serializer.data["content"] == comment.content
+        assert serializer.data["edited"] == comment.edited
+        assert serializer.data["card"] == comment.card.id
+
+
+
+    def test_timestamp_returns_updated_time_in_milliseconds(
+        self,
+        comment,
+    ):
+        comment.content = "edited"
+        comment.save()
+
+        serializer = CardCommentSerializer(comment)
+
+        expected = comment.updated.timestamp() * 1000
+
+        assert serializer.data["timestamp"] == expected
+
+    def test_reply_returns_none_when_no_attachment(
+        self,
+        comment,
+    ):
+        serializer = CardCommentSerializer(comment)
+
+        assert serializer.data["reply"] is None
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_comment_without_attachment(
+        self,
+        valid_data,
+        serializer_context,
+    ):
+        serializer = CardCommentSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        comment = serializer.save()
+
+        assert isinstance(comment, Comment)
+        assert comment.reply_content_object is None
+
+    def test_create_comment_with_image_attachment(
+        self,
+        valid_data,
+        serializer_context,
+        card_image,
+    ):
+        data = valid_data.copy()
+        data["reply_type"] = "image/png"
+        data["reply_id"] = card_image.id
+
+        serializer = CardCommentSerializer(
+            data=data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        comment = serializer.save()
+
+        assert comment.reply_content_object == card_image
+
+    def test_create_comment_with_file_attachment(
+        self,
+        valid_data,
+        serializer_context,
+        card_file,
+    ):
+        data = valid_data.copy()
+        data["reply_type"] = "text/plain"
+        data["reply_id"] = card_file.id
+
+        serializer = CardCommentSerializer(
+            data=data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        comment = serializer.save()
+
+        assert comment.reply_content_object == card_file
+
+    def test_create_comment_with_link_attachment(
+        self,
+        valid_data,
+        serializer_context,
+        link_attachment,
+    ):
+        data = valid_data.copy()
+        data["reply_type"] = "link"
+        data["reply_id"] = link_attachment.id
+
+        serializer = CardCommentSerializer(
+            data=data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        comment = serializer.save()
+
+        assert comment.reply_content_object == link_attachment
+
+    def test_invalid_attachment_id_raises_404(
+        self,
+        valid_data,
+        serializer_context,
+    ):
+        data = valid_data.copy()
+        data["reply_type"] = "image/png"
+        data["reply_id"] = 999999
+
+        serializer = CardCommentSerializer(
+            data=data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        with pytest.raises(Http404):
+            serializer.save()
+
+    # --------------------------------------------------------
+    # get_reply()
+    # --------------------------------------------------------
+
+    def test_reply_for_image_attachment(
+        self,
+        comment_with_image_attachment,
+    ):
+        serializer = CardCommentSerializer(comment_with_image_attachment)
+
+        reply = serializer.data["reply"]
+
+        assert reply["id"] == comment_with_image_attachment.reply_content_object.id
+        assert reply["type"].startswith("image/")
+
+    def test_reply_for_file_attachment(
+        self,
+        comment_with_file_attachment,
+    ):
+        serializer = CardCommentSerializer(comment_with_file_attachment)
+
+        reply = serializer.data["reply"]
+
+        assert reply["id"] == comment_with_file_attachment.reply_content_object.id
+        assert reply["type"] == "text/csv"
+
+    def test_reply_for_link_attachment(
+        self,
+        comment_with_link_attachment,
+    ):
+        serializer = CardCommentSerializer(comment_with_link_attachment)
+
+        reply = serializer.data["reply"]
+
+        assert reply["id"] == comment_with_link_attachment.reply_content_object.id
+        assert reply["type"] == "link"

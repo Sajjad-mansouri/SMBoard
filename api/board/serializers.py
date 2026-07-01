@@ -182,11 +182,8 @@ class CardCommentSerializer(serializers.ModelSerializer):
 		return obj
 
 	def get_timestamp(self, obj):
+		return obj.updated.timestamp()*1000
 
-		if obj.updated:
-			return obj.updated.timestamp()*1000
-		else:
-			obj.created.timestamp()*1000
 
 	def get_reply(self, obj):
 
