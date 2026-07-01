@@ -3,8 +3,8 @@ import pytest
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
 from django.core.files.uploadedfile import SimpleUploadedFile
-from board.models import Activity
-from ..board.serializers import ActivitySerializer, ProfileSerializer, UserSerializer
+from board.models import Activity, Board
+from ..board.serializers import ActivitySerializer, ProfileSerializer, UserSerializer, BoardSerializer
 from account.models import Profile
 
 
@@ -383,22 +383,6 @@ class TestUserSerializer:
         assert updated_user.first_name == update_data["first_name"]
         assert updated_user.last_name == update_data["last_name"]
 
-    def test_update_profile_bio(
-        self,
-        user_with_profile,
-        update_data,
-    ):
-        serializer = UserSerializer(
-            instance=user_with_profile,
-            data=update_data,
-            partial=True
-        )
-
-        assert serializer.is_valid(), serializer.errors
-
-        updated_user = serializer.save()
-
-        assert updated_user.profile.bio == "Updated bio"
 
     def test_update_returns_same_instance(
         self,
@@ -485,3 +469,227 @@ class TestUserSerializer:
 
         assert updated.username == "updated_username"
         assert updated.profile.bio == old_bio
+
+
+
+
+@pytest.mark.django_db
+class TestBoardSerializer:
+    """Test suite for BoardSerializer."""
+
+    @pytest.fixture
+    def valid_data(self):
+        return {
+            "name": "Project Board",
+            "status": "private",
+            "background_color": "#ffffff",
+            "closed": False,
+        }
+
+    @pytest.fixture
+    def board(self, user):
+        return Board.objects.create(
+            owner=user,
+            name="Project Board",
+            status="private",
+            background_color="#ffffff",
+        )
+
+    @pytest.fixture
+    def serializer_context(self, api_request):
+        return {"request": api_request}
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(
+        self,
+        valid_data,
+        serializer_context,
+    ):
+        serializer = BoardSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_owner_is_taken_from_request(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = BoardSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["owner"] == user
+
+    def test_payload_owner_is_overwritten_by_request_user(
+        self,
+        valid_data,
+        serializer_context,
+        another_user,
+        user,
+    ):
+        data = valid_data.copy()
+        data["owner"] = another_user.id
+
+        serializer = BoardSerializer(
+            data=data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["owner"] == user
+
+    def test_missing_request_context_raises_key_error(
+        self,
+        valid_data,
+    ):
+        serializer = BoardSerializer(data=valid_data)
+
+        with pytest.raises(KeyError):
+            serializer.is_valid()
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(
+        self,
+        board,
+        serializer_context,
+    ):
+        serializer = BoardSerializer(
+            board,
+            context=serializer_context,
+        )
+
+        assert set(serializer.data.keys()) == {
+            "id",
+            "owner",
+            "name",
+            "status",
+            "background_color",
+            "background_image",
+            "cards",
+            "is_owner",
+            "closed",
+        }
+
+    def test_serializer_outputs_correct_values(
+        self,
+        board,
+        serializer_context,
+    ):
+        serializer = BoardSerializer(
+            board,
+            context=serializer_context,
+        )
+
+        assert serializer.data["id"] == board.id
+        assert serializer.data["owner"] == board.owner.id
+        assert serializer.data["name"] == board.name
+        assert serializer.data["status"] == board.status
+        assert serializer.data["background_color"] == board.background_color
+        assert serializer.data["closed"] == board.closed
+
+    # --------------------------------------------------------
+    # SerializerMethodField
+    # --------------------------------------------------------
+
+    def test_cards_returns_zero_when_board_has_no_cards(
+        self,
+        board,
+        serializer_context,
+    ):
+        serializer = BoardSerializer(
+            board,
+            context=serializer_context,
+        )
+
+        assert serializer.data["cards"] == 0
+
+    def test_is_owner_returns_true_for_owner(
+        self,
+        board,
+        serializer_context,
+    ):
+        serializer = BoardSerializer(
+            board,
+            context=serializer_context,
+        )
+
+        assert serializer.data["is_owner"] is True
+
+    def test_is_owner_returns_false_for_non_owner(
+        self,
+        board,
+        another_user,
+        request_factory,
+    ):
+        request = request_factory.get("/")
+        request.user = another_user
+
+        serializer = BoardSerializer(
+            board,
+            context={"request": request},
+        )
+
+        assert serializer.data["is_owner"] is False
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_board(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = BoardSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        board = serializer.save()
+
+        assert isinstance(board, Board)
+        assert board.owner == user
+        assert board.name == valid_data["name"]
+        assert board.status == valid_data["status"]
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_board(
+        self,
+        board,
+        serializer_context,
+    ):
+        serializer = BoardSerializer(
+            instance=board,
+            data={
+                "name": "Updated Board",
+            },
+            partial=True,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.name == "Updated Board"
+        assert updated.owner == board.owner

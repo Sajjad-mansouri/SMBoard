@@ -93,8 +93,6 @@ class BoardSerializer(serializers.ModelSerializer):
 		return super().to_internal_value(data)
 	def save(self, **kwargs):
 		instance = super().save(**kwargs)
-		print("kwargs in save", kwargs)
-		print("instance", instance)
 		return instance
 
 class CardLabelSerializer(serializers.ModelSerializer):
