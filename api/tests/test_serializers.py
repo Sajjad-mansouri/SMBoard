@@ -2,9 +2,10 @@ import pytest
 
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
-
+from django.core.files.uploadedfile import SimpleUploadedFile
 from board.models import Activity
-from ..board.serializers import ActivitySerializer
+from ..board.serializers import ActivitySerializer, ProfileSerializer
+from account.models import Profile
 
 
 
@@ -149,3 +150,137 @@ class TestActivitySerializer:
 
         assert updated_activity.text == "List Created(updated)"
         assert updated_activity.user == user
+
+
+
+@pytest.mark.django_db
+class TestProfileSerializer:
+    """Test suite for ProfileSerializer."""
+
+    @pytest.fixture
+    def valid_data(self, user):
+        return {
+            "user": user.id,
+            "bio": "Software Engineer",
+        }
+
+    @pytest.fixture
+    def image_file(self):
+        return SimpleUploadedFile(
+            "avatar.jpg",
+            b"fake image content",
+            content_type="image/jpg"
+            )
+
+    @pytest.fixture
+    def valid_data_with_image(self, valid_data, image_file):
+        data = valid_data.copy()
+        data["profile_image"] = image_file
+        return data
+
+    @pytest.fixture
+    def profile(self, user):
+        return Profile.objects.create(
+            user=user,
+            bio="Backend Developer",
+        )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data):
+        serializer = ProfileSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_serializer_is_valid_without_profile_image(self, valid_data):
+        serializer = ProfileSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_serializer_accepts_blank_bio(self, valid_data):
+        data = valid_data.copy()
+        data["bio"] = ""
+
+        serializer = ProfileSerializer(data=data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_user_is_required(self, valid_data):
+        data = valid_data.copy()
+        data.pop("user")
+
+        serializer = ProfileSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert "user" in serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(self, profile):
+        serializer = ProfileSerializer(profile)
+
+        expected_fields = {
+            "user",
+            "profile_image",
+            "bio",
+        }
+
+        assert set(serializer.data.keys()) == expected_fields
+
+    def test_serializer_outputs_correct_values(self, profile):
+        serializer = ProfileSerializer(profile)
+
+        assert serializer.data["user"] == profile.user.id
+        assert serializer.data["bio"] == profile.bio
+        assert serializer.data["profile_image"] is None
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_profile(self, valid_data):
+        serializer = ProfileSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+        profile = serializer.save()
+
+        assert isinstance(profile, Profile)
+        assert profile.user.id == valid_data["user"]
+        assert profile.bio == valid_data["bio"]
+        assert profile.profile_image == None
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_profile(self, profile):
+        serializer = ProfileSerializer(
+            instance=profile,
+            data={
+                "bio": "Senior Backend Developer",
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated_profile = serializer.save()
+
+        assert updated_profile.bio == "Senior Backend Developer"
+        assert updated_profile.user == profile.user
+
+    # --------------------------------------------------------
+    # Read-only / Writable fields
+    # --------------------------------------------------------
+
+    def test_all_fields_are_writable(self):
+        serializer = ProfileSerializer()
+
+        assert serializer.fields["user"].read_only is False
+        assert serializer.fields["profile_image"].read_only is False
+        assert serializer.fields["bio"].read_only is False
