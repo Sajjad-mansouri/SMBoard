@@ -11,7 +11,8 @@ from ..board.serializers import (
     BoardSerializer,
     CardLabelSerializer,
     CardSerializer,
-    CheckListItemSerializer
+    CheckListItemSerializer,
+    CheckListSerializer
     )
 from account.models import Profile
 
@@ -1085,3 +1086,142 @@ class TestCheckListItemSerializer:
         assert updated.name == "Review unit tests"
         assert updated.is_completed is True
         assert updated.checklist == checklist_item.checklist
+
+
+@pytest.mark.django_db
+class TestCheckListSerializer:
+    """Test suite for CheckListSerializer."""
+
+    @pytest.fixture
+    def valid_data(self, card):
+        return {
+            "card": card.id,
+            "name": "Development",
+        }
+
+    @pytest.fixture
+    def checklist(self, card):
+        return CheckList.objects.create(
+            card=card,
+            name="Development",
+        )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data):
+        serializer = CheckListSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize(
+        "field",
+        [
+            "card",
+            "name",
+        ],
+    )
+    def test_required_fields(self, valid_data, field):
+        data = valid_data.copy()
+        data.pop(field)
+
+        serializer = CheckListSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert field in serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(self, checklist):
+        serializer = CheckListSerializer(checklist)
+
+        expected_fields = {
+            "id",
+            "name",
+            "checklist_items",
+            "card",
+        }
+
+        assert set(serializer.data.keys()) == expected_fields
+
+    def test_serializer_outputs_correct_values(self, checklist):
+        serializer = CheckListSerializer(checklist)
+
+        assert serializer.data["id"] == checklist.id
+        assert serializer.data["name"] == checklist.name
+        assert serializer.data["card"] == checklist.card.id
+
+    def test_serializer_returns_empty_checklist_items(self, checklist):
+        serializer = CheckListSerializer(checklist)
+
+        assert serializer.data["checklist_items"] == []
+
+    def test_serializer_serializes_nested_checklist_items(self, checklist):
+        item1 = ChecklistItem.objects.create(
+            checklist=checklist,
+            name="Write code",
+            is_completed=False,
+        )
+
+        item2 = ChecklistItem.objects.create(
+            checklist=checklist,
+            name="Write tests",
+            is_completed=True,
+        )
+
+        serializer = CheckListSerializer(checklist)
+
+        assert len(serializer.data["checklist_items"]) == 2
+
+        names = {
+            item["name"]
+            for item in serializer.data["checklist_items"]
+        }
+
+        assert names == {
+            item1.name,
+            item2.name,
+        }
+
+    def test_checklist_items_is_read_only(self):
+        serializer = CheckListSerializer()
+
+        assert serializer.fields["checklist_items"].read_only is True
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_checklist(self, valid_data):
+        serializer = CheckListSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+        checklist = serializer.save()
+
+        assert isinstance(checklist, CheckList)
+        assert checklist.card.id == valid_data["card"]
+        assert checklist.name == valid_data["name"]
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_checklist(self, checklist):
+        serializer = CheckListSerializer(
+            instance=checklist,
+            data={
+                "name": "Updated Checklist",
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.name == "Updated Checklist"
+        assert updated.card == checklist.card
