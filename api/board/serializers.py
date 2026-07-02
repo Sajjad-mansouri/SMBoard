@@ -301,9 +301,7 @@ class CardArchivedSerializer(CardSerializer):
 	class Meta(CardSerializer.Meta):
 		model = Card
 		fields = ["archived", "name"]
-	def to_internal_value(self, data):
-		print(data)
-		return super().to_internal_value(data)
+
 class BoardMembershipSerializer(serializers.ModelSerializer):
 	user = UserSerializer(read_only=True)
 	user_id = serializers.PrimaryKeyRelatedField(queryset=UserModel.objects.all(), source="user",write_only=True)

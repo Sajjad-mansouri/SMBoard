@@ -40,7 +40,8 @@ from ..board.serializers import (
     ImageAttachmentSerializer,
     LinkAttachmentSerializer,
     CardMembershipSerializer,
-    CardNestedSerializer
+    CardNestedSerializer,
+    CardArchivedSerializer
     )
 from account.models import Profile
 
@@ -2528,3 +2529,97 @@ class TestCardNestedSerializer:
         serializer = CardNestedSerializer()
 
         assert serializer.fields["archived"].read_only is True
+
+
+
+@pytest.mark.django_db
+class TestCardArchivedSerializer:
+    """Test suite for CardArchivedSerializer."""
+
+    @pytest.fixture
+    def valid_data(self):
+        return {
+            "name": "Updated Card",
+            "archived": True,
+        }
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data):
+        serializer = CardArchivedSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(self, card):
+        serializer = CardArchivedSerializer(card)
+
+        assert set(serializer.data.keys()) == {
+            "name",
+            "archived",
+        }
+
+    def test_serializer_outputs_correct_values(self, card):
+        serializer = CardArchivedSerializer(card)
+
+        assert serializer.data["name"] == card.name
+        assert serializer.data["archived"] == card.archived
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_archived_status(self, card):
+        serializer = CardArchivedSerializer(
+            instance=card,
+            data={
+                "archived": True,
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.archived is True
+        assert updated.name == card.name
+
+    def test_update_name(self, card):
+        serializer = CardArchivedSerializer(
+            instance=card,
+            data={
+                "name": "Archived Card",
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.name == "Archived Card"
+        assert updated.archived == card.archived
+
+    def test_update_name_and_archived(self, card):
+        serializer = CardArchivedSerializer(
+            instance=card,
+            data={
+                "name": "Archived Card",
+                "archived": True,
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.name == "Archived Card"
+        assert updated.archived is True
