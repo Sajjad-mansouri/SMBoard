@@ -50,9 +50,11 @@ class UserSerializer(serializers.ModelSerializer):
 		fields = ["id", "username", "email", "profile_image", "fullname", "first_name", "last_name", "profile"]
 
 	def get_profile_image(self, obj):
-		return obj.profile.profile_image.url if obj.profile.profile_image else ""
+		if hasattr(obj, "profile"):
+			return obj.profile.profile_image.url if obj.profile.profile_image else ""
 
-
+		else:
+			return ""
 
 	def get_fullname(self, obj):
 		return obj.get_full_name()
@@ -309,13 +311,6 @@ class BoardMembershipSerializer(serializers.ModelSerializer):
 		model = BoardMembership
 		fields = ["id", "user", "member_type", "accepted", "board", "user_id"]
 
-	def to_internal_value(self, data):
-		print("data", data)
-		return super().to_internal_value(data)
-	def is_valid(self, *, raise_exception=False):
-		err = super().is_valid(raise_exception=False)
-		print(self._errors)
-		return err
 class CustomListSerializer(serializers.ListSerializer):
 	def update(self, instance, validated_data):
 

@@ -21,7 +21,8 @@ from board.models import (
     LinkAttachment,
     CardMembership,
     CardWatch,
-    Comment
+    Comment,
+    BoardMembership
     )
 from ..board.serializers import (
     ActivitySerializer, 
@@ -41,7 +42,8 @@ from ..board.serializers import (
     LinkAttachmentSerializer,
     CardMembershipSerializer,
     CardNestedSerializer,
-    CardArchivedSerializer
+    CardArchivedSerializer,
+    BoardMembershipSerializer
     )
 from account.models import Profile
 
@@ -2623,3 +2625,154 @@ class TestCardArchivedSerializer:
 
         assert updated.name == "Archived Card"
         assert updated.archived is True
+
+
+
+@pytest.mark.django_db
+class TestBoardMembershipSerializer:
+    """Test suite for BoardMembershipSerializer."""
+
+    @pytest.fixture
+    def valid_data(self, another_user, board):
+        return {
+            "user_id": another_user.id,
+            "board": board.id,
+            "member_type": "member",
+            "accepted": False,
+        }
+
+    @pytest.fixture
+    def membership(self, another_user, board):
+        return BoardMembership.objects.create(
+            user=another_user,
+            board=board,
+            member_type="member",
+            accepted=False,
+        )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data):
+        serializer = BoardMembershipSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize(
+        "field",
+        [
+            "user_id",
+            "board",
+        ],
+    )
+    def test_required_fields(self, valid_data, field):
+        data = valid_data.copy()
+        data.pop(field)
+
+        serializer = BoardMembershipSerializer(data=data)
+        assert not serializer.is_valid()
+        assert field in serializer.errors
+
+    def test_user_id_maps_to_user(self, valid_data, another_user):
+        serializer = BoardMembershipSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["user"] == another_user
+
+    def test_user_field_is_read_only(self, valid_data, another_user):
+        data = valid_data.copy()
+        data["user"] = another_user.id
+
+        serializer = BoardMembershipSerializer(data=data)
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["user"].id == valid_data["user_id"]
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(self, membership):
+        serializer = BoardMembershipSerializer(membership)
+
+        assert set(serializer.data.keys()) == {
+            "id",
+            "user",
+            "member_type",
+            "accepted",
+            "board",
+        }
+
+    def test_user_id_is_write_only(self, membership):
+        serializer = BoardMembershipSerializer(membership)
+
+        assert "user_id" not in serializer.data
+
+    def test_user_is_nested_serializer(self, membership):
+        serializer = BoardMembershipSerializer(membership)
+
+        assert serializer.data["user"]["id"] == membership.user.id
+        assert serializer.data["user"]["username"] == membership.user.username
+
+    def test_serializer_outputs_correct_values(self, membership):
+        serializer = BoardMembershipSerializer(membership)
+
+        assert serializer.data["id"] == membership.id
+        assert serializer.data["board"] == membership.board.id
+        assert serializer.data["member_type"] == membership.member_type
+        assert serializer.data["accepted"] == membership.accepted
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_membership(self, valid_data, another_user):
+        serializer = BoardMembershipSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+        membership = serializer.save()
+
+        assert isinstance(membership, BoardMembership)
+        assert membership.user == another_user
+        assert membership.board.id == valid_data["board"]
+        assert membership.member_type == valid_data["member_type"]
+        assert membership.accepted == valid_data["accepted"]
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_membership(self, membership):
+        serializer = BoardMembershipSerializer(
+            instance=membership,
+            data={
+                "accepted": True,
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.accepted is True
+        assert updated.user == membership.user
+        assert updated.board == membership.board
+
+    # --------------------------------------------------------
+    # Field configuration
+    # --------------------------------------------------------
+
+    def test_user_field_is_read_only(self):
+        serializer = BoardMembershipSerializer()
+
+        assert serializer.fields["user"].read_only is True
+
+    def test_user_id_field_is_write_only(self):
+        serializer = BoardMembershipSerializer()
+
+        assert serializer.fields["user_id"].write_only is True
