@@ -24,7 +24,8 @@ from board.models import (
     Comment,
     BoardMembership,
     BoardList,
-    BoardWatch
+    BoardWatch,
+    
     )
 from ..board.serializers import (
     ActivitySerializer, 
@@ -52,9 +53,10 @@ from ..board.serializers import (
     BoardNestedSerializer,
     CardOrderSerializer,
     BoardWatchSerializer,
-    CardWatchSerializer
+    CardWatchSerializer,
+    NotificationSerializer
     )
-from account.models import Profile
+from account.models import Profile, Notification
 
 
 
@@ -3974,3 +3976,269 @@ class TestCardWatchSerializer:
         updated = serializer.save()
 
         assert updated.watch is True
+
+
+
+@pytest.mark.django_db
+class TestNotificationSerializer:
+    """Test suite for NotificationSerializer."""
+
+    @pytest.fixture
+    def valid_data(self):
+        return {
+            "create_board": True,
+            "edit_background": True,
+            "watch_board": True,
+            "create_card": True,
+            "edit_card_title": True,
+            "watch_card": True,
+            "email_frequency": "daily",
+        }
+
+    @pytest.fixture
+    def notification(self, user):
+        return Notification.objects.create(
+            user=user,
+            create_board=True,
+            create_card=True,
+            email_frequency="weekly",
+        )
+
+    @pytest.fixture
+    def serializer_context(self, api_request):
+        return {"request": api_request}
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data, serializer_context):
+        serializer = NotificationSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_user_is_taken_from_request(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = NotificationSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["user"] == user
+
+    def test_payload_user_is_overwritten_by_request_user(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+        another_user,
+    ):
+        valid_data["user"] = another_user.id
+
+        serializer = NotificationSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["user"] == user
+
+    def test_missing_request_raises_key_error(self, valid_data):
+        serializer = NotificationSerializer(
+            data=valid_data,
+            context={},
+        )
+
+        with pytest.raises(KeyError):
+            serializer.is_valid()
+
+    @pytest.mark.parametrize(
+        "email_frequency",
+        [
+            "daily",
+            "weekly",
+            "instantly",
+            "never",
+        ],
+    )
+    def test_valid_email_frequency_choices(
+        self,
+        valid_data,
+        email_frequency,
+        serializer_context,
+    ):
+        valid_data["email_frequency"] = email_frequency
+
+        serializer = NotificationSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize(
+        "email_frequency",
+        [
+            "hourly",
+            "monthly",
+            "yearly",
+            "invalid",
+            "",
+        ],
+    )
+    def test_invalid_email_frequency(
+        self,
+        valid_data,
+        email_frequency,
+        serializer_context,
+    ):
+        valid_data["email_frequency"] = email_frequency
+
+        serializer = NotificationSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert not serializer.is_valid()
+        assert "email_frequency" in serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_all_model_fields(
+        self,
+        notification,
+    ):
+        serializer = NotificationSerializer(notification)
+
+        expected_fields = {
+            field.name
+            for field in Notification._meta.get_fields()
+            if field.concrete and not field.many_to_many
+        }
+
+        assert set(serializer.data.keys()) == expected_fields
+
+    def test_serializer_outputs_correct_values(
+        self,
+        notification,
+    ):
+        serializer = NotificationSerializer(notification)
+
+        assert serializer.data["user"] == notification.user.id
+        assert serializer.data["create_board"] is True
+        assert serializer.data["create_card"] is True
+        assert serializer.data["email_frequency"] == "weekly"
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_notification(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = NotificationSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        notification = serializer.save()
+        print("notification.user", notification.user, "user",user)
+        assert notification.user == user
+
+        for field, value in valid_data.items():
+            if field == "user":
+                continue
+            assert getattr(notification, field) == value
+
+    def test_create_notification_with_default_values(
+        self,
+        serializer_context,
+        user,
+    ):
+        serializer = NotificationSerializer(
+            data={},
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        notification = serializer.save()
+
+        assert notification.user == user
+        assert notification.email_frequency == "instantly"
+        assert notification.create_board is False
+        assert notification.create_card is False
+        assert notification.watch_card is False
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_notification(
+        self,
+        notification,
+        serializer_context
+    ):
+        update_data = {
+            "create_board": False,
+            "watch_card": True,
+            "email_frequency": "never",
+        }
+
+        serializer = NotificationSerializer(
+            instance=notification,
+            data=update_data,
+            partial=True,
+            context=serializer_context
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        for field, value in update_data.items():
+            if field == "user":
+                continue
+            assert getattr(updated, field) == value
+
+    def test_partial_update_preserves_other_fields(
+        self,
+        notification,
+        serializer_context
+    ):
+        original_create_card = notification.create_card
+        original_watch_board = notification.watch_board
+
+        serializer = NotificationSerializer(
+            instance=notification,
+            data={
+                "email_frequency": "daily",
+            },
+            partial=True,
+            context=serializer_context
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.email_frequency == "daily"
+        assert updated.create_card == original_create_card
+        assert updated.watch_board == original_watch_board
