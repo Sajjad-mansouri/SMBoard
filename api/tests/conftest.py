@@ -1,5 +1,8 @@
+import io
 import factory
 import pytest
+from PIL import Image
+from django.core.files.uploadedfile import SimpleUploadedFile
 from factory.django import DjangoModelFactory
 from rest_framework.test import APIRequestFactory
 from django.contrib.auth import get_user_model
@@ -85,3 +88,24 @@ def api_request(user, request_factory):
 	request = request_factory.post("/")
 	request.user = user
 	return request
+
+
+@pytest.fixture
+def simple_uploaded_image_file():
+        file = io.BytesIO()
+        image = Image.new("RGB", (100,100), color="red")
+        image.save(file, format="JPEG")
+        file.seek(0)
+        return SimpleUploadedFile(
+                "img_file.jpg",
+                file.read(),
+                content_type="image/jpeg"
+            )
+
+@pytest.fixture
+def simple_uploaded_file():
+        return SimpleUploadedFile(
+                "file.txt",
+                b"fake content",
+                content_type="plain/text"
+            )

@@ -2,6 +2,8 @@ import io
 import mimetypes
 import pytest
 from PIL import Image
+from datetime import timedelta
+from django.utils import timezone
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
 from django.http import Http404
@@ -17,7 +19,9 @@ from board.models import (
     CardImage, 
     CardFile, 
     LinkAttachment,
-    CardMembership
+    CardMembership,
+    CardWatch,
+    Comment
     )
 from ..board.serializers import (
     ActivitySerializer, 
@@ -35,7 +39,8 @@ from ..board.serializers import (
     FileAttachmentSerializer,
     ImageAttachmentSerializer,
     LinkAttachmentSerializer,
-    CardMembershipSerializer
+    CardMembershipSerializer,
+    CardNestedSerializer
     )
 from account.models import Profile
 
@@ -2179,3 +2184,347 @@ class TestCardMembershipSerializer:
 
         assert updated.user == another_user
         assert updated.card == membership.card
+
+
+
+@pytest.mark.django_db
+class TestCardNestedSerializer:
+    """Test suite for CardNestedSerializer."""
+
+    @pytest.fixture
+    def valid_data(self, board_list):
+        return {
+            "board_list": board_list.id,
+            "name": "Implement authentication",
+            "description": "Card description",
+            "completed": False,
+            "start_date": "2026-07-01",
+            "due_date": "2026-07-10T14:30",
+        }
+    @pytest.fixture
+    def valid_data_create(self, board_list):
+        return {
+            "board_list": board_list,
+            "name": "Implement authentication",
+            "description": "Card description",
+            "completed": False,
+            "start_date": timezone.now().date(),
+            "due_date": timezone.now() + timedelta(days=2),
+        }
+
+    @pytest.fixture
+    def serializer_context(self, api_request):
+        return {"request": api_request}
+
+    @pytest.fixture
+    def card_with_activity(self, user, board, board_list, card):
+        activity = Activity.objects.create(user=user, board=board, board_list=board_list, card=card, action_type="edit_card_title", text="Card Title Changed")
+        return card
+
+    @pytest.fixture
+    def card_with_cover_image(self, board_list, valid_data_create, simple_uploaded_image_file):
+
+        valid_data_create["cover_image"] = simple_uploaded_image_file
+        card = Card.objects.create(**valid_data_create)
+        return card
+
+    @pytest.fixture
+    def card_with_cover_image_fk(self, user, card, board_list, valid_data_create, simple_uploaded_image_file):
+
+        card_image = CardImage.objects.create(user=user, card=card, file=simple_uploaded_image_file)
+        valid_data_create["cover_image_fk"] = card_image
+        return Card.objects.create(**valid_data_create)
+
+    @pytest.fixture
+    def watched_card(self, user, card):
+        card_watch = CardWatch.objects.create(user=user, card=card, watch=True)
+        return card
+
+    @pytest.fixture
+    def card_with_comment(self, user, card):
+        Comment.objects.create(user=user, card=card, content="comment")
+        return card
+
+    @pytest.fixture
+    def card_with_file_attachment(self, user, card, simple_uploaded_file):
+        CardFile.objects.create(user=user, card=card, file=simple_uploaded_file)
+        return card
+
+    @pytest.fixture
+    def card_with_image_attachment(self, user, card, simple_uploaded_image_file):
+        CardImage.objects.create(user=user, card=card, file=simple_uploaded_image_file)
+        return card
+
+    @pytest.fixture
+    def card_with_link_attachment(self, user, card, simple_uploaded_image_file):
+        address = "https://test-website.com"
+        LinkAttachment.objects.create(user=user, card=card, file=address)
+        return card
+
+    @pytest.fixture
+    def card_with_membership(self, user, card):
+        CardMembership.objects.create(user=user, card=card)
+        return card
+
+    @pytest.fixture
+    def card_with_checklist(self, user, card):
+        CheckList.objects.create(card=card, name="Checklist One")
+        return card
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data):
+        serializer = CardNestedSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_start_date_accepts_none(self, valid_data):
+        data = valid_data.copy()
+        data["start_date"] = None
+
+        serializer = CardNestedSerializer(data=data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_due_date_accepts_none(self, valid_data):
+        data = valid_data.copy()
+        data["due_date"] = None
+
+        serializer = CardNestedSerializer(data=data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_invalid_start_date(self, valid_data):
+        data = valid_data.copy()
+        data["start_date"] = "01-07-2026"
+
+        serializer = CardNestedSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert "start_date" in serializer.errors
+
+    def test_invalid_due_date(self, valid_data):
+        data = valid_data.copy()
+        data["due_date"] = "2026/07/10"
+
+        serializer = CardNestedSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert "due_date" in serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_contains_expected_fields(
+        self,
+        card,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            card,
+            context=serializer_context,
+        )
+
+        expected = {
+            "id",
+            "board_list",
+            "board_list_name",
+            "name",
+            "description",
+            "start_date",
+            "due_date",
+            "board",
+            "labels",
+            "card_labels",
+            "completed",
+            "order",
+            "archived",
+            "cover_image",
+            "cover_image_fk",
+            "cover_img",
+            "cover_color",
+            "card_memberships",
+            "card_checklists",
+            "card_comments",
+            "watched",
+            "cardfile_set",
+            "cardimage_set",
+            "linkattachment_set",
+            "card_activities",
+        }
+
+        assert set(serializer.data.keys()) == expected
+
+    # --------------------------------------------------------
+    # cover_img
+    # --------------------------------------------------------
+
+    def test_cover_img_returns_empty_string(
+        self,
+        card,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            card,
+            context=serializer_context,
+        )
+
+        assert serializer.data["cover_img"] == ""
+
+    def test_cover_img_uses_cover_image(
+        self,
+        card_with_cover_image,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            card_with_cover_image,
+            context=serializer_context,
+        )
+
+        assert (
+            serializer.data["cover_img"]
+            == card_with_cover_image.cover_image.url
+        )
+
+    def test_cover_img_uses_cover_image_fk(
+        self,
+        card_with_cover_image_fk,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            card_with_cover_image_fk,
+            context=serializer_context,
+        )
+
+        assert (
+            serializer.data["cover_img"]
+            == card_with_cover_image_fk.cover_image_fk.file.url
+        )
+
+    # --------------------------------------------------------
+    # watched
+    # --------------------------------------------------------
+
+    def test_watched_returns_false(
+        self,
+        card,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            card,
+            context=serializer_context,
+        )
+
+        assert serializer.data["watched"] is False
+
+    def test_watched_returns_true(
+        self,
+        watched_card,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            watched_card,
+            context=serializer_context,
+        )
+
+        assert serializer.data["watched"] is True
+
+    # --------------------------------------------------------
+    # Nested serializers
+    # --------------------------------------------------------
+
+    def test_memberships_are_serialized(
+        self,
+        card_with_membership,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            card_with_membership,
+            context=serializer_context,
+        )
+
+        assert len(serializer.data["card_memberships"]) == 1
+
+    def test_checklists_are_serialized(
+        self,
+        card_with_checklist,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            card_with_checklist,
+            context=serializer_context,
+        )
+
+        assert len(serializer.data["card_checklists"]) == 1
+
+    def test_comments_are_serialized(
+        self,
+        card_with_comment,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            card_with_comment,
+            context=serializer_context,
+        )
+
+        assert len(serializer.data["card_comments"]) == 1
+
+    def test_file_attachments_are_serialized(
+        self,
+        card_with_file_attachment,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            card_with_file_attachment,
+            context=serializer_context,
+        )
+
+        assert len(serializer.data["cardfile_set"]) == 1
+
+    def test_image_attachments_are_serialized(
+        self,
+        card_with_image_attachment,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            card_with_image_attachment,
+            context=serializer_context,
+        )
+
+        assert len(serializer.data["cardimage_set"]) == 1
+
+    def test_link_attachments_are_serialized(
+        self,
+        card_with_link_attachment,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            card_with_link_attachment,
+            context=serializer_context,
+        )
+
+        assert len(serializer.data["linkattachment_set"]) == 1
+
+    def test_activities_are_serialized(
+        self,
+        card_with_activity,
+        serializer_context,
+    ):
+        serializer = CardNestedSerializer(
+            card_with_activity,
+            context=serializer_context,
+        )
+
+        assert len(serializer.data["card_activities"]) == 1
+
+    # --------------------------------------------------------
+    # Field configuration
+    # --------------------------------------------------------
+
+    def test_archived_is_read_only(self):
+        serializer = CardNestedSerializer()
+
+        assert serializer.fields["archived"].read_only is True

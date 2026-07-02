@@ -297,13 +297,6 @@ class CardNestedSerializer(CardSerializer):
 		request = self.context["request"]
 		return obj.card_cardwatchs.filter(user=request.user, watch=True).exists()
 
-	def to_internal_value(self, data):
-		print(data)
-		return super().to_internal_value(data)
-	def is_valid(self, *, raise_exception=False):
-		err = super().is_valid(raise_exception=False)
-		print(self._errors)
-		return err
 class CardArchivedSerializer(CardSerializer):
 	class Meta(CardSerializer.Meta):
 		model = Card
