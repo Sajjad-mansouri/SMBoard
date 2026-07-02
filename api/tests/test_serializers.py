@@ -16,7 +16,9 @@ from board.models import (
     Comment, 
     CardImage, 
     CardFile, 
-    LinkAttachment)
+    LinkAttachment,
+    CardMembership
+    )
 from ..board.serializers import (
     ActivitySerializer, 
     ProfileSerializer, 
@@ -32,7 +34,8 @@ from ..board.serializers import (
     LinkAttachment,
     FileAttachmentSerializer,
     ImageAttachmentSerializer,
-    LinkAttachmentSerializer
+    LinkAttachmentSerializer,
+    CardMembershipSerializer
     )
 from account.models import Profile
 
@@ -2076,3 +2079,103 @@ class TestLinkAttachmentSerializer:
 
         assert updated.name == "SMBoard"
         assert updated.file == "https://test-website.com"
+
+
+
+@pytest.mark.django_db
+class TestCardMembershipSerializer:
+    """Test suite for CardMembershipSerializer."""
+
+    @pytest.fixture
+    def valid_data(self, user, card):
+        return {
+            "user": user.id,
+            "card": card.id,
+        }
+
+    @pytest.fixture
+    def membership(self, user, card):
+        return CardMembership.objects.create(
+            user=user,
+            card=card,
+        )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data):
+        serializer = CardMembershipSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize(
+        "field",
+        [
+            "user",
+            "card",
+        ],
+    )
+    def test_required_fields(self, valid_data, field):
+        data = valid_data.copy()
+        data.pop(field)
+
+        serializer = CardMembershipSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert field in serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(self, membership):
+        serializer = CardMembershipSerializer(membership)
+
+        assert set(serializer.data.keys()) == {
+            "id",
+            "user",
+            "card",
+        }
+
+    def test_serializer_outputs_correct_values(self, membership):
+        serializer = CardMembershipSerializer(membership)
+
+        assert serializer.data["id"] == membership.id
+        assert serializer.data["user"] == membership.user.id
+        assert serializer.data["card"] == membership.card.id
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_membership(self, valid_data):
+        serializer = CardMembershipSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+        membership = serializer.save()
+
+        assert isinstance(membership, CardMembership)
+        assert membership.user.id == valid_data["user"]
+        assert membership.card.id == valid_data["card"]
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_membership(self, membership, another_user):
+        serializer = CardMembershipSerializer(
+            instance=membership,
+            data={
+                "user": another_user.id,
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.user == another_user
+        assert updated.card == membership.card
