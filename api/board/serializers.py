@@ -435,7 +435,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 		return super().to_internal_value(data)
 
 
-class EmailInbocSerializer(serializers.ModelSerializer):
+class EmailInboxSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = EmailInbox
 		fields = ["name", "email", "message"]

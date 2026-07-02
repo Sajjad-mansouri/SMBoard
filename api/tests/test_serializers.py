@@ -54,9 +54,10 @@ from ..board.serializers import (
     CardOrderSerializer,
     BoardWatchSerializer,
     CardWatchSerializer,
-    NotificationSerializer
+    NotificationSerializer,
+    EmailInboxSerializer
     )
-from account.models import Profile, Notification
+from account.models import Profile, Notification, EmailInbox
 
 
 
@@ -4242,3 +4243,118 @@ class TestNotificationSerializer:
         assert updated.email_frequency == "daily"
         assert updated.create_card == original_create_card
         assert updated.watch_board == original_watch_board
+
+
+
+
+@pytest.mark.django_db
+class TestEmailInboxSerializer:
+    """Test suite for EmailInboxSerializer."""
+
+    @pytest.fixture
+    def valid_data(self):
+        return {
+            "name": "test user",
+            "email": "test_user@example.com",
+            "message": "Hello, I would like more information.",
+        }
+
+    @pytest.fixture
+    def email_inbox(self):
+        return EmailInbox.objects.create(
+            name="test user",
+            email="test_user@example.com",
+            message="Hello, I would like more information.",
+        )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data):
+        serializer = EmailInboxSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(self, email_inbox):
+        serializer = EmailInboxSerializer(email_inbox)
+
+        expected_fields = {
+            "name",
+            "email",
+            "message",
+        }
+
+        assert set(serializer.data.keys()) == expected_fields
+
+    def test_serializer_outputs_correct_values(self, email_inbox):
+        serializer = EmailInboxSerializer(email_inbox)
+
+        assert serializer.data == {
+            "name": email_inbox.name,
+            "email": email_inbox.email,
+            "message": email_inbox.message,
+        }
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_email_inbox(self, valid_data):
+        serializer = EmailInboxSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+        email_inbox = serializer.save()
+
+        assert isinstance(email_inbox, EmailInbox)
+
+        for field, value in valid_data.items():
+            assert getattr(email_inbox, field) == value
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_email_inbox(self, email_inbox):
+        update_data = {
+            "name": "test user",
+            "email": "test_user@example.com",
+            "message": "Updated message",
+        }
+
+        serializer = EmailInboxSerializer(
+            instance=email_inbox,
+            data=update_data,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        for field, value in update_data.items():
+            assert getattr(updated, field) == value
+
+    def test_partial_update_preserves_unspecified_fields(self, email_inbox):
+        original_email = email_inbox.email
+        original_message = email_inbox.message
+
+        serializer = EmailInboxSerializer(
+            instance=email_inbox,
+            data={
+                "name": "Updated Name",
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.name == "Updated Name"
+        assert updated.email == original_email
+        assert updated.message == original_message

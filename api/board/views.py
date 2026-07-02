@@ -1150,7 +1150,7 @@ def message_feedback(request, name, user_email, message):
 	email.send(fail_silently=False)
 class ContactMessage(CreateAPIView):
 	permission_classes = [AllowAny]
-	serializer_class = serializers.EmailInbocSerializer
+	serializer_class = serializers.EmailInboxSerializer
 
 	def perform_create(self, serializer):
 		instance = serializer.save()
