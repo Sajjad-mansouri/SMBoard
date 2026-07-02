@@ -46,7 +46,8 @@ from ..board.serializers import (
     CardArchivedSerializer,
     BoardMembershipSerializer,
     BoardListOrderSerializer,
-    BoardListSerializer
+    BoardListSerializer,
+    BoardListArchivedSerializer
     )
 from account.models import Profile
 
@@ -3140,3 +3141,84 @@ class TestBoardListSerializer:
         assert updated.name == "In Progress"
         assert updated.cover_color == "#000000"
         assert updated.board == board_list.board
+
+
+
+@pytest.mark.django_db
+class TestBoardListArchivedSerializer:
+    """Test suite for BoardListArchivedSerializer."""
+
+    @pytest.fixture
+    def valid_data(self):
+        return {
+            "archived": True,
+        }
+
+    @pytest.fixture
+    def board_list(self, board):
+        return BoardList.objects.create(
+            board=board,
+            name="To Do",
+            archived=False,
+        )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data):
+        serializer = BoardListArchivedSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_archived_is_default_false(self):
+        serializer = BoardListArchivedSerializer(data={})
+
+        assert serializer.is_valid()
+
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_field(self, board_list):
+        serializer = BoardListArchivedSerializer(board_list)
+
+        assert set(serializer.data.keys()) == {"archived"}
+
+    def test_serializer_outputs_correct_value(self, board_list):
+        serializer = BoardListArchivedSerializer(board_list)
+
+        assert serializer.data["archived"] == board_list.archived
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_archived(self, board_list):
+        serializer = BoardListArchivedSerializer(
+            instance=board_list,
+            data={
+                "archived": True,
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.archived is True
+
+    def test_partial_update(self, board_list):
+        serializer = BoardListArchivedSerializer(
+            instance=board_list,
+            data={},
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.archived is False
