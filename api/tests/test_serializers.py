@@ -23,7 +23,8 @@ from board.models import (
     CardWatch,
     Comment,
     BoardMembership,
-    BoardList
+    BoardList,
+    BoardWatch
     )
 from ..board.serializers import (
     ActivitySerializer, 
@@ -47,7 +48,8 @@ from ..board.serializers import (
     BoardMembershipSerializer,
     BoardListOrderSerializer,
     BoardListSerializer,
-    BoardListArchivedSerializer
+    BoardListArchivedSerializer,
+    BoardNestedSerializer
     )
 from account.models import Profile
 
@@ -3222,3 +3224,150 @@ class TestBoardListArchivedSerializer:
         updated = serializer.save()
 
         assert updated.archived is False
+
+
+
+@pytest.mark.django_db
+class TestBoardNestedSerializer:
+    """Test suite for BoardNestedSerializer."""
+
+    @pytest.fixture
+    def serializer_context(self, api_request):
+        return {"request": api_request}
+
+    @pytest.fixture
+    def board_membership(self, board, another_user):
+        return BoardMembership.objects.create(board=board, user=another_user)
+
+    @pytest.fixture
+    def activity(self, user, board):
+        return Activity.objects.create(user=user, board=board, action_type="create_list", text="List Created")
+
+    @pytest.fixture
+    def watched_board(self, user, board):
+        BoardWatch.objects.create(board=board, user=user, watch=True)
+        return board
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(
+        self,
+        board,
+        serializer_context,
+    ):
+        serializer = BoardNestedSerializer(
+            board,
+            context=serializer_context,
+        )
+
+        expected_fields = {
+            "id",
+            "owner",
+            "name",
+            "status",
+            "background_color",
+            "background_image",
+            "cards",
+            "is_owner",
+            "closed",
+            "board_lists",
+            "board_watched",
+            "board_memberships",
+            "board_activities",
+        }
+
+        assert set(serializer.data.keys()) == expected_fields
+
+    # --------------------------------------------------------
+    # board_lists
+    # --------------------------------------------------------
+
+    def test_board_lists_is_empty(
+        self,
+        board,
+        serializer_context,
+    ):
+        serializer = BoardNestedSerializer(
+            board,
+            context=serializer_context,
+        )
+
+        assert serializer.data["board_lists"] == []
+
+    def test_board_lists_are_serialized(
+        self,
+        board_list,
+        serializer_context,
+    ):
+        serializer = BoardNestedSerializer(
+            board_list.board,
+            context=serializer_context,
+        )
+
+        assert len(serializer.data["board_lists"]) == 1
+        assert serializer.data["board_lists"][0]["id"] == board_list.id
+        assert serializer.data["board_lists"][0]["name"] == board_list.name
+
+    # --------------------------------------------------------
+    # board_memberships
+    # --------------------------------------------------------
+
+    def test_board_memberships_are_serialized(
+        self,
+        board_membership,
+        serializer_context,
+    ):
+        serializer = BoardNestedSerializer(
+            board_membership.board,
+            context=serializer_context,
+        )
+
+        # owner membership from signal + created membership
+        assert len(serializer.data["board_memberships"]) >= 1
+
+    # --------------------------------------------------------
+    # board_activities
+    # --------------------------------------------------------
+
+    def test_board_activities_are_serialized(
+        self,
+        activity,
+        serializer_context,
+    ):
+        serializer = BoardNestedSerializer(
+            activity.board,
+            context=serializer_context,
+        )
+
+        assert len(serializer.data["board_activities"]) == 1
+        assert serializer.data["board_activities"][0]["id"] == activity.id
+
+    # --------------------------------------------------------
+    # board_watched
+    # --------------------------------------------------------
+
+    def test_board_watched_returns_false(
+        self,
+        board,
+        serializer_context,
+    ):
+        serializer = BoardNestedSerializer(
+            board,
+            context=serializer_context,
+        )
+
+        assert serializer.data["board_watched"] is False
+
+    def test_board_watched_returns_true(
+        self,
+        watched_board,
+        serializer_context,
+    ):
+        serializer = BoardNestedSerializer(
+            watched_board,
+            context=serializer_context,
+        )
+
+        assert serializer.data["board_watched"] is True
