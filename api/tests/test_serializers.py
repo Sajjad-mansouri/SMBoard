@@ -1,6 +1,7 @@
+import io
 import mimetypes
 import pytest
-
+from PIL import Image
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIRequestFactory
 from django.http import Http404
@@ -29,7 +30,8 @@ from ..board.serializers import (
     CardImage,
     CardFile,
     LinkAttachment,
-    FileAttachmentSerializer
+    FileAttachmentSerializer,
+    ImageAttachmentSerializer
     )
 from account.models import Profile
 
@@ -193,11 +195,16 @@ class TestProfileSerializer:
 
     @pytest.fixture
     def image_file(self):
+        file = io.BytesIO()
+        image = Image.new("RGB", (100,100), color="red")
+        image.save(file, format="JPEG")
+        file.seek(0)
         return SimpleUploadedFile(
-            "avatar.jpg",
-            b"fake image content",
-            content_type="image/jpg"
+                "avatar.jpg",
+                file.read(),
+                content_type="image/jpeg"
             )
+
 
     @pytest.fixture
     def valid_data_with_image(self, valid_data, image_file):
@@ -221,6 +228,10 @@ class TestProfileSerializer:
 
         assert serializer.is_valid(), serializer.errors
 
+    def test_serializer_with_image_is_valid(self, valid_data_with_image):
+        serializer = ProfileSerializer(data=valid_data_with_image)
+
+        assert serializer.is_valid(), serializer.errors
     def test_serializer_is_valid_without_profile_image(self, valid_data):
         serializer = ProfileSerializer(data=valid_data)
 
@@ -1790,3 +1801,130 @@ class TestFileAttachmentSerializer:
 
         assert updated.name == "Updated"
         assert updated.description == "Updated description"
+
+
+
+@pytest.mark.django_db
+class TestImageAttachmentSerializer:
+    """Test suite for ImageAttachmentSerializer."""
+
+    @pytest.fixture
+    def uploaded_image(self):
+        file = io.BytesIO()
+        image = Image.new("RGB", (100,100), color="red")
+        image.save(file, format="JPEG")
+        file.seek(0)
+        return SimpleUploadedFile(
+                "upload_image.jpg",
+                file.read(),
+                content_type="image/jpeg"
+            )
+    @pytest.fixture
+    def valid_data(self, card, uploaded_image):
+        return {
+            "card": card.id,
+            "name": "attach",
+            "description": "this is attachment",
+            "file": uploaded_image,
+        }
+
+    @pytest.fixture
+    def serializer_context(self, api_request):
+        return {"request": api_request}
+
+    @pytest.fixture
+    def image_attachment(self, user, card, uploaded_image):
+        return CardImage.objects.create(
+            user=user,
+            card=card,
+            name="attach",
+            description="this is attachment",
+            file=uploaded_image,
+        )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(
+        self,
+        valid_data,
+        serializer_context,
+    ):
+        print(valid_data)
+        serializer = ImageAttachmentSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(
+        self,
+        image_attachment,
+    ):
+        serializer = ImageAttachmentSerializer(image_attachment)
+
+        assert set(serializer.data.keys()) == {
+            "id",
+            "name",
+            "display_name",
+            "description",
+            "file",
+            "file_type",
+            "upload_at",
+            "user",
+            "card",
+        }
+
+    def test_get_file_type_returns_image_mime_type(
+        self,
+        image_attachment,
+    ):
+        serializer = ImageAttachmentSerializer(image_attachment)
+
+        expected, _ = mimetypes.guess_type(
+            image_attachment.file.name
+        )
+
+        assert serializer.data["file_type"] == expected
+
+    def test_get_display_name_returns_custom_name(
+        self,
+        image_attachment,
+    ):
+        serializer = ImageAttachmentSerializer(image_attachment)
+
+        extension = image_attachment.file.name.rsplit(".", 1)[1]
+
+        assert (
+            serializer.data["display_name"]
+            == f"attach.{extension}"
+        )
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_image_attachment(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = ImageAttachmentSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        image = serializer.save()
+
+        assert isinstance(image, CardImage)
+        assert image.user == user
+        assert image.card.id == valid_data["card"]
