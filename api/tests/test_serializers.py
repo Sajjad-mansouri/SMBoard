@@ -1,3 +1,4 @@
+import mimetypes
 import pytest
 
 from django.contrib.auth import get_user_model
@@ -27,7 +28,8 @@ from ..board.serializers import (
     CardCommentSerializer,
     CardImage,
     CardFile,
-    LinkAttachment
+    LinkAttachment,
+    FileAttachmentSerializer
     )
 from account.models import Profile
 
@@ -1555,3 +1557,236 @@ class TestCardCommentSerializer:
 
         assert reply["id"] == comment_with_link_attachment.reply_content_object.id
         assert reply["type"] == "link"
+
+
+
+@pytest.mark.django_db
+class TestFileAttachmentSerializer:
+    """Test suite for FileAttachmentSerializer."""
+
+    @pytest.fixture
+    def uploaded_text_file(self):
+        file = SimpleUploadedFile(
+                "file.txt",
+                b"fake content",
+                "plain/text"
+            )
+        return file
+
+
+    @pytest.fixture
+    def valid_data(self, card, uploaded_text_file):
+        return {
+            "card": card.id,
+            "name": "Specification",
+            "description": "Project specification",
+            "file": uploaded_text_file,
+        }
+
+    @pytest.fixture
+    def serializer_context(self, api_request):
+        return {"request": api_request}
+
+
+    @pytest.fixture
+    def attachment(self, user, card, uploaded_text_file):
+        return CardFile.objects.create(
+            user=user,
+            card=card,
+            name="Specification",
+            description="Project specification",
+            file=uploaded_text_file,
+        )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(
+        self,
+        valid_data,
+        serializer_context,
+    ):
+        serializer = FileAttachmentSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_user_is_taken_from_request(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = FileAttachmentSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["user"] == user
+
+    def test_payload_user_is_overwritten(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+        another_user,
+    ):
+        data = valid_data.copy()
+        data["user"] = another_user.id
+
+        serializer = FileAttachmentSerializer(
+            data=data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["user"] == user
+
+    def test_missing_request_context_raises_key_error(
+        self,
+        valid_data,
+    ):
+        serializer = FileAttachmentSerializer(data=valid_data)
+
+        with pytest.raises(KeyError):
+            serializer.is_valid()
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(
+        self,
+        attachment,
+    ):
+        serializer = FileAttachmentSerializer(attachment)
+
+        assert set(serializer.data.keys()) == {
+            "id",
+            "name",
+            "display_name",
+            "description",
+            "file",
+            "file_type",
+            "upload_at",
+            "user",
+            "card",
+        }
+
+    def test_serializer_outputs_correct_values(
+        self,
+        attachment,
+    ):
+        serializer = FileAttachmentSerializer(attachment)
+
+        assert serializer.data["id"] == attachment.id
+        assert serializer.data["name"] == attachment.name
+        assert serializer.data["description"] == attachment.description
+        assert serializer.data["user"] == attachment.user.id
+        assert serializer.data["card"] == attachment.card.id
+
+    def test_get_file_type_returns_mime_type(
+        self,
+        attachment,
+    ):
+        serializer = FileAttachmentSerializer(attachment)
+
+        expected, _ = mimetypes.guess_type(
+            attachment.file.name
+        )
+
+        assert serializer.data["file_type"] == expected
+
+    def test_get_display_name_uses_custom_name(
+        self,
+        attachment,
+    ):
+        serializer = FileAttachmentSerializer(attachment)
+
+        extension = attachment.file.name.rsplit(".", 1)[1]
+
+        assert (
+            serializer.data["display_name"]
+            == f"Specification.{extension}"
+        )
+
+    def test_get_display_name_uses_original_filename(
+        self,
+        attachment,
+    ):
+        attachment.name = ""
+        attachment.save()
+
+        serializer = FileAttachmentSerializer(attachment)
+
+        assert (
+            serializer.data["display_name"]
+            == attachment.file.name.rsplit("/", 1)[1]
+        )
+
+    def test_get_upload_at_returns_created_timestamp(
+        self,
+        attachment,
+    ):
+        serializer = FileAttachmentSerializer(attachment)
+
+        assert (
+            serializer.data["upload_at"]
+            == attachment.created.timestamp()
+        )
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_attachment(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = FileAttachmentSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        attachment = serializer.save()
+
+        assert isinstance(attachment, CardFile)
+        assert attachment.user == user
+        assert attachment.card.id == valid_data["card"]
+        assert attachment.name == valid_data["name"]
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_attachment(
+        self,
+        attachment,
+        serializer_context
+    ):
+        serializer = FileAttachmentSerializer(
+            instance=attachment,
+            data={
+                "name": "Updated",
+                "description": "Updated description",
+            },
+            context=serializer_context,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.name == "Updated"
+        assert updated.description == "Updated description"
