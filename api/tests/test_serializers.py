@@ -51,7 +51,8 @@ from ..board.serializers import (
     BoardListArchivedSerializer,
     BoardNestedSerializer,
     CardOrderSerializer,
-    BoardWatchSerializer
+    BoardWatchSerializer,
+    CardWatchSerializer
     )
 from account.models import Profile
 
@@ -3770,6 +3771,197 @@ class TestBoardWatchSerializer:
     ):
         serializer = BoardWatchSerializer(
             instance=board_watch,
+            data={
+                "watch": True,
+            },
+            partial=True,
+            context=serializer_context
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.watch is True
+
+
+
+@pytest.mark.django_db
+class TestCardWatchSerializer:
+    """Test suite for CardWatchSerializer."""
+
+    @pytest.fixture
+    def valid_data(self, card):
+        return {
+            "card": card.id,
+            "watch": True,
+        }
+
+    @pytest.fixture
+    def card_watch(self, card, user):
+        return CardWatch.objects.create(
+            card=card,
+            user=user,
+            watch=False,
+        )
+
+    @pytest.fixture
+    def serializer_context(self, api_request):
+        return {"request": api_request}
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data, serializer_context):
+        serializer = CardWatchSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_user_is_taken_from_request(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = CardWatchSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["user"] == user
+
+    def test_payload_user_is_overwritten_by_request_user(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+        another_user,
+    ):
+        valid_data["user"] = another_user.id
+
+        serializer = CardWatchSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["user"] == user
+
+    def test_missing_request_raises_key_error(self, valid_data):
+        serializer = CardWatchSerializer(
+            data=valid_data,
+            context={},
+        )
+
+        with pytest.raises(KeyError):
+            serializer.is_valid()
+
+    @pytest.mark.parametrize(
+        "invalid_data, expected_field",
+        [
+            ({}, "card"),
+            ({"watch": True}, "card"),
+        ],
+    )
+    def test_required_fields(
+        self,
+        invalid_data,
+        expected_field,
+        serializer_context,
+    ):
+        serializer = CardWatchSerializer(
+            data=invalid_data,
+            context=serializer_context,
+        )
+
+        assert not serializer.is_valid()
+        assert expected_field in serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(
+        self,
+        card_watch,
+    ):
+        serializer = CardWatchSerializer(card_watch)
+
+        expected_fields = {
+            "id",
+            "user",
+            "card",
+            "watch",
+        }
+
+        assert set(serializer.data.keys()) == expected_fields
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_card_watch(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = CardWatchSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        card_watch = serializer.save()
+
+        assert isinstance(card_watch, CardWatch)
+        assert card_watch.user == user
+        assert card_watch.card.id == valid_data["card"]
+        assert card_watch.watch is True
+
+    def test_create_updates_existing_card_watch(
+        self,
+        card_watch,
+        serializer_context,
+    ):
+        serializer = CardWatchSerializer(
+            data={
+                "card": card_watch.card.id,
+                "watch": True,
+            },
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.pk == card_watch.pk
+
+        card_watch.refresh_from_db()
+
+        assert card_watch.watch is True
+        assert CardWatch.objects.count() == 1
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_card_watch(
+        self,
+        card_watch,
+        serializer_context
+    ):
+        serializer = CardWatchSerializer(
+            instance=card_watch,
             data={
                 "watch": True,
             },
