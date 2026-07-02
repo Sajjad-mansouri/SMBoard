@@ -31,7 +31,8 @@ from ..board.serializers import (
     CardFile,
     LinkAttachment,
     FileAttachmentSerializer,
-    ImageAttachmentSerializer
+    ImageAttachmentSerializer,
+    LinkAttachmentSerializer
     )
 from account.models import Profile
 
@@ -1928,3 +1929,150 @@ class TestImageAttachmentSerializer:
         assert isinstance(image, CardImage)
         assert image.user == user
         assert image.card.id == valid_data["card"]
+
+
+
+@pytest.mark.django_db
+class TestLinkAttachmentSerializer:
+    """Test suite for LinkAttachmentSerializer."""
+
+    @pytest.fixture
+    def valid_data(self, card):
+        return {
+            "card": card.id,
+            "name": "SMBoard",
+            "description": "Official website",
+            "file": "https://test-website.com",
+        }
+
+    @pytest.fixture
+    def serializer_context(self, api_request):
+        return {"request": api_request}
+
+    @pytest.fixture
+    def link_attachment(self, user, card):
+        return LinkAttachment.objects.create(
+            user=user,
+            card=card,
+            name="SMBoard",
+            description="Official website",
+            file="https://test-website.com",
+        )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(
+        self,
+        valid_data,
+        serializer_context,
+    ):
+        serializer = LinkAttachmentSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(
+        self,
+        link_attachment,
+    ):
+        serializer = LinkAttachmentSerializer(link_attachment)
+
+        assert set(serializer.data.keys()) == {
+            "id",
+            "name",
+            "display_name",
+            "description",
+            "file",
+            "file_type",
+            "upload_at",
+            "user",
+            "card",
+        }
+
+    def test_get_file_type_returns_link(
+        self,
+        link_attachment,
+    ):
+        serializer = LinkAttachmentSerializer(link_attachment)
+
+        assert serializer.data["file_type"] == "link"
+
+    def test_get_display_name_returns_url(
+        self,
+        link_attachment,
+    ):
+        serializer = LinkAttachmentSerializer(link_attachment)
+
+        assert (
+            serializer.data["display_name"]
+            == link_attachment.file
+        )
+
+    def test_get_upload_at_returns_created_timestamp(
+        self,
+        link_attachment,
+    ):
+        serializer = LinkAttachmentSerializer(link_attachment)
+
+        assert (
+            serializer.data["upload_at"]
+            == link_attachment.created.timestamp()
+        )
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_link_attachment(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = LinkAttachmentSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        attachment = serializer.save()
+
+        assert isinstance(attachment, LinkAttachment)
+        assert attachment.user == user
+        assert attachment.card.id == valid_data["card"]
+        assert attachment.file == valid_data["file"]
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_link_attachment(
+        self,
+        link_attachment,
+        serializer_context
+    ):
+        serializer = LinkAttachmentSerializer(
+            instance=link_attachment,
+            data={
+                "name": "SMBoard",
+                "file": "https://test-website.com",
+            },
+            context=serializer_context,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.name == "SMBoard"
+        assert updated.file == "https://test-website.com"
