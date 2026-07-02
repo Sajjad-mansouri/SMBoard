@@ -312,17 +312,36 @@ class BoardMembershipSerializer(serializers.ModelSerializer):
 		fields = ["id", "user", "member_type", "accepted", "board", "user_id"]
 
 class CustomListSerializer(serializers.ListSerializer):
+	def validate(self, attrs):
+
+		for item in attrs:
+			if "id" not in item:
+				raise serializers.ValidationError("Each object must include an id.")
+
+		ids = [item.get("id") for item in attrs]
+		if len(ids) != len(set(ids)):
+			raise serializers.ValidationError(
+				"Duplicate ids are not allowed."
+			)
+		return attrs
+
 	def update(self, instance, validated_data):
 
-		list_mapping = {board_list.id: board_list for board_list in instance}
-		data_mapping = {item['id']: item for item in validated_data}
-		# Perform creations and updates.
-		ret = []
-		for list_id, data in data_mapping.items():
-			board_list = list_mapping.get(list_id, None)
-			if board_list :
-				ret.append(self.child.update(board_list, data))
-		return ret
+		instance_mapping = {
+			obj.pk: obj
+			for obj in instance
+		}
+
+		updated = []
+
+		for item in validated_data:
+			obj = instance_mapping.get(item["id"])
+
+			if obj is not None:
+				updated.append(self.child.update(obj, item))
+
+		return updated
+
 class BoardListSerializer(serializers.ModelSerializer):
 	list_cards = CardNestedSerializer(many=True, read_only=True)
 	class Meta:

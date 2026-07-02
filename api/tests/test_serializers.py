@@ -22,7 +22,8 @@ from board.models import (
     CardMembership,
     CardWatch,
     Comment,
-    BoardMembership
+    BoardMembership,
+    BoardList
     )
 from ..board.serializers import (
     ActivitySerializer, 
@@ -43,7 +44,8 @@ from ..board.serializers import (
     CardMembershipSerializer,
     CardNestedSerializer,
     CardArchivedSerializer,
-    BoardMembershipSerializer
+    BoardMembershipSerializer,
+    BoardListOrderSerializer
     )
 from account.models import Profile
 
@@ -2776,3 +2778,227 @@ class TestBoardMembershipSerializer:
         serializer = BoardMembershipSerializer()
 
         assert serializer.fields["user_id"].write_only is True
+
+
+
+@pytest.mark.django_db
+class TestBoardListOrderSerializer:
+    """Test suite for BoardListOrderSerializer."""
+
+    @pytest.fixture
+    def board_lists(self, board):
+        return [
+            BoardList.objects.create(
+                board=board,
+                name="Todo",
+                order=0,
+            ),
+            BoardList.objects.create(
+                board=board,
+                name="Doing",
+                order=1,
+            ),
+            BoardList.objects.create(
+                board=board,
+                name="Done",
+                order=2,
+            ),
+        ]
+
+    @pytest.fixture
+    def valid_data(self, board_lists):
+        return [
+            {
+                "id": board_lists[0].id,
+                "order": 2,
+            },
+            {
+                "id": board_lists[1].id,
+                "order": 0,
+            },
+            {
+                "id": board_lists[2].id,
+                "order": 1,
+            },
+        ]
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, board_lists, valid_data):
+        serializer = BoardListOrderSerializer(
+            instance=board_lists,
+            data=valid_data,
+            many=True,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_id_is_required(self, board_lists):
+        serializer = BoardListOrderSerializer(
+            instance=board_lists,
+            data=[
+                {
+                    "order": 5,
+                }
+            ],
+            many=True,
+            partial=True,
+        )
+
+        assert not serializer.is_valid()
+
+        assert "non_field_errors" in serializer.errors
+        assert serializer.errors["non_field_errors"] == [
+            "Each object must include an id."
+        ]
+
+    # --------------------------------------------------------
+    # Bulk Update
+    # --------------------------------------------------------
+
+    def test_bulk_update(self, board_lists, valid_data):
+        serializer = BoardListOrderSerializer(
+            instance=board_lists,
+            data=valid_data,
+            many=True,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        for obj in board_lists:
+            obj.refresh_from_db()
+
+        assert len(updated) == 3
+        assert board_lists[0].order == 2
+        assert board_lists[1].order == 0
+        assert board_lists[2].order == 1
+
+    def test_returns_updated_instances(self, board_lists, valid_data):
+        serializer = BoardListOrderSerializer(
+            instance=board_lists,
+            data=valid_data,
+            many=True,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert len(updated) == 3
+        assert all(isinstance(obj, BoardList) for obj in updated)
+
+    def test_partial_update_preserves_other_fields(self, board_lists):
+        old_name = board_lists[0].name
+
+        serializer = BoardListOrderSerializer(
+            instance=board_lists,
+            data=[
+                {
+                    "id": board_lists[0].id,
+                    "order": 100,
+                }
+            ],
+            many=True,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        serializer.save()
+
+        board_lists[0].refresh_from_db()
+
+        assert board_lists[0].order == 100
+        assert board_lists[0].name == old_name
+
+    def test_unknown_id_is_ignored(self, board_lists):
+        serializer = BoardListOrderSerializer(
+            instance=board_lists,
+            data=[
+                {
+                    "id": 999999,
+                    "order": 5,
+                }
+            ],
+            many=True,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated == []
+
+        for index, board_list in enumerate(board_lists):
+            board_list.refresh_from_db()
+            assert board_list.order == index
+
+    def test_empty_list_returns_empty_list(self, board_lists):
+        serializer = BoardListOrderSerializer(
+            instance=board_lists,
+            data=[],
+            many=True,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated == []
+
+    # --------------------------------------------------------
+    # Duplicate IDs
+    # --------------------------------------------------------
+
+    def test_duplicate_ids_raise_validation_error(self, board_lists):
+        serializer = BoardListOrderSerializer(
+            instance=board_lists,
+            data=[
+                {
+                    "id": board_lists[0].id,
+                    "order": 10,
+                },
+                {
+                    "id": board_lists[0].id,
+                    "order": 99,
+                },
+            ],
+            many=True,
+            partial=True,
+        )
+
+        assert not serializer.is_valid()
+
+        assert "Duplicate ids are not allowed." in str(serializer.errors)
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(self, board_lists):
+        serializer = BoardListOrderSerializer(
+            board_lists,
+            many=True,
+        )
+
+        expected_fields = {
+            "id", 
+            "order", 
+            "name", 
+            "cover_image", 
+            "cover_color", 
+            "list_cards", 
+            "archived",
+            "board"
+        }
+
+        assert set(serializer.data[0].keys()) == expected_fields
