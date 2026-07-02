@@ -50,7 +50,8 @@ from ..board.serializers import (
     BoardListSerializer,
     BoardListArchivedSerializer,
     BoardNestedSerializer,
-    CardOrderSerializer
+    CardOrderSerializer,
+    BoardWatchSerializer
     )
 from account.models import Profile
 
@@ -3590,3 +3591,194 @@ class TestCardOrderSerializer:
         }
 
         assert set(serializer.data[0].keys()) == expected_fields
+
+
+
+@pytest.mark.django_db
+class TestBoardWatchSerializer:
+    """Test suite for BoardWatchSerializer."""
+
+    @pytest.fixture
+    def valid_data(self, board):
+        return {
+            "board": board.id,
+            "watch": True,
+        }
+
+    @pytest.fixture
+    def board_watch(self, board, user):
+        return BoardWatch.objects.create(
+            board=board,
+            user=user,
+            watch=False,
+        )
+
+    @pytest.fixture
+    def serializer_context(self, api_request):
+        return {"request": api_request}
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data, serializer_context):
+        serializer = BoardWatchSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_user_is_taken_from_request(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = BoardWatchSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["user"] == user
+
+    def test_payload_user_is_overwritten_by_request_user(
+        self,
+        valid_data,
+        serializer_context,
+        another_user,
+        user,
+    ):
+        valid_data["user"] = another_user.id
+
+        serializer = BoardWatchSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        assert serializer.validated_data["user"] == user
+
+    def test_missing_request_raises_key_error(self, valid_data):
+        serializer = BoardWatchSerializer(
+            data=valid_data,
+            context={},
+        )
+
+        with pytest.raises(KeyError):
+            serializer.is_valid()
+
+    @pytest.mark.parametrize(
+        "invalid_data,expected_field",
+        [
+            ({}, "board"),
+            ({"watch": True}, "board"),
+        ],
+    )
+    def test_required_fields(
+        self,
+        invalid_data,
+        expected_field,
+        serializer_context,
+    ):
+        serializer = BoardWatchSerializer(
+            data=invalid_data,
+            context=serializer_context,
+        )
+
+        assert not serializer.is_valid()
+        assert expected_field in serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(
+        self,
+        board_watch,
+    ):
+        serializer = BoardWatchSerializer(board_watch)
+
+        expected_fields = {
+            "id",
+            "user",
+            "board",
+            "watch",
+        }
+
+        assert set(serializer.data.keys()) == expected_fields
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_board_watch(
+        self,
+        valid_data,
+        serializer_context,
+        user,
+    ):
+        serializer = BoardWatchSerializer(
+            data=valid_data,
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        board_watch = serializer.save()
+
+        assert isinstance(board_watch, BoardWatch)
+        assert board_watch.user == user
+        assert board_watch.board.id == valid_data["board"]
+        assert board_watch.watch is True
+
+    def test_create_updates_existing_board_watch(
+        self,
+        board_watch,
+        serializer_context,
+    ):
+        serializer = BoardWatchSerializer(
+            data={
+                "board": board_watch.board.id,
+                "watch": True,
+            },
+            context=serializer_context,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.pk == board_watch.pk
+
+        board_watch.refresh_from_db()
+
+        assert board_watch.watch is True
+        assert BoardWatch.objects.count() == 1
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_board_watch(
+        self,
+        board_watch,
+        serializer_context
+    ):
+        serializer = BoardWatchSerializer(
+            instance=board_watch,
+            data={
+                "watch": True,
+            },
+            partial=True,
+            context=serializer_context
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.watch is True
