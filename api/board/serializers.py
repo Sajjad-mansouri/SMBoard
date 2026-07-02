@@ -296,8 +296,10 @@ class CardNestedSerializer(CardSerializer):
 
 
 	def get_watched(self, obj):
-		request = self.context["request"]
-		return obj.card_cardwatchs.filter(user=request.user, watch=True).exists()
+		request = self.context.get("request")
+		if request:
+			return obj.card_cardwatchs.filter(user=request.user, watch=True).exists()
+
 
 class CardArchivedSerializer(CardSerializer):
 	class Meta(CardSerializer.Meta):

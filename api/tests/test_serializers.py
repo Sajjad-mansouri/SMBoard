@@ -45,7 +45,8 @@ from ..board.serializers import (
     CardNestedSerializer,
     CardArchivedSerializer,
     BoardMembershipSerializer,
-    BoardListOrderSerializer
+    BoardListOrderSerializer,
+    BoardListSerializer
     )
 from account.models import Profile
 
@@ -3002,3 +3003,140 @@ class TestBoardListOrderSerializer:
         }
 
         assert set(serializer.data[0].keys()) == expected_fields
+
+
+
+@pytest.mark.django_db
+class TestBoardListSerializer:
+    """Test suite for BoardListSerializer."""
+
+    @pytest.fixture
+    def valid_data(self, board):
+        return {
+            "board": board.id,
+            "name": "To Do",
+            "order": 0,
+            "cover_color": "#ffffff",
+            "archived": False,
+        }
+
+    @pytest.fixture
+    def board_list(self, board):
+        return BoardList.objects.create(
+            board=board,
+            name="To Do",
+            order=0,
+            cover_color="#ffffff",
+            archived=False,
+        )
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, valid_data):
+        serializer = BoardListSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize(
+        "field",
+        [
+            "board",
+            "name",
+        ],
+    )
+    def test_required_fields(self, valid_data, field):
+        data = valid_data.copy()
+        data.pop(field)
+
+        serializer = BoardListSerializer(data=data)
+
+        assert not serializer.is_valid()
+        assert field in serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(self, board_list):
+        serializer = BoardListSerializer(board_list)
+
+        expected_fields = {
+            "id",
+            "order",
+            "name",
+            "cover_image",
+            "cover_color",
+            "list_cards",
+            "archived",
+            "board",
+        }
+
+        assert set(serializer.data.keys()) == expected_fields
+
+    def test_serializer_outputs_correct_values(self, board_list):
+        serializer = BoardListSerializer(board_list)
+
+        assert serializer.data["id"] == board_list.id
+        assert serializer.data["name"] == board_list.name
+        assert serializer.data["order"] == board_list.order
+        assert serializer.data["board"] == board_list.board.id
+        assert serializer.data["archived"] == board_list.archived
+        assert serializer.data["cover_color"] == board_list.cover_color
+
+    def test_list_cards_is_empty(self, board_list):
+        serializer = BoardListSerializer(board_list)
+
+        assert serializer.data["list_cards"] == []
+
+    def test_nested_cards_are_serialized(self, board_list, card, serializer_context):
+        serializer = BoardListSerializer(board_list, context=serializer_context)
+
+        assert len(serializer.data["list_cards"]) == 1
+        assert serializer.data["list_cards"][0]["id"] == card.id
+        assert serializer.data["list_cards"][0]["name"] == card.name
+
+    def test_nested_cards_without_context(self, board_list, card, serializer_context):
+        serializer = BoardListSerializer(board_list)
+        assert len(serializer.data["list_cards"]) == 1
+        assert serializer.data["list_cards"][0]["watched"] == None
+
+    # --------------------------------------------------------
+    # Create
+    # --------------------------------------------------------
+
+    def test_create_board_list(self, valid_data):
+        serializer = BoardListSerializer(data=valid_data)
+
+        assert serializer.is_valid(), serializer.errors
+
+        board_list = serializer.save()
+
+        assert isinstance(board_list, BoardList)
+        assert board_list.name == valid_data["name"]
+        assert board_list.board.id == valid_data["board"]
+        assert board_list.cover_color == valid_data["cover_color"]
+        assert board_list.archived == valid_data["archived"]
+
+    # --------------------------------------------------------
+    # Update
+    # --------------------------------------------------------
+
+    def test_update_board_list(self, board_list):
+        serializer = BoardListSerializer(
+            instance=board_list,
+            data={
+                "name": "In Progress",
+                "cover_color": "#000000",
+            },
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated.name == "In Progress"
+        assert updated.cover_color == "#000000"
+        assert updated.board == board_list.board

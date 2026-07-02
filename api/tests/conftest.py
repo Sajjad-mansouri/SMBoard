@@ -109,3 +109,7 @@ def simple_uploaded_file():
                 b"fake content",
                 content_type="plain/text"
             )
+
+@pytest.fixture
+def serializer_context(api_request):
+    return {"request": api_request}
