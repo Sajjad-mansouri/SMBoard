@@ -49,7 +49,8 @@ from ..board.serializers import (
     BoardListOrderSerializer,
     BoardListSerializer,
     BoardListArchivedSerializer,
-    BoardNestedSerializer
+    BoardNestedSerializer,
+    CardOrderSerializer
     )
 from account.models import Profile
 
@@ -3371,3 +3372,221 @@ class TestBoardNestedSerializer:
         )
 
         assert serializer.data["board_watched"] is True
+
+
+
+@pytest.mark.django_db
+class TestCardOrderSerializer:
+    """Test suite for CardOrderSerializer."""
+
+    @pytest.fixture
+    def cards(self, board_list):
+        return [
+            Card.objects.create(
+                board_list=board_list,
+                name="Card 1",
+                order=0,
+            ),
+            Card.objects.create(
+                board_list=board_list,
+                name="Card 2",
+                order=1,
+            ),
+            Card.objects.create(
+                board_list=board_list,
+                name="Card 3",
+                order=2,
+            ),
+        ]
+
+    @pytest.fixture
+    def valid_data(self, cards):
+        return [
+            {
+                "id": cards[0].id,
+                "order": 2,
+            },
+            {
+                "id": cards[1].id,
+                "order": 0,
+            },
+            {
+                "id": cards[2].id,
+                "order": 1,
+            },
+        ]
+
+    # --------------------------------------------------------
+    # Validation
+    # --------------------------------------------------------
+
+    def test_serializer_is_valid(self, cards, valid_data):
+        serializer = CardOrderSerializer(
+            instance=cards,
+            data=valid_data,
+            many=True,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+    def test_missing_id_is_invalid(self, cards):
+        serializer = CardOrderSerializer(
+            instance=cards,
+            data=[
+                {
+                    "order": 5,
+                }
+            ],
+            many=True,
+            partial=True,
+        )
+
+        assert not serializer.is_valid()
+        assert "non_field_errors" in serializer.errors
+
+    # --------------------------------------------------------
+    # Bulk Update
+    # --------------------------------------------------------
+
+    def test_bulk_update(self, cards, valid_data):
+        serializer = CardOrderSerializer(
+            instance=cards,
+            data=valid_data,
+            many=True,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        for card in cards:
+            card.refresh_from_db()
+
+        assert len(updated) == 3
+        assert cards[0].order == 2
+        assert cards[1].order == 0
+        assert cards[2].order == 1
+
+    def test_returns_updated_instances(self, cards, valid_data):
+        serializer = CardOrderSerializer(
+            instance=cards,
+            data=valid_data,
+            many=True,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert len(updated) == 3
+        assert all(isinstance(card, Card) for card in updated)
+
+    def test_partial_update_preserves_other_fields(self, cards):
+        old_name = cards[0].name
+
+        serializer = CardOrderSerializer(
+            instance=cards,
+            data=[
+                {
+                    "id": cards[0].id,
+                    "order": 100,
+                }
+            ],
+            many=True,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        serializer.save()
+
+        cards[0].refresh_from_db()
+
+        assert cards[0].order == 100
+        assert cards[0].name == old_name
+
+    def test_unknown_id_is_ignored(self, cards):
+        serializer = CardOrderSerializer(
+            instance=cards,
+            data=[
+                {
+                    "id": 999999,
+                    "order": 10,
+                }
+            ],
+            many=True,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated == []
+
+        for index, card in enumerate(cards):
+            card.refresh_from_db()
+            assert card.order == index
+
+    def test_empty_list_returns_empty_list(self, cards):
+        serializer = CardOrderSerializer(
+            instance=cards,
+            data=[],
+            many=True,
+            partial=True,
+        )
+
+        assert serializer.is_valid(), serializer.errors
+
+        updated = serializer.save()
+
+        assert updated == []
+
+    # --------------------------------------------------------
+    # Duplicate IDs
+    # --------------------------------------------------------
+
+    def test_duplicate_ids_raise_validation_error(self, cards):
+        serializer = CardOrderSerializer(
+            instance=cards,
+            data=[
+                {
+                    "id": cards[0].id,
+                    "order": 5,
+                },
+                {
+                    "id": cards[0].id,
+                    "order": 10,
+                },
+            ],
+            many=True,
+            partial=True,
+        )
+
+        assert not serializer.is_valid()
+        assert "non_field_errors" in serializer.errors
+
+    # --------------------------------------------------------
+    # Output
+    # --------------------------------------------------------
+
+    def test_serializer_output_contains_expected_fields(self, cards):
+        serializer = CardOrderSerializer(cards, many=True)
+
+        expected_fields = {
+            "id",
+            "board_list",
+            "board_list_name",
+            "name",
+            "due_date",
+            "board",
+            "labels",
+            "card_labels",
+            "completed",
+            "order",
+        }
+
+        assert set(serializer.data[0].keys()) == expected_fields
