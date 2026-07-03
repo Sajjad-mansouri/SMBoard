@@ -4,7 +4,7 @@ import pytest
 from PIL import Image
 from django.core.files.uploadedfile import SimpleUploadedFile
 from factory.django import DjangoModelFactory
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, APIClient
 from django.contrib.auth import get_user_model
 from board.models import Board, BoardList, Card, Activity
 
@@ -113,3 +113,8 @@ def simple_uploaded_file():
 @pytest.fixture
 def serializer_context(api_request):
     return {"request": api_request}
+
+
+@pytest.fixture
+def api_client():
+	return APIClient()
