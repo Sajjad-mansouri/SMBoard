@@ -20,6 +20,8 @@ class IsBoardOwnerOrMember(permissions.BasePermission):
 		print(request.data)
 		print(view.action)
 		if view.action == "create":
+			if not request.user or not request.user.is_authenticated:
+				return False
 			if request.data.get("checklist"):
 				q = Q(id=request.data.get("checklist")) & (Q(card__board_list__board__owner=request.user)| Q(card__board_list__board__board_memberships__user=request.user))
 				return models.CheckList.objects.filter(q).exists()
