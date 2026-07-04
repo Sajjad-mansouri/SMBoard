@@ -434,7 +434,7 @@ class ChecklistItemViewSet(viewsets.ModelViewSet):
 		action_type = None
 		actions = []
 		if old_name != instance.name:
-			action_type = "edit_checklist_item_NAME"
+			action_type = "edit_checklist_item_name"
 			text = f"The name of the item was changed from '{old_name}' to '{instance.name}' "
 			actions.append((action_type, text))
 

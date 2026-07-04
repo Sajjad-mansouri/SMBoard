@@ -15,7 +15,7 @@ router.register(r'boards', board_views.BoardViewSet, basename='board')
 router.register(r'cards', board_views.CardViewSet, basename='card')
 
 router.register(r'checklists', board_views.ChecklistViewSet, basename='checklist')
-router.register(r'checklist-items', board_views.ChecklistItemViewSet, basename='checklist_items')
+router.register(r'checklist-items', board_views.ChecklistItemViewSet, basename='checklistitem')
 router.register(r'comments', board_views.CommentViewSet, basename='comments')
 router.register(r'card-files', board_views.CardFileViewSet, basename='card_file')
 router.register(r'card-images', board_views.CardImageViewSet, basename='card_image')
