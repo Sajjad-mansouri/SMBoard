@@ -2,8 +2,8 @@ import pytest
 from django.db.utils import IntegrityError
 from django.urls import reverse
 from unittest.mock import call, patch
-from .conftest import BoardFactory, UserFactory, BoardListFactory, CardFactory
-from board.models import Board, BoardMembership, Card
+from .conftest import BoardFactory, UserFactory, BoardListFactory, CardFactory, CheckListFactory
+from board.models import Board, BoardMembership, Card, CheckList
 
 
 #======================
@@ -1907,4 +1907,795 @@ class TestCardDestroyView:
 
 #======================
 #  End CardViewSet Tests
+#======================
+
+
+
+#======================
+#  Start ChecklistViewSet Tests
+#======================
+
+
+
+@pytest.mark.django_db
+class TestChecklistListView:
+    """Tests for ChecklistViewSet.list()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("checklist-list")
+
+    @pytest.fixture
+    def owner_checklists(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CheckListFactory.create_batch(
+            3,
+            card=card,
+        )
+
+    @pytest.fixture
+    def member_checklists(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CheckListFactory.create_batch(
+            2,
+            card=card,
+        )
+
+    @pytest.fixture
+    def stranger_checklists(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CheckListFactory.create_batch(
+            4,
+            card=card,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_list_checklists(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Owner
+    # ---------------------------------------------------------
+
+    def test_owner_sees_only_own_checklists(
+        self,
+        api_client,
+        user,
+        url,
+        owner_checklists,
+        stranger_checklists,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        returned_ids = {
+            item["id"]
+            for item in response.data
+        }
+
+        expected_ids = {
+            checklist.id
+            for checklist in owner_checklists
+        }
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_sees_board_checklists(
+        self,
+        api_client,
+        user,
+        url,
+        member_checklists,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        returned_ids = {
+            item["id"]
+            for item in response.data
+        }
+
+        expected_ids = {
+            checklist.id
+            for checklist in member_checklists
+        }
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Filtering
+    # ---------------------------------------------------------
+
+    def test_list_excludes_other_users_checklists(
+        self,
+        api_client,
+        user,
+        url,
+        owner_checklists,
+        stranger_checklists,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        returned_ids = {
+            item["id"]
+            for item in response.data
+        }
+
+        stranger_ids = {
+            checklist.id
+            for checklist in stranger_checklists
+        }
+
+        assert returned_ids.isdisjoint(stranger_ids)
+
+    # ---------------------------------------------------------
+    # Distinct
+    # ---------------------------------------------------------
+
+    def test_list_contains_no_duplicates(
+        self,
+        api_client,
+        user,
+        url,
+        owner_checklists,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        ids = [
+            item["id"]
+            for item in response.data
+        ]
+
+        assert len(ids) == len(set(ids))
+
+    # ---------------------------------------------------------
+    # Serializer
+    # ---------------------------------------------------------
+
+    def test_response_contains_expected_fields(
+        self,
+        api_client,
+        user,
+        url,
+        owner_checklists,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        item = response.data[0]
+
+        assert set(item.keys()) == {
+            "id",
+            "name",
+            "checklist_items",
+            "card",
+        }
+
+
+
+@pytest.mark.django_db
+class TestChecklistRetrieveView:
+    """Tests for ChecklistViewSet.retrieve()."""
+
+    @pytest.fixture
+    def owner_checklist(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CheckListFactory(
+            card=card,
+            name="Backend Tasks",
+        )
+
+    @pytest.fixture
+    def member_checklist(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CheckListFactory(
+            card=card,
+            name="Frontend Tasks",
+        )
+
+    @pytest.fixture
+    def stranger_checklist(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CheckListFactory(
+            card=card,
+            name="Private Checklist",
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_retrieve_checklist(
+        self,
+        api_client,
+        owner_checklist,
+    ):
+        url = reverse("checklist-detail", args=[owner_checklist.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Owner
+    # ---------------------------------------------------------
+
+    def test_owner_can_retrieve_checklist(
+        self,
+        api_client,
+        user,
+        owner_checklist,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("checklist-detail", args=[owner_checklist.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == owner_checklist.id
+        assert response.data["name"] == owner_checklist.name
+        assert response.data["card"] == owner_checklist.card.id
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_retrieve_checklist(
+        self,
+        api_client,
+        user,
+        member_checklist,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("checklist-detail", args=[member_checklist.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == member_checklist.id
+        assert response.data["name"] == member_checklist.name
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_user_cannot_retrieve_unrelated_checklist(
+        self,
+        api_client,
+        user,
+        stranger_checklist,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("checklist-detail", args=[stranger_checklist.pk])
+
+        response = api_client.get(url)
+
+        # Hidden by get_queryset()
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_retrieve_nonexistent_checklist_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("checklist-detail", args=[999999])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Serializer
+    # ---------------------------------------------------------
+
+    def test_response_contains_expected_fields(
+        self,
+        api_client,
+        user,
+        owner_checklist,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("checklist-detail", args=[owner_checklist.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert set(response.data.keys()) == {
+            "id",
+            "name",
+            "checklist_items",
+            "card",
+        }
+
+        assert isinstance(response.data["checklist_items"], list)
+
+
+
+
+@pytest.mark.django_db
+class TestChecklistCreateView:
+    """Tests for ChecklistViewSet.create()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("checklist-list")
+
+    @pytest.fixture
+    def owner_card(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def member_card(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def stranger_card(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def valid_data(self, owner_card):
+        return {
+            "name": "Backend Checklist",
+            "card": owner_card.id,
+        }
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_create_checklist(
+        self,
+        api_client,
+        url,
+        valid_data,
+    ):
+        response = api_client.post(
+            url,
+            valid_data,
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+        assert CheckList.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_owner_can_create_checklist(
+        self,
+        mock_log,
+        api_client,
+        user,
+        url,
+        valid_data,
+        owner_card,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            valid_data,
+            format="json",
+        )
+
+        assert response.status_code == 201
+
+        checklist = CheckList.objects.get()
+
+        assert checklist.name == valid_data["name"]
+        assert checklist.card == owner_card
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == owner_card.board_list.board
+        assert kwargs["board_list"] == owner_card.board_list
+        assert kwargs["card"] == owner_card
+        assert kwargs["action_type"] == "add_checklist"
+        assert kwargs["text"] == (
+            f"'{checklist.name}' checklist added"
+        )
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_can_create_checklist(
+        self,
+        mock_log,
+        api_client,
+        user,
+        url,
+        member_card,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "name": "Frontend Checklist",
+                "card": member_card.id,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 201
+
+        checklist = CheckList.objects.get()
+
+        assert checklist.card == member_card
+
+        mock_log.assert_called_once()
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_user_cannot_create_checklist_for_unrelated_card(
+        self,
+        api_client,
+        user,
+        url,
+        stranger_card,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "name": "Hack",
+                "card": stranger_card.id,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 403
+
+        assert CheckList.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_name_is_required(
+        self,
+        api_client,
+        user,
+        url,
+        owner_card,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": owner_card.id,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+
+        assert "name" in response.data
+
+    def test_card_is_required(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "name": "Checklist",
+            },
+            format="json",
+        )
+
+
+        assert response.status_code == 400
+
+    def test_invalid_card_returns_403(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "name": "Checklist",
+                "card": 999999,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 403
+
+
+
+@pytest.mark.django_db
+class TestChecklistDestroyView:
+    """Tests for ChecklistViewSet.destroy()."""
+
+    @pytest.fixture
+    def owner_checklist(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CheckListFactory(
+            card=card,
+            name="Backend Checklist",
+        )
+
+    @pytest.fixture
+    def member_checklist(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CheckListFactory(
+            card=card,
+            name="Frontend Checklist",
+        )
+
+    @pytest.fixture
+    def stranger_checklist(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CheckListFactory(
+            card=card,
+            name="Private Checklist",
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_delete_checklist(
+        self,
+        api_client,
+        owner_checklist,
+    ):
+        url = reverse("checklist-detail", args=[owner_checklist.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 401
+
+        assert CheckList.objects.filter(pk=owner_checklist.pk).exists()
+
+    # ---------------------------------------------------------
+    # Owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_owner_can_delete_checklist(
+        self,
+        mock_log,
+        api_client,
+        user,
+        owner_checklist,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("checklist-detail", args=[owner_checklist.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 204
+
+        assert not CheckList.objects.filter(
+            pk=owner_checklist.pk
+        ).exists()
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == owner_checklist.card.board_list.board
+        assert kwargs["board_list"] == owner_checklist.card.board_list
+        assert kwargs["card"] == owner_checklist.card
+        assert kwargs["action_type"] == "remove_checklist"
+        assert kwargs["text"] == (
+            f"The '{owner_checklist.name}' checklist in "
+            f"'{owner_checklist.card.name}' card was removed"
+        )
+
+    # ---------------------------------------------------------
+    # Member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_can_delete_checklist(
+        self,
+        mock_log,
+        api_client,
+        user,
+        member_checklist,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("checklist-detail", args=[member_checklist.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 204
+
+        assert not CheckList.objects.filter(
+            pk=member_checklist.pk
+        ).exists()
+
+        mock_log.assert_called_once()
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_user_cannot_delete_unrelated_checklist(
+        self,
+        api_client,
+        user,
+        stranger_checklist,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("checklist-detail", args=[stranger_checklist.pk])
+
+        response = api_client.delete(url)
+
+        # Hidden by get_queryset()
+        assert response.status_code == 404
+
+        assert CheckList.objects.filter(
+            pk=stranger_checklist.pk
+        ).exists()
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_delete_nonexistent_checklist_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("checklist-detail", args=[999999])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+#======================
+#  End ChecklistViewSet Tests
 #======================
