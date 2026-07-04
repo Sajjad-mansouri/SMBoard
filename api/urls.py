@@ -22,9 +22,9 @@ router.register(r'card-images', board_views.CardImageViewSet, basename='cardimag
 router.register(r'card-labels', board_views.CardLabelViewSet, basename='cardlabel')
 router.register(r'board-lists', board_views.BoardListViewSet, basename='boardlist')
 router.register(r'card-members', board_views.CardMemberViewSet, basename='cardmember')
-router.register(r'board-members', board_views.BoardMemberViewSet, basename='board_member')
+router.register(r'board-members', board_views.BoardMemberViewSet, basename='boardmember')
 router.register(r'link-attachments', board_views.LinkAttachmentViewSet, basename='linkattachment')
-router.register(r'notification-settings', board_views.NotificationSettingViewset, basename='notification_setting')
+router.register(r'notification-settings', board_views.NotificationSettingViewset, basename='notification-setting')
 
 
 

@@ -18,7 +18,8 @@ from .conftest import (
     CardImageFactory,
     LinkAttachmentFactory,
     CardLabelFactory,
-    CardMembershipFactory
+    CardMembershipFactory,
+    BoardMembershipFactory
     )
 from board.models import (
     Board, 
@@ -10534,4 +10535,769 @@ class TestCardMemberDestroyView:
         assert response.status_code == 404
 #======================
 #  End CardMemberViewSet Tests
+#======================
+
+
+
+#======================
+#  Start BoardMemberViewSet Tests
+#======================
+
+@pytest.mark.django_db
+class TestBoardMemberListView:
+    """Tests for BoardMemberViewSet.list()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("boardmember-list")
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def other_owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def other_board(self, other_owner):
+        return BoardFactory(owner=other_owner)
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_list_board_members(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    def test_board_owner_sees_only_members_of_their_boards(
+        self,
+        api_client,
+        board,
+        other_board,
+        other_owner,
+        url,
+    ):
+        #when creating board owner automatically added to member by signal
+        second_membership = BoardMembershipFactory(board=board)
+        owner = board.owner
+
+
+
+        other_membership = BoardMembershipFactory(board=other_board)
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert len(response.data) == 2
+
+        ids = {item["id"] for item in response.data}
+
+
+        assert second_membership.id in ids
+        assert other_membership.id not in ids
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_board_member_gets_empty_list(
+        self,
+        api_client,
+        board,
+        url,
+    ):
+        member = UserFactory()
+
+        BoardMembership.objects.create(
+            board=board,
+            user=member,
+            member_type="member",
+            accepted=True,
+        )
+
+        BoardMembershipFactory(board=board)
+
+        api_client.force_authenticate(member)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert response.data == []
+
+    def test_unrelated_user_gets_empty_list(
+        self,
+        api_client,
+        board,
+        url,
+    ):
+        BoardMembershipFactory(board=board)
+
+        outsider = UserFactory()
+
+        api_client.force_authenticate(outsider)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert response.data == []
+
+
+
+@pytest.mark.django_db
+class TestBoardMemberRetrieveView:
+    """Tests for BoardMemberViewSet.retrieve()."""
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def membership(self, board):
+        return BoardMembershipFactory(
+            board=board,
+            accepted=True,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_retrieve_board_membership(
+        self,
+        api_client,
+        membership,
+    ):
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    def test_board_owner_can_retrieve_board_membership(
+        self,
+        api_client,
+        owner,
+        membership,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert response.data["id"] == membership.id
+        assert response.data["board"] == membership.board.id
+        assert response.data["user"]["id"] == membership.user.id
+        assert response.data["accepted"] == membership.accepted
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_board_member_cannot_retrieve_board_membership(
+        self,
+        api_client,
+        board,
+        membership,
+    ):
+        member = UserFactory()
+
+        BoardMembership.objects.create(
+            board=board,
+            user=member,
+            member_type="member",
+            accepted=True,
+        )
+
+        api_client.force_authenticate(member)
+
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    def test_unrelated_user_cannot_retrieve_board_membership(
+        self,
+        api_client,
+        membership,
+    ):
+        outsider = UserFactory()
+
+        api_client.force_authenticate(outsider)
+
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_retrieve_nonexistent_board_membership_returns_404(
+        self,
+        api_client,
+        owner,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse("boardmember-detail", args=[999999])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+
+@pytest.mark.django_db
+class TestBoardMemberCreateView:
+    """Tests for BoardMemberViewSet.create()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("boardmember-list")
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def member(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def valid_data(self, board, member):
+        return {
+            "board": board.id,
+            "search": member.username,
+        }
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_create_board_member(
+        self,
+        api_client,
+        valid_data,
+    ):
+        response = api_client.post(reverse("boardmember-list"), valid_data)
+
+        assert response.status_code == 401
+        assert BoardMembership.objects.count() == 1 #because when create board owner automatically added to board
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_add_member(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        board,
+        member,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "board": board.id,
+                "search": member.username,
+            },
+        )
+
+        assert response.status_code == 201
+
+        memberships = BoardMembership.objects.filter(board__owner=board.owner)
+        assert memberships.count() == 2
+        assert list(memberships.values_list("id", flat=True)) == [board.owner.id, member.id]
+
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == owner
+        assert kwargs["user"] == owner
+        assert kwargs["board"] == board
+        assert kwargs["board_list"] is None
+        assert kwargs["card"] is None
+        assert kwargs["action_type"] == "add_board_member"
+        assert kwargs["text"] == (
+            f"'{member.username}' added to '{board.name}'"
+        )
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_missing_search_returns_400(
+        self,
+        api_client,
+        owner,
+        board,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "board": board.id,
+            },
+        )
+
+        assert response.status_code == 400
+        assert response.data == {
+            "error": "Search parameter is required"
+        }
+
+    def test_unknown_username_returns_404(
+        self,
+        api_client,
+        owner,
+        board,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "board": board.id,
+                "search": "unknown_user",
+            },
+        )
+
+        assert response.status_code == 404
+
+    def test_duplicate_membership_returns_400(
+        self,
+        api_client,
+        owner,
+        board,
+        member,
+        url,
+    ):
+        BoardMembership.objects.create(
+            board=board,
+            user=member,
+            accepted=True,
+        )
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "board": board.id,
+                "search": member.username,
+            },
+        )
+
+        assert response.status_code == 400
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_non_owner_cannot_add_board_member(
+        self,
+        api_client,
+        board,
+        member,
+        url,
+    ):
+        non_owner = UserFactory()
+
+        api_client.force_authenticate(non_owner)
+
+        response = api_client.post(
+            url,
+            {
+                "board": board.id,
+                "search": member.username,
+            },
+        )
+
+        assert response.status_code == 403
+        assert BoardMembership.objects.count() == 1#because when create board owner automatically added to board
+
+    def test_invalid_board_returns_403(
+        self,
+        api_client,
+        owner,
+        member,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "board": 999999,
+                "search": member.username,
+            },
+        )
+
+        assert response.status_code == 403
+        assert BoardMembership.objects.count() == 0
+
+
+@pytest.mark.django_db
+class TestBoardMemberUpdateView:
+    """Tests for BoardMemberViewSet.update()."""
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def membership(self, board):
+        return BoardMembershipFactory(
+            board=board,
+            accepted=False,
+        )
+
+    @pytest.fixture
+    def member(self):
+        return UserFactory()
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_board_membership(
+        self,
+        api_client,
+        membership,
+    ):
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.patch(
+            url,
+            {"accepted": True},
+        )
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    def test_board_owner_can_update_board_membership(
+        self,
+        api_client,
+        owner,
+        membership,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "accepted": True,
+            },
+        )
+
+        assert response.status_code == 200
+
+        membership.refresh_from_db()
+
+        assert membership.accepted is True
+        assert response.data["accepted"] is True
+
+    # ---------------------------------------------------------
+    # Object permission
+    # ---------------------------------------------------------
+
+    def test_board_member_cannot_update_board_membership(
+        self,
+        api_client,
+        board,
+        membership,
+    ):
+        board_member = UserFactory()
+
+        BoardMembership.objects.create(
+            board=board,
+            user=board_member,
+            member_type="member",
+            accepted=True,
+        )
+
+        api_client.force_authenticate(board_member)
+
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "accepted": True,
+            },
+        )
+
+        assert response.status_code == 404
+
+        membership.refresh_from_db()
+        assert membership.accepted is False
+
+    def test_unrelated_user_cannot_update_board_membership(
+        self,
+        api_client,
+        membership,
+    ):
+        outsider = UserFactory()
+
+        api_client.force_authenticate(outsider)
+
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "accepted": True,
+            },
+        )
+
+        assert response.status_code == 404
+
+        membership.refresh_from_db()
+        assert membership.accepted is False
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_invalid_data_returns_400(
+        self,
+        api_client,
+        owner,
+        membership,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "accepted": "invalid",
+            },
+        )
+
+        assert response.status_code == 400
+
+        membership.refresh_from_db()
+        assert membership.accepted is False
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_update_nonexistent_board_membership_returns_404(
+        self,
+        api_client,
+        owner,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse("boardmember-detail", args=[999999])
+
+        response = api_client.patch(
+            url,
+            {
+                "accepted": True,
+            },
+        )
+
+        assert response.status_code == 404
+
+
+
+@pytest.mark.django_db
+class TestBoardMemberDestroyView:
+    """Tests for BoardMemberViewSet.destroy()."""
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def membership(self, board):
+        return BoardMembershipFactory(
+            board=board,
+            accepted=True,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_delete_board_member(
+        self,
+        api_client,
+        membership,
+    ):
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 401
+
+        assert BoardMembership.objects.filter(
+            pk=membership.pk
+        ).exists()
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_delete_board_member(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        membership,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 204
+
+        assert not BoardMembership.objects.filter(
+            pk=membership.pk
+        ).exists()
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == owner
+        assert kwargs["user"] == owner
+        assert kwargs["board"] == membership.board
+        assert kwargs["board_list"] is None
+        assert kwargs["card"] is None
+        assert kwargs["action_type"] == "remove_board_member"
+        assert kwargs["text"] == (
+            f"The '{membership.user.username}' removed from board"
+        )
+
+    # ---------------------------------------------------------
+    # Object permission / queryset filtering
+    # ---------------------------------------------------------
+
+    def test_board_member_cannot_delete_board_member(
+        self,
+        api_client,
+        board,
+        membership,
+    ):
+        board_member = UserFactory()
+
+        BoardMembership.objects.create(
+            board=board,
+            user=board_member,
+            member_type="member",
+            accepted=True,
+        )
+
+        api_client.force_authenticate(board_member)
+
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+
+        assert BoardMembership.objects.filter(
+            pk=membership.pk
+        ).exists()
+
+    def test_unrelated_user_cannot_delete_board_member(
+        self,
+        api_client,
+        membership,
+    ):
+        outsider = UserFactory()
+
+        api_client.force_authenticate(outsider)
+
+        url = reverse("boardmember-detail", args=[membership.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+
+        assert BoardMembership.objects.filter(
+            pk=membership.pk
+        ).exists()
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_delete_nonexistent_board_member_returns_404(
+        self,
+        api_client,
+        owner,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse("boardmember-detail", args=[999999])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+#======================
+#  End BoardMemberViewSet Tests
 #======================

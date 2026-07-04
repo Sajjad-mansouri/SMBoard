@@ -98,11 +98,13 @@ class BoardMembershipPermission(permissions.BasePermission):
 
 
 		if view.action == "create":
-			obj_id = request.data.get("board")
+			if request.user and request.user.is_authenticated:
+				obj_id = request.data.get("board")
 
-			q = Q(id=obj_id)& Q(owner=request.user)
-			return models.Board.objects.filter(q).exists()
-
+				q = Q(id=obj_id)& Q(owner=request.user)
+				return models.Board.objects.filter(q).exists()
+			else:
+				return False
 		else:
 			return bool(request.user and request.user.is_authenticated)
 
@@ -114,8 +116,10 @@ class WatchBoardCardPermission(permissions.BasePermission):
 		card = request.data.get("card")
 
 		if board:
-			q = Q(id=board) & (Q(owner=request.user)| Q(board_memberships__user=request.user))
-			return models.Board.objects.filter(q).exists()
+			
+				q = Q(id=board) & (Q(owner=request.user)| Q(board_memberships__user=request.user))
+				return models.Board.objects.filter(q).exists()
+
 		elif card:
 			q = Q(id=card) & (Q(board_list__board__owner=request.user)| Q(board_list__board__board_memberships__user=request.user))
 			return models.Card.objects.filter(q).exists()

@@ -18,7 +18,8 @@ from board.models import (
 	CardImage,
 	LinkAttachment,
 	CardLabel,
-	CardMembership
+	CardMembership,
+	BoardMembership
 	)
 
 User = get_user_model()
@@ -144,6 +145,18 @@ class CardMembershipFactory(DjangoModelFactory):
 
 	card = factory.SubFactory(CardFactory)
 	user = factory.SubFactory(UserFactory)
+
+class BoardMembershipFactory(DjangoModelFactory):
+	"""Factory for creating BoardMembership instance"""
+
+	class Meta:
+		model = BoardMembership
+
+	board = factory.SubFactory(BoardFactory)
+	user = factory.SubFactory(UserFactory)
+	member_type = "member"
+	accepted = True
+
 @pytest.fixture
 def user(db):
 	"""create and return basic User"""
