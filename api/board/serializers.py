@@ -432,6 +432,7 @@ class NotificationSerializer(serializers.ModelSerializer):
 		fields = "__all__"
 	def to_internal_value(self, data):
 		request = self.context["request"]
+		data = data.copy()
 		data["user"] = request.user.id
 
 		return super().to_internal_value(data)

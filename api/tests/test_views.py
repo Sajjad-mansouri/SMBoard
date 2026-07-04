@@ -19,7 +19,8 @@ from .conftest import (
     LinkAttachmentFactory,
     CardLabelFactory,
     CardMembershipFactory,
-    BoardMembershipFactory
+    BoardMembershipFactory,
+    NotificationFactory
     )
 from board.models import (
     Board, 
@@ -11300,4 +11301,287 @@ class TestBoardMemberDestroyView:
         assert response.status_code == 404
 #======================
 #  End BoardMemberViewSet Tests
+#======================
+
+
+
+#======================
+#  Start NotificationSettingViewset Tests
+#======================
+
+
+
+@pytest.mark.django_db
+class TestNotificationSettingRetrieveView:
+    """Tests for NotificationSettingViewSet.retrieve()."""
+
+    @pytest.fixture
+    def url(self):
+        # Any pk works because get_object() ignores it.
+        return reverse("notification-setting-detail", args=[1])
+
+    @pytest.fixture
+    def notification(self, user):
+        return NotificationFactory(user=user)
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_retrieve_notification_settings(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    def test_user_can_retrieve_own_notification_settings(
+        self,
+        api_client,
+        user,
+        notification,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == notification.id
+        assert response.data["user"] == user.id
+
+        # Example boolean fields
+        assert (
+            response.data["email_frequency"]
+            == notification.email_frequency
+        )
+        assert (
+            response.data["create_card"]
+            == notification.create_card
+        )
+        assert (
+            response.data["move_card"]
+            == notification.move_card
+        )
+        assert (
+            response.data["add_comment"]
+            == notification.add_comment
+        )
+
+    # ---------------------------------------------------------
+    # get_object() ignores URL pk
+    # ---------------------------------------------------------
+
+    def test_retrieve_ignores_url_pk_and_returns_authenticated_users_notification(
+        self,
+        api_client,
+        user,
+        notification,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("notification-setting-detail", args=[999999])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert response.data["id"] == notification.id
+        assert response.data["user"] == user.id
+
+    # ---------------------------------------------------------
+    # Isolation
+    # ---------------------------------------------------------
+
+    def test_user_cannot_access_another_users_notification_settings(
+        self,
+        api_client,
+        user,
+        notification,
+    ):
+        other_user = UserFactory()
+        other_notification = NotificationFactory(user=other_user)
+
+        api_client.force_authenticate(user)
+
+        url = reverse(
+            "notification-setting-detail",
+            args=[other_notification.id],
+        )
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        # get_object() always returns request.user.notification
+        assert response.data["id"] == notification.id
+        assert response.data["user"] == user.id
+        assert response.data["id"] != other_notification.id
+
+
+
+@pytest.mark.django_db
+class TestNotificationSettingUpdateView:
+    """Tests for NotificationSettingViewSet.update()."""
+
+    @pytest.fixture
+    def notification(self, user):
+        return NotificationFactory(
+            user=user,
+            create_card=True,
+            move_card=True,
+            add_comment=True,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_notification_settings(
+        self,
+        api_client,
+    ):
+        url = reverse("notification-setting-detail", args=[1])
+
+        response = api_client.patch(
+            url,
+            {
+                "create_card": False,
+            },
+        )
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    def test_user_can_update_own_notification_settings(
+        self,
+        api_client,
+        user,
+        notification,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("notification-setting-detail", args=[notification.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "create_card": False,
+                "move_card": False,
+            },
+        )
+
+        assert response.status_code == 200
+
+        notification.refresh_from_db()
+
+        assert notification.create_card is False
+        assert notification.move_card is False
+        assert notification.add_comment is True
+
+        assert response.data["create_card"] is False
+        assert response.data["move_card"] is False
+
+    # ---------------------------------------------------------
+    # URL pk is ignored
+    # ---------------------------------------------------------
+
+    def test_update_ignores_url_pk(
+        self,
+        api_client,
+        user,
+        notification,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("notification-setting-detail", args=[999999])
+
+        response = api_client.patch(
+            url,
+            {
+                "create_card": False,
+            },
+        )
+
+        assert response.status_code == 200
+
+        notification.refresh_from_db()
+
+        assert notification.create_card is False
+
+    # ---------------------------------------------------------
+    # Cannot update another user's settings
+    # ---------------------------------------------------------
+
+    def test_user_cannot_update_another_users_notification_settings(
+        self,
+        api_client,
+        user,
+        notification,
+    ):
+        other_user = UserFactory()
+
+        other_notification = NotificationFactory(
+            user=other_user,
+            create_card=True,
+        )
+
+        api_client.force_authenticate(user)
+
+        url = reverse(
+            "notification-setting-detail",
+            args=[other_notification.pk],
+        )
+
+        response = api_client.patch(
+            url,
+            {
+                "create_card": False,
+            },
+        )
+
+        assert response.status_code == 200
+
+        notification.refresh_from_db()
+        other_notification.refresh_from_db()
+
+        # Current user's notification was updated.
+        assert notification.create_card is False
+
+        # Other user's notification was untouched.
+        assert other_notification.create_card is True
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_invalid_data_returns_400(
+        self,
+        api_client,
+        user,
+        notification,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("notification-setting-detail", args=[notification.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "create_card": "invalid",
+            },
+        )
+
+        assert response.status_code == 400
+#======================
+#  End NotificationSettingViewset Tests
 #======================

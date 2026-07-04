@@ -21,7 +21,7 @@ from board.models import (
 	CardMembership,
 	BoardMembership
 	)
-
+from account.models import Notification
 User = get_user_model()
 
 
@@ -156,6 +156,16 @@ class BoardMembershipFactory(DjangoModelFactory):
 	user = factory.SubFactory(UserFactory)
 	member_type = "member"
 	accepted = True
+
+class NotificationFactory(DjangoModelFactory):
+	"""Factory for creating Notification instance"""
+
+	class Meta:
+		model = Notification
+
+
+	user = factory.SubFactory(UserFactory)
+
 
 @pytest.fixture
 def user(db):

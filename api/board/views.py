@@ -1137,6 +1137,7 @@ class NotificationSettingViewset(
 							mixins.UpdateModelMixin,     
 							viewsets.GenericViewSet):
 	serializer_class = serializers.NotificationSerializer
+	permission_classes = [IsAuthenticated]
 
 	def get_object(self):
 		return self.request.user.notification
