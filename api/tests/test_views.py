@@ -2,8 +2,16 @@ import pytest
 from django.db.utils import IntegrityError
 from django.urls import reverse
 from unittest.mock import call, patch
-from .conftest import BoardFactory, UserFactory, BoardListFactory, CardFactory, CheckListFactory, CheckListItemFactory
-from board.models import Board, BoardMembership, Card, CheckList, ChecklistItem
+from .conftest import (
+    BoardFactory, 
+    UserFactory, 
+    BoardListFactory, 
+    CardFactory, 
+    CheckListFactory, 
+    CheckListItemFactory,
+    CommentFactory
+    )
+from board.models import Board, BoardMembership, Card, CheckList, ChecklistItem, Comment
 
 
 #======================
@@ -3812,4 +3820,1119 @@ class TestChecklistItemDestroyView:
         assert response.status_code == 404
 #======================
 #  End ChecklistItemViewSet Tests
+#======================
+
+#======================
+#  Start CommentViewSet Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestCommentListView:
+    """Tests for CommentViewSet.list()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("comment-list")
+
+    @pytest.fixture
+    def owner_comments(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CommentFactory.create_batch(
+            3,
+            card=card,
+            user=user,
+        )
+
+    @pytest.fixture
+    def member_comments(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CommentFactory.create_batch(
+            2,
+            card=card,
+            user=owner,
+        )
+
+    @pytest.fixture
+    def stranger_comments(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CommentFactory.create_batch(
+            4,
+            card=card,
+            user=owner,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_list_comments(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Owner
+    # ---------------------------------------------------------
+
+    def test_owner_can_list_board_comments(
+        self,
+        api_client,
+        user,
+        url,
+        owner_comments,
+        stranger_comments,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        returned_ids = {item["id"] for item in response.data}
+        expected_ids = {comment.id for comment in owner_comments}
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_list_comments(
+        self,
+        api_client,
+        user,
+        url,
+        member_comments,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        returned_ids = {item["id"] for item in response.data}
+        expected_ids = {comment.id for comment in member_comments}
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Filtering
+    # ---------------------------------------------------------
+
+    def test_comments_from_other_boards_are_not_returned(
+        self,
+        api_client,
+        user,
+        url,
+        owner_comments,
+        stranger_comments,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        returned_ids = {item["id"] for item in response.data}
+        stranger_ids = {comment.id for comment in stranger_comments}
+
+        assert returned_ids.isdisjoint(stranger_ids)
+
+    # ---------------------------------------------------------
+    # Distinct
+    # ---------------------------------------------------------
+
+    def test_list_contains_no_duplicate_comments(
+        self,
+        api_client,
+        user,
+        url,
+        owner_comments,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        ids = [item["id"] for item in response.data]
+
+        assert len(ids) == len(set(ids))
+
+    # ---------------------------------------------------------
+    # Serializer
+    # ---------------------------------------------------------
+
+    def test_response_contains_expected_fields(
+        self,
+        api_client,
+        user,
+        url,
+        owner_comments,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert set(response.data[0].keys()) == {
+            "id",
+            "user",
+            "content",
+            "timestamp",
+            "edited",
+            "card",
+            "reply",
+        }
+
+
+
+@pytest.mark.django_db
+class TestCommentRetrieveView:
+    """Tests for CommentViewSet.retrieve()."""
+
+    @pytest.fixture
+    def owner_comment(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CommentFactory(
+            user=user,
+            card=card,
+            content="Owner comment",
+            edited=False,
+        )
+
+    @pytest.fixture
+    def member_comment(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CommentFactory(
+            user=owner,
+            card=card,
+            content="Member visible comment",
+        )
+
+    @pytest.fixture
+    def stranger_comment(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CommentFactory(
+            user=owner,
+            card=card,
+            content="Private comment",
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_retrieve_comment(
+        self,
+        api_client,
+        owner_comment,
+    ):
+        url = reverse("comment-detail", args=[owner_comment.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Owner
+    # ---------------------------------------------------------
+
+    def test_owner_can_retrieve_comment(
+        self,
+        api_client,
+        user,
+        owner_comment,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("comment-detail", args=[owner_comment.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == owner_comment.id
+        assert response.data["content"] == owner_comment.content
+        assert response.data["edited"] == owner_comment.edited
+        assert response.data["card"] == owner_comment.card.id
+        assert response.data["user"] == owner_comment.user.id
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_retrieve_comment(
+        self,
+        api_client,
+        user,
+        member_comment,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("comment-detail", args=[member_comment.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == member_comment.id
+        assert response.data["content"] == member_comment.content
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_user_cannot_retrieve_unrelated_comment(
+        self,
+        api_client,
+        user,
+        stranger_comment,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("comment-detail", args=[stranger_comment.pk])
+
+        response = api_client.get(url)
+
+        # Hidden by get_queryset()
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_retrieve_nonexistent_comment_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("comment-detail", args=[999999])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Serializer
+    # ---------------------------------------------------------
+
+    def test_response_contains_expected_fields(
+        self,
+        api_client,
+        user,
+        owner_comment,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("comment-detail", args=[owner_comment.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert set(response.data.keys()) == {
+            "id",
+            "user",
+            "content",
+            "timestamp",
+            "edited",
+            "card",
+            "reply",
+        }
+
+
+
+@pytest.mark.django_db
+class TestCommentCreateView:
+    """Tests for CommentViewSet.create()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("comment-list")
+
+    @pytest.fixture
+    def owner_card(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def member_card(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def stranger_card(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def valid_data(self, owner_card):
+        return {
+            "card": owner_card.id,
+            "content": "This is a new comment.",
+        }
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_create_comment(
+        self,
+        api_client,
+        url,
+        valid_data,
+    ):
+        response = api_client.post(
+            url,
+            valid_data,
+            format="json",
+        )
+
+        assert response.status_code == 401
+        assert Comment.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_create_comment(
+        self,
+        mock_log,
+        api_client,
+        user,
+        url,
+        owner_card,
+        valid_data,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            valid_data,
+            format="json",
+        )
+
+        assert response.status_code == 201
+
+        comment = Comment.objects.get()
+
+        assert comment.user == user
+        assert comment.card == owner_card
+        assert comment.content == valid_data["content"]
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == owner_card.board_list.board
+        assert kwargs["board_list"] == owner_card.board_list
+        assert kwargs["card"] == owner_card
+        assert kwargs["action_type"] == "add_comment"
+        assert kwargs["text"] == (
+            f"'{user.username}' adds Comment to the '{owner_card.name}' card"
+        )
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_can_create_comment(
+        self,
+        mock_log,
+        api_client,
+        user,
+        url,
+        member_card,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": member_card.id,
+                "content": "Member comment",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 201
+
+        comment = Comment.objects.get()
+
+        assert comment.user == user
+        assert comment.card == member_card
+        assert comment.content == "Member comment"
+
+        mock_log.assert_called_once()
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_user_cannot_create_comment_for_unrelated_card(
+        self,
+        api_client,
+        user,
+        url,
+        stranger_card,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": stranger_card.id,
+                "content": "Unauthorized",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 403
+        assert Comment.objects.count() == 0
+
+    def test_missing_card_returns_403(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "content": "Hello",
+            },
+            format="json",
+        )
+
+        # Permission class rejects request before serializer validation.
+        assert response.status_code == 403
+
+        assert Comment.objects.count() == 0
+
+    def test_invalid_card_returns_403(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": 999999,
+                "content": "Hello",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 403
+
+        assert Comment.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_content_is_required(
+        self,
+        api_client,
+        user,
+        url,
+        owner_card,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": owner_card.id,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "content" in response.data
+
+        assert Comment.objects.count() == 0
+
+
+
+@pytest.mark.django_db
+class TestCommentUpdateView:
+    """Tests for CommentViewSet.update()."""
+
+    @pytest.fixture
+    def own_comment(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CommentFactory(
+            user=user,
+            card=card,
+            content="Original comment",
+        )
+
+    @pytest.fixture
+    def owner_not_comment_owner(self):
+        """
+        Board owner, but the comment belongs to another user.
+        """
+        owner = UserFactory()
+        comment_author = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=comment_author,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        comment = CommentFactory(
+            user=comment_author,
+            card=card,
+            content="Member comment",
+        )
+
+        return owner, comment_author, comment
+
+    @pytest.fixture
+    def member_not_comment_owner(self):
+        """
+        Logged-in member is not the author of the comment.
+        """
+        owner = UserFactory()
+        member = UserFactory()
+        comment_author = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=member,
+            member_type="member",
+            accepted=True,
+        )
+
+        BoardMembership.objects.create(
+            board=board,
+            user=comment_author,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        comment = CommentFactory(
+            user=comment_author,
+            card=card,
+            content="Original",
+        )
+
+        return member, comment
+
+    @pytest.fixture
+    def stranger_comment(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CommentFactory(
+            user=owner,
+            card=card,
+            content="Private comment",
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_comment(
+        self,
+        api_client,
+        own_comment,
+    ):
+        url = reverse("comment-detail", args=[own_comment.pk])
+
+        response = api_client.patch(
+            url,
+            {"content": "Updated"},
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Owner of comment
+    # ---------------------------------------------------------
+
+    def test_comment_owner_can_update_comment(
+        self,
+        api_client,
+        user,
+        own_comment,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("comment-detail", args=[own_comment.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "content": "Updated comment",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        own_comment.refresh_from_db()
+
+        assert own_comment.content == "Updated comment"
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    def test_board_owner_cannot_update_other_users_comment(
+        self,
+        api_client,
+        owner_not_comment_owner,
+    ):
+        board_owner, _, comment = owner_not_comment_owner
+
+        api_client.force_authenticate(board_owner)
+
+        url = reverse("comment-detail", args=[comment.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "content": "Updated",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 403
+
+        comment.refresh_from_db()
+
+        assert comment.content == "Member comment"
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_cannot_update_other_users_comment(
+        self,
+        api_client,
+        member_not_comment_owner,
+    ):
+        member, comment = member_not_comment_owner
+
+        api_client.force_authenticate(member)
+
+        url = reverse("comment-detail", args=[comment.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "content": "Updated",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 403
+
+        comment.refresh_from_db()
+
+        assert comment.content == "Original"
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_user_cannot_update_comment_outside_his_boards(
+        self,
+        api_client,
+        user,
+        stranger_comment,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("comment-detail", args=[stranger_comment.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "content": "Hack",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_update_nonexistent_comment_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("comment-detail", args=[999999])
+
+        response = api_client.patch(
+            url,
+            {
+                "content": "Updated",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_empty_content_returns_400(
+        self,
+        api_client,
+        user,
+        own_comment,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("comment-detail", args=[own_comment.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "content": "",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+
+        assert "content" in response.data
+
+
+
+@pytest.mark.django_db
+class TestCommentDestroyView:
+    """Tests for CommentViewSet.destroy()."""
+
+    @pytest.fixture
+    def own_comment(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CommentFactory(
+            user=user,
+            card=card,
+            content="My comment",
+        )
+
+    @pytest.fixture
+    def owner_not_comment_owner(self):
+        """
+        Board owner attempts to delete another user's comment.
+        """
+        board_owner = UserFactory()
+        comment_author = UserFactory()
+
+        board = BoardFactory(owner=board_owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=comment_author,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        comment = CommentFactory(
+            user=comment_author,
+            card=card,
+            content="Member comment",
+        )
+
+        return board_owner, comment
+
+    @pytest.fixture
+    def member_not_comment_owner(self):
+        """
+        Board member attempts to delete another member's comment.
+        """
+        owner = UserFactory()
+        member = UserFactory()
+        author = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=member,
+            member_type="member",
+            accepted=True,
+        )
+
+        BoardMembership.objects.create(
+            board=board,
+            user=author,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        comment = CommentFactory(
+            user=author,
+            card=card,
+            content="Original comment",
+        )
+
+        return member, comment
+
+    @pytest.fixture
+    def stranger_comment(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CommentFactory(
+            user=owner,
+            card=card,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_delete_comment(
+        self,
+        api_client,
+        own_comment,
+    ):
+        url = reverse("comment-detail", args=[own_comment.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 401
+        assert Comment.objects.filter(pk=own_comment.pk).exists()
+
+    # ---------------------------------------------------------
+    # Comment owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_comment_owner_can_delete_comment(
+        self,
+        mock_log,
+        api_client,
+        user,
+        own_comment,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("comment-detail", args=[own_comment.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 204
+
+        assert not Comment.objects.filter(pk=own_comment.pk).exists()
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == own_comment.card.board_list.board
+        assert kwargs["board_list"] == own_comment.card.board_list
+        assert kwargs["card"] == own_comment.card
+        assert kwargs["action_type"] == "remove_comment"
+        assert kwargs["text"] == (
+            f"'{user.username}' remove his comment"
+        )
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_cannot_delete_other_users_comment(
+        self,
+        mock_log,
+        api_client,
+        owner_not_comment_owner,
+    ):
+        board_owner, comment = owner_not_comment_owner
+
+        api_client.force_authenticate(board_owner)
+
+        url = reverse("comment-detail", args=[comment.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 403
+
+        assert Comment.objects.filter(pk=comment.pk).exists()
+
+        mock_log.assert_not_called()
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_cannot_delete_other_users_comment(
+        self,
+        mock_log,
+        api_client,
+        member_not_comment_owner,
+    ):
+        member, comment = member_not_comment_owner
+
+        api_client.force_authenticate(member)
+
+        url = reverse("comment-detail", args=[comment.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 403
+
+        assert Comment.objects.filter(pk=comment.pk).exists()
+
+        mock_log.assert_not_called()
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_user_cannot_delete_comment_outside_his_boards(
+        self,
+        api_client,
+        user,
+        stranger_comment,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("comment-detail", args=[stranger_comment.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+
+        assert Comment.objects.filter(pk=stranger_comment.pk).exists()
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_delete_nonexistent_comment_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("comment-detail", args=[999999])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+#======================
+#  End CommentViewSet Tests
 #======================

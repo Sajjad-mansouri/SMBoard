@@ -13,6 +13,32 @@ class IsBoardOwner(permissions.BasePermission):
 		return bool(request.user and request.user.is_authenticated)
 
 
+class BoardMemberCanComment(permissions.BasePermission):
+
+    def has_permission(self, request, view):
+        if not request.user.is_authenticated:
+            return False
+
+        if view.action != "create":
+            return True
+
+        card_id = request.data.get("card")
+        if not card_id:
+            return False
+
+        return models.Card.objects.filter(
+            Q(id=card_id),
+            Q(board_list__board__owner=request.user)
+            | Q(board_list__board__board_memberships__user=request.user),
+        ).exists()
+
+class CommentOwnerCanEdit(permissions.BasePermission):
+	def has_object_permission(self, request, view, obj):
+		if view.action in {"update", "partial_update", "destroy"}:
+			return obj.user == request.user
+		#filtered by queryset
+		return True
+
 
 class IsBoardOwnerOrMember(permissions.BasePermission):
 

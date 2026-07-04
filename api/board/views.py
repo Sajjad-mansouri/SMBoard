@@ -25,7 +25,16 @@ from board.tasks import send_email_task
 from . import serializers
 from .pagination import CustomCursorPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .permissions import IsBoardOwner, IsBoardOwnerOrMember, CardMembershipPermission, BoardMembershipPermission, WatchBoardCardPermission
+from .permissions import (
+	IsBoardOwner, 
+	IsBoardOwnerOrMember, 
+	CardMembershipPermission, 
+	BoardMembershipPermission, 
+	WatchBoardCardPermission,
+	BoardMemberCanComment,
+	CommentOwnerCanEdit
+
+	)
 
 def get_current_site_address(request):
 	current_site = get_current_site(request)
@@ -471,7 +480,7 @@ class ChecklistItemViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
 
 	serializer_class = serializers.CardCommentSerializer
-	permission_classes = [IsBoardOwnerOrMember]
+	permission_classes = [BoardMemberCanComment, CommentOwnerCanEdit]
 
 	def get_queryset(self):
 

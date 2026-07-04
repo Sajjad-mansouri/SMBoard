@@ -6,7 +6,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from factory.django import DjangoModelFactory
 from rest_framework.test import APIRequestFactory, APIClient
 from django.contrib.auth import get_user_model
-from board.models import Board, BoardList, Card, Activity, CheckList, ChecklistItem
+from board.models import Board, BoardList, Card, Activity, CheckList, ChecklistItem, Comment
 
 User = get_user_model()
 
@@ -54,7 +54,7 @@ class CardFactory(DjangoModelFactory):
 	board_list = factory.SubFactory(BoardListFactory)
 
 class CheckListFactory(DjangoModelFactory):
-	"""Factory for creating CheckListFactory instance"""
+	"""Factory for creating CheckList instance"""
 
 	class Meta:
 		model = CheckList
@@ -63,13 +63,23 @@ class CheckListFactory(DjangoModelFactory):
 	name = factory.Sequence(lambda n: f"Checklist {n}")
 
 class CheckListItemFactory(DjangoModelFactory):
-	"""Factory for creating CheckListItemFactory instance"""
+	"""Factory for creating CheckListItem instance"""
 
 	class Meta:
 		model = ChecklistItem
 
 	checklist = factory.SubFactory(CheckListFactory)
 	name = factory.Sequence(lambda n: f"item {n}")
+
+class CommentFactory(DjangoModelFactory):
+	"""Factory for creating Comment instance"""
+
+	class Meta:
+		model = Comment
+
+	user = factory.SubFactory(UserFactory)
+	card = factory.SubFactory(CardFactory)
+	content = factory.Sequence(lambda n: f"comment {n}")
 
 @pytest.fixture
 def user(db):
