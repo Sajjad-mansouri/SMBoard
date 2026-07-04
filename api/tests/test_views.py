@@ -1,4 +1,5 @@
 import pytest
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.utils import IntegrityError
 from django.urls import reverse
 from unittest.mock import call, patch
@@ -9,9 +10,18 @@ from .conftest import (
     CardFactory, 
     CheckListFactory, 
     CheckListItemFactory,
-    CommentFactory
+    CommentFactory,
+    CardFileFactory
     )
-from board.models import Board, BoardMembership, Card, CheckList, ChecklistItem, Comment
+from board.models import (
+    Board, 
+    BoardMembership, 
+    Card, 
+    CheckList, 
+    ChecklistItem, 
+    Comment,
+    CardFile
+    )
 
 
 #======================
@@ -4935,4 +4945,1043 @@ class TestCommentDestroyView:
         assert response.status_code == 404
 #======================
 #  End CommentViewSet Tests
+#======================
+
+
+#======================
+#  Start CardFileViewSet Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestCardFileListView:
+    """Tests for CardFileViewSet.list()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("cardfile-list")
+
+    @pytest.fixture
+    def owner_files(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardFileFactory.create_batch(
+            3,
+            card=card,
+            user=user,
+        )
+
+    @pytest.fixture
+    def member_files(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardFileFactory.create_batch(
+            2,
+            card=card,
+            user=owner,
+        )
+
+    @pytest.fixture
+    def stranger_files(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardFileFactory.create_batch(
+            4,
+            card=card,
+            user=owner,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_list_files(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Owner
+    # ---------------------------------------------------------
+
+    def test_board_owner_can_list_files(
+        self,
+        api_client,
+        user,
+        url,
+        owner_files,
+        stranger_files,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        returned_ids = {item["id"] for item in response.data}
+        expected_ids = {obj.id for obj in owner_files}
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_list_files(
+        self,
+        api_client,
+        user,
+        url,
+        member_files,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        returned_ids = {item["id"] for item in response.data}
+        expected_ids = {obj.id for obj in member_files}
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_files_from_other_boards_are_not_returned(
+        self,
+        api_client,
+        user,
+        url,
+        owner_files,
+        stranger_files,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        returned_ids = {item["id"] for item in response.data}
+        stranger_ids = {obj.id for obj in stranger_files}
+
+        assert returned_ids.isdisjoint(stranger_ids)
+
+    # ---------------------------------------------------------
+    # Distinct
+    # ---------------------------------------------------------
+
+    def test_list_contains_no_duplicates(
+        self,
+        api_client,
+        user,
+        url,
+        owner_files,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        ids = [item["id"] for item in response.data]
+
+        assert len(ids) == len(set(ids))
+
+    # ---------------------------------------------------------
+    # Serializer
+    # ---------------------------------------------------------
+
+    def test_response_contains_expected_fields(
+        self,
+        api_client,
+        user,
+        url,
+        owner_files,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert set(response.data[0].keys()) == {
+            "id", "name", "display_name","description", "file", "file_type", "upload_at", "user", "card"
+        }
+
+
+
+@pytest.mark.django_db
+class TestCardFileRetrieveView:
+    """Tests for CardFileViewSet.retrieve()."""
+
+    @pytest.fixture
+    def owner_file(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardFileFactory(
+            card=card,
+            user=user,
+        )
+
+    @pytest.fixture
+    def member_file(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardFileFactory(
+            card=card,
+            user=owner,
+        )
+
+    @pytest.fixture
+    def stranger_file(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardFileFactory(
+            card=card,
+            user=owner,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_retrieve_file(
+        self,
+        api_client,
+        owner_file,
+    ):
+        url = reverse("cardfile-detail", args=[owner_file.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    def test_board_owner_can_retrieve_file(
+        self,
+        api_client,
+        user,
+        owner_file,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardfile-detail", args=[owner_file.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == owner_file.id
+        assert response.data["card"] == owner_file.card.id
+        assert response.data["user"] == user.id
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_retrieve_file(
+        self,
+        api_client,
+        user,
+        member_file,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardfile-detail", args=[member_file.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == member_file.id
+        assert response.data["card"] == member_file.card.id
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_user_cannot_retrieve_file_from_unrelated_board(
+        self,
+        api_client,
+        user,
+        stranger_file,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardfile-detail", args=[stranger_file.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_retrieve_nonexistent_file_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardfile-detail", args=[999999])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+
+
+@pytest.mark.django_db
+class TestCardFileCreateView:
+    """Tests for CardFileViewSet.create()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("cardfile-list")
+
+    @pytest.fixture
+    def uploaded_file(self):
+        return SimpleUploadedFile(
+            "document.txt",
+            b"hello world",
+            content_type="text/plain",
+        )
+
+    @pytest.fixture
+    def owner_card(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def member_card(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def stranger_card(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+
+        return CardFactory(board_list=board_list)
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_create_attachment(
+        self,
+        api_client,
+        url,
+        owner_card,
+        uploaded_file,
+    ):
+        response = api_client.post(
+            url,
+            {
+                "card": owner_card.id,
+                "file": uploaded_file,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 401
+        assert CardFile.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_create_attachment(
+        self,
+        mock_log,
+        api_client,
+        user,
+        url,
+        owner_card,
+        uploaded_file,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": owner_card.id,
+                "file": uploaded_file,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 201
+
+        attachment = CardFile.objects.get()
+
+        assert attachment.user == user
+        assert attachment.card == owner_card
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == owner_card.board_list.board
+        assert kwargs["board_list"] == owner_card.board_list
+        assert kwargs["card"] == owner_card
+        assert kwargs["action_type"] == "add_attachment"
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_can_create_attachment(
+        self,
+        mock_log,
+        api_client,
+        user,
+        url,
+        member_card,
+        uploaded_file,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": member_card.id,
+                "file": uploaded_file,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 201
+
+        attachment = CardFile.objects.get()
+
+        assert attachment.user == user
+        assert attachment.card == member_card
+
+        mock_log.assert_called_once()
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_user_cannot_create_attachment_for_unrelated_card(
+        self,
+        api_client,
+        user,
+        url,
+        stranger_card,
+        uploaded_file,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": stranger_card.id,
+                "file": uploaded_file,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 403
+        assert CardFile.objects.count() == 0
+
+    def test_missing_card_returns_403(
+        self,
+        api_client,
+        user,
+        url,
+        uploaded_file,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "file": uploaded_file,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 403
+        assert CardFile.objects.count() == 0
+
+    def test_invalid_card_returns_403(
+        self,
+        api_client,
+        user,
+        url,
+        uploaded_file,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": 999999,
+                "file": uploaded_file,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 403
+        assert CardFile.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_file_is_required(
+        self,
+        api_client,
+        user,
+        url,
+        owner_card,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": owner_card.id,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 400
+        assert "file" in response.data
+
+        assert CardFile.objects.count() == 0
+
+
+@pytest.mark.django_db
+class TestCardFileUpdateView:
+    """Tests for CardFileViewSet.update()."""
+
+    @pytest.fixture
+    def own_attachment(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardFileFactory(
+            user=user,
+            card=card,
+        )
+
+    @pytest.fixture
+    def owner_not_attachment_owner(self):
+        """
+        Board owner attempts to update another user's attachment.
+        """
+        board_owner = UserFactory()
+        attachment_owner = UserFactory()
+
+        board = BoardFactory(owner=board_owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=attachment_owner,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        attachment = CardFileFactory(
+            user=attachment_owner,
+            card=card,
+        )
+
+        return board_owner, attachment
+
+    @pytest.fixture
+    def member_not_attachment_owner(self):
+        """
+        Board member attempts to update another member's attachment.
+        """
+        owner = UserFactory()
+        member = UserFactory()
+        attachment_owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=member,
+            member_type="member",
+            accepted=True,
+        )
+
+        BoardMembership.objects.create(
+            board=board,
+            user=attachment_owner,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        attachment = CardFileFactory(
+            user=attachment_owner,
+            card=card,
+        )
+
+        return member, attachment
+
+    @pytest.fixture
+    def stranger_attachment(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardFileFactory(
+            user=owner,
+            card=card,
+        )
+
+    @pytest.fixture
+    def new_file(self):
+        return SimpleUploadedFile(
+            "updated.txt",
+            b"updated file",
+            content_type="text/plain",
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_attachment(
+        self,
+        api_client,
+        own_attachment,
+        new_file,
+    ):
+        url = reverse("cardfile-detail", args=[own_attachment.pk])
+
+        response = api_client.patch(
+            url,
+            {"file": new_file},
+            format="multipart",
+        )
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Attachment owner
+    # ---------------------------------------------------------
+
+    def test_attachment_owner_can_update_attachment(
+        self,
+        api_client,
+        user,
+        own_attachment,
+        new_file,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardfile-detail", args=[own_attachment.pk])
+
+        response = api_client.patch(
+            url,
+            {"file": new_file},
+            format="multipart",
+        )
+
+        assert response.status_code == 200
+
+        own_attachment.refresh_from_db()
+
+        assert own_attachment.file.name.endswith("updated.txt")
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    def test_board_owner_cannot_update_other_users_attachment(
+        self,
+        api_client,
+        owner_not_attachment_owner,
+        new_file,
+    ):
+        board_owner, attachment = owner_not_attachment_owner
+
+        api_client.force_authenticate(board_owner)
+
+        url = reverse("cardfile-detail", args=[attachment.pk])
+
+        response = api_client.patch(
+            url,
+            {"file": new_file},
+            format="multipart",
+        )
+
+        assert response.status_code == 403
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_cannot_update_other_users_attachment(
+        self,
+        api_client,
+        member_not_attachment_owner,
+        new_file,
+    ):
+        member, attachment = member_not_attachment_owner
+
+        api_client.force_authenticate(member)
+
+        url = reverse("cardfile-detail", args=[attachment.pk])
+
+        response = api_client.patch(
+            url,
+            {"file": new_file},
+            format="multipart",
+        )
+
+        assert response.status_code == 403
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_user_cannot_update_attachment_from_unrelated_board(
+        self,
+        api_client,
+        user,
+        stranger_attachment,
+        new_file,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardfile-detail", args=[stranger_attachment.pk])
+
+        response = api_client.patch(
+            url,
+            {"file": new_file},
+            format="multipart",
+        )
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_update_nonexistent_attachment_returns_404(
+        self,
+        api_client,
+        user,
+        new_file,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardfile-detail", args=[999999])
+
+        response = api_client.patch(
+            url,
+            {"file": new_file},
+            format="multipart",
+        )
+
+        assert response.status_code == 404
+
+
+@pytest.mark.django_db
+class TestCardFileDestroyView:
+    """Tests for CardFileViewSet.destroy()."""
+
+    @pytest.fixture
+    def own_attachment(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardFileFactory(
+            user=user,
+            card=card,
+        )
+
+    @pytest.fixture
+    def owner_not_attachment_owner(self):
+        """
+        Board owner attempts to delete another user's attachment.
+        """
+        board_owner = UserFactory()
+        attachment_owner = UserFactory()
+
+        board = BoardFactory(owner=board_owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=attachment_owner,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        attachment = CardFileFactory(
+            user=attachment_owner,
+            card=card,
+        )
+
+        return board_owner, attachment
+
+    @pytest.fixture
+    def member_not_attachment_owner(self):
+        """
+        Board member attempts to delete another member's attachment.
+        """
+        owner = UserFactory()
+        member = UserFactory()
+        attachment_owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=member,
+            member_type="member",
+            accepted=True,
+        )
+
+        BoardMembership.objects.create(
+            board=board,
+            user=attachment_owner,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        attachment = CardFileFactory(
+            user=attachment_owner,
+            card=card,
+        )
+
+        return member, attachment
+
+    @pytest.fixture
+    def stranger_attachment(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardFileFactory(
+            user=owner,
+            card=card,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_delete_attachment(
+        self,
+        api_client,
+        own_attachment,
+    ):
+        url = reverse("cardfile-detail", args=[own_attachment.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 401
+        assert CardFile.objects.filter(pk=own_attachment.pk).exists()
+
+    # ---------------------------------------------------------
+    # Attachment owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_attachment_owner_can_delete_attachment(
+        self,
+        mock_log,
+        api_client,
+        user,
+        own_attachment,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardfile-detail", args=[own_attachment.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 204
+
+        assert not CardFile.objects.filter(pk=own_attachment.pk).exists()
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == own_attachment.card.board_list.board
+        assert kwargs["board_list"] == own_attachment.card.board_list
+        assert kwargs["card"] == own_attachment.card
+        assert kwargs["action_type"] == "remove_attachment"
+        assert kwargs["text"] == (
+            f"The '{own_attachment.get_name()}' attachment in "
+            f"'{own_attachment.card.name}' card was removed"
+        )
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_cannot_delete_other_users_attachment(
+        self,
+        mock_log,
+        api_client,
+        owner_not_attachment_owner,
+    ):
+        board_owner, attachment = owner_not_attachment_owner
+
+        api_client.force_authenticate(board_owner)
+
+        url = reverse("cardfile-detail", args=[attachment.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 403
+        assert CardFile.objects.filter(pk=attachment.pk).exists()
+
+        mock_log.assert_not_called()
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_cannot_delete_other_users_attachment(
+        self,
+        mock_log,
+        api_client,
+        member_not_attachment_owner,
+    ):
+        member, attachment = member_not_attachment_owner
+
+        api_client.force_authenticate(member)
+
+        url = reverse("cardfile-detail", args=[attachment.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 403
+        assert CardFile.objects.filter(pk=attachment.pk).exists()
+
+        mock_log.assert_not_called()
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_user_cannot_delete_attachment_from_unrelated_board(
+        self,
+        api_client,
+        user,
+        stranger_attachment,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardfile-detail", args=[stranger_attachment.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+
+        assert CardFile.objects.filter(pk=stranger_attachment.pk).exists()
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_delete_nonexistent_attachment_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardfile-detail", args=[999999])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+#======================
+#  End CardFileViewSet Tests
 #======================

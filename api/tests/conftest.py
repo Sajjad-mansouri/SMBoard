@@ -6,7 +6,16 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from factory.django import DjangoModelFactory
 from rest_framework.test import APIRequestFactory, APIClient
 from django.contrib.auth import get_user_model
-from board.models import Board, BoardList, Card, Activity, CheckList, ChecklistItem, Comment
+from board.models import (
+	Board, 
+	BoardList, 
+	Card, 
+	Activity, 
+	CheckList, 
+	ChecklistItem, 
+	Comment,
+	CardFile
+	)
 
 User = get_user_model()
 
@@ -80,6 +89,17 @@ class CommentFactory(DjangoModelFactory):
 	user = factory.SubFactory(UserFactory)
 	card = factory.SubFactory(CardFactory)
 	content = factory.Sequence(lambda n: f"comment {n}")
+
+
+class CardFileFactory(DjangoModelFactory):
+	"""Factory for creating CardFile instance"""
+
+	class Meta:
+		model = CardFile
+
+	user = factory.SubFactory(UserFactory)
+	card = factory.SubFactory(CardFactory)
+	file = factory.django.FileField(filename="file.txt")
 
 @pytest.fixture
 def user(db):

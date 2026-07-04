@@ -13,7 +13,7 @@ class IsBoardOwner(permissions.BasePermission):
 		return bool(request.user and request.user.is_authenticated)
 
 
-class BoardMemberCanComment(permissions.BasePermission):
+class BoardMemberCanCreateCardRelated(permissions.BasePermission):
 
     def has_permission(self, request, view):
         if not request.user.is_authenticated:
@@ -32,7 +32,7 @@ class BoardMemberCanComment(permissions.BasePermission):
             | Q(board_list__board__board_memberships__user=request.user),
         ).exists()
 
-class CommentOwnerCanEdit(permissions.BasePermission):
+class CardRelatedObjOwnerCanEdit(permissions.BasePermission):
 	def has_object_permission(self, request, view, obj):
 		if view.action in {"update", "partial_update", "destroy"}:
 			return obj.user == request.user

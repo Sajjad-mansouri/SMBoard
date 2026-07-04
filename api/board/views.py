@@ -31,8 +31,8 @@ from .permissions import (
 	CardMembershipPermission, 
 	BoardMembershipPermission, 
 	WatchBoardCardPermission,
-	BoardMemberCanComment,
-	CommentOwnerCanEdit
+	BoardMemberCanCreateCardRelated,
+	CardRelatedObjOwnerCanEdit
 
 	)
 
@@ -480,7 +480,7 @@ class ChecklistItemViewSet(viewsets.ModelViewSet):
 class CommentViewSet(viewsets.ModelViewSet):
 
 	serializer_class = serializers.CardCommentSerializer
-	permission_classes = [BoardMemberCanComment, CommentOwnerCanEdit]
+	permission_classes = [BoardMemberCanCreateCardRelated, CardRelatedObjOwnerCanEdit]
 
 	def get_queryset(self):
 
@@ -530,7 +530,7 @@ class CurrentUser(views.APIView):
 class CardFileViewSet(viewsets.ModelViewSet):
 
 	serializer_class = serializers.FileAttachmentSerializer
-	permission_classes = [IsBoardOwnerOrMember]
+	permission_classes = [BoardMemberCanCreateCardRelated, CardRelatedObjOwnerCanEdit]
 
 	def get_queryset(self):
 
