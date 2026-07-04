@@ -29,7 +29,8 @@ from board.models import (
     CardFile,
     CardImage,
     LinkAttachment,
-    CardLabel
+    CardLabel,
+    BoardList
     )
 
 
@@ -8985,4 +8986,976 @@ class TestCardLabelDestroyView:
         assert response.status_code == 404
 #======================
 #  End CardLabelViewSet Tests
+#======================
+
+
+#======================
+#  Start BoardListViewSet Tests
+#======================
+
+
+
+@pytest.mark.django_db
+class TestBoardListListView:
+    """Tests for BoardListViewSet.list()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("boardlist-list")
+
+    @pytest.fixture
+    def owner_lists(self, user):
+        board = BoardFactory(owner=user)
+
+        return BoardListFactory.create_batch(
+            3,
+            board=board,
+        )
+
+    @pytest.fixture
+    def member_lists(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        return BoardListFactory.create_batch(
+            2,
+            board=board,
+        )
+
+    @pytest.fixture
+    def stranger_lists(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        return BoardListFactory.create_batch(
+            4,
+            board=board,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_list_board_lists(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    def test_board_owner_can_list_board_lists(
+        self,
+        api_client,
+        user,
+        url,
+        owner_lists,
+        stranger_lists,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        returned_ids = {item["id"] for item in response.data}
+        expected_ids = {board_list.id for board_list in owner_lists}
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_list_board_lists(
+        self,
+        api_client,
+        user,
+        url,
+        member_lists,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        returned_ids = {item["id"] for item in response.data}
+        expected_ids = {board_list.id for board_list in member_lists}
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_board_lists_from_other_boards_are_not_returned(
+        self,
+        api_client,
+        user,
+        url,
+        owner_lists,
+        stranger_lists,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        returned_ids = {item["id"] for item in response.data}
+        stranger_ids = {board_list.id for board_list in stranger_lists}
+
+        assert returned_ids.isdisjoint(stranger_ids)
+
+    # ---------------------------------------------------------
+    # Distinct
+    # ---------------------------------------------------------
+
+    def test_list_contains_no_duplicates(
+        self,
+        api_client,
+        user,
+        url,
+        owner_lists,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        ids = [item["id"] for item in response.data]
+
+        assert len(ids) == len(set(ids))
+
+    # ---------------------------------------------------------
+    # Serializer
+    # ---------------------------------------------------------
+
+    def test_response_contains_expected_fields(
+        self,
+        api_client,
+        user,
+        url,
+        owner_lists,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert set(response.data[0].keys()) == {
+            "id", "order", "name", "cover_image", "cover_color", "list_cards", "archived","board"
+        }
+
+
+
+@pytest.mark.django_db
+class TestBoardListRetrieveView:
+    """Tests for BoardListViewSet.retrieve()."""
+
+    @pytest.fixture
+    def owner_board_list(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+
+        CardFactory.create_batch(2, board_list=board_list)
+
+        return board_list
+
+    @pytest.fixture
+    def member_board_list(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+
+        CardFactory.create_batch(2, board_list=board_list)
+
+        return board_list
+
+    @pytest.fixture
+    def stranger_board_list(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        board_list = BoardListFactory(board=board)
+
+        CardFactory.create_batch(2, board_list=board_list)
+
+        return board_list
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_retrieve_board_list(
+        self,
+        api_client,
+        owner_board_list,
+    ):
+        url = reverse("boardlist-detail", args=[owner_board_list.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    def test_board_owner_can_retrieve_board_list(
+        self,
+        api_client,
+        user,
+        owner_board_list,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[owner_board_list.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == owner_board_list.id
+        assert response.data["board"] == owner_board_list.board.id
+        assert response.data["name"] == owner_board_list.name
+        assert response.data["order"] == owner_board_list.order
+        assert response.data["cover_color"] == owner_board_list.cover_color
+        assert response.data["cover_image"] == owner_board_list.cover_image
+        assert response.data["archived"] == owner_board_list.archived
+        assert len(response.data["list_cards"]) == 2
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_retrieve_board_list(
+        self,
+        api_client,
+        user,
+        member_board_list,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[member_board_list.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == member_board_list.id
+        assert response.data["board"] == member_board_list.board.id
+        assert response.data["name"] == member_board_list.name
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_user_cannot_retrieve_board_list_from_unrelated_board(
+        self,
+        api_client,
+        user,
+        stranger_board_list,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[stranger_board_list.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_retrieve_nonexistent_board_list_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[999999])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Serializer fields
+    # ---------------------------------------------------------
+
+    def test_response_contains_expected_fields(
+        self,
+        api_client,
+        user,
+        owner_board_list,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[owner_board_list.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert set(response.data.keys()) == {
+            "id",
+            "order",
+            "name",
+            "cover_image",
+            "cover_color",
+            "list_cards",
+            "archived",
+            "board",
+        }
+
+
+@pytest.mark.django_db
+class TestBoardListCreateView:
+    """Tests for BoardListViewSet.create()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("boardlist-list")
+
+    @pytest.fixture
+    def owner_board(self, user):
+        return BoardFactory(owner=user)
+
+    @pytest.fixture
+    def member_board(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        return board
+
+    @pytest.fixture
+    def stranger_board(self):
+        owner = UserFactory()
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def valid_data(self, owner_board):
+        return {
+            "board": owner_board.id,
+            "name": "To Do",
+            "order": 1,
+            "cover_color": "#ffffff",
+            "archived": False,
+        }
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_create_board_list(
+        self,
+        api_client,
+        url,
+        valid_data,
+    ):
+        response = api_client.post(url, valid_data)
+
+        assert response.status_code == 401
+        assert BoardList.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_create_board_list(
+        self,
+        mock_log,
+        api_client,
+        user,
+        url,
+        owner_board,
+        valid_data,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(url, valid_data)
+
+        assert response.status_code == 201
+
+        board_list = BoardList.objects.get()
+
+        assert board_list.board == owner_board
+        assert board_list.name == valid_data["name"]
+        assert board_list.order == valid_data["order"]
+        assert board_list.cover_color == valid_data["cover_color"]
+        assert board_list.archived is False
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == owner_board
+        assert kwargs["board_list"] == board_list
+        assert kwargs["card"] is None
+        assert kwargs["action_type"] == "create_list"
+        assert kwargs["text"] == f"'{board_list.name}' list added to board"
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_can_create_board_list(
+        self,
+        mock_log,
+        api_client,
+        user,
+        url,
+        member_board,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "board": member_board.id,
+                "name": "Doing",
+                "order": 2,
+                "cover_color": "#00ff00",
+                "archived": False,
+            },
+        )
+
+        assert response.status_code == 201
+
+        board_list = BoardList.objects.get()
+
+        assert board_list.board == member_board
+        assert board_list.name == "Doing"
+
+        mock_log.assert_called_once()
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_user_cannot_create_board_list_for_unrelated_board(
+        self,
+        api_client,
+        user,
+        url,
+        stranger_board,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "board": stranger_board.id,
+                "name": "To Do",
+                "order": 1,
+            },
+        )
+
+        assert response.status_code == 403
+        assert BoardList.objects.count() == 0
+
+    def test_missing_board_returns_400(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "name": "To Do",
+                "order": 1,
+            },
+        )
+
+        assert response.status_code == 400
+        assert BoardList.objects.count() == 0
+
+    def test_invalid_board_returns_403(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "board": 999999,
+                "name": "To Do",
+                "order": 1,
+            },
+        )
+
+        assert response.status_code == 403
+        assert BoardList.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    @pytest.mark.parametrize("missing_field", ["name"])
+    def test_required_fields(
+        self,
+        api_client,
+        user,
+        url,
+        valid_data,
+        missing_field,
+    ):
+        api_client.force_authenticate(user)
+
+        data = valid_data.copy()
+        data.pop(missing_field)
+
+        response = api_client.post(url, data)
+
+        assert response.status_code == 400
+        assert missing_field in response.data
+
+        assert BoardList.objects.count() == 0
+
+
+@pytest.mark.django_db
+class TestBoardListUpdateView:
+    """Tests for BoardListViewSet.update()."""
+
+    @pytest.fixture
+    def owner_board_list(self, user):
+        board = BoardFactory(owner=user)
+        return BoardListFactory(
+            board=board,
+            name="To Do",
+            order=1,
+        )
+
+    @pytest.fixture
+    def member_board_list(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        return BoardListFactory(
+            board=board,
+            name="To Do",
+            order=1,
+        )
+
+    @pytest.fixture
+    def stranger_board_list(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        return BoardListFactory(
+            board=board,
+            name="To Do",
+            order=1,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_board_list(
+        self,
+        api_client,
+        owner_board_list,
+    ):
+        url = reverse("boardlist-detail", args=[owner_board_list.pk])
+
+        response = api_client.patch(
+            url,
+            {"name": "Done"},
+        )
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_update_name(
+        self,
+        mock_log,
+        api_client,
+        user,
+        owner_board_list,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[owner_board_list.pk])
+
+        response = api_client.patch(
+            url,
+            {"name": "Done"},
+        )
+
+        assert response.status_code == 200
+
+        owner_board_list.refresh_from_db()
+
+        assert owner_board_list.name == "Done"
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == owner_board_list.board
+        assert kwargs["board_list"] == owner_board_list
+        assert kwargs["card"] is None
+        assert kwargs["action_type"] == "edit_list_title"
+        assert kwargs["text"] == (
+            "The name of the list was changed "
+            "from 'To Do' to 'Done' "
+        )
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_can_update_name(
+        self,
+        mock_log,
+        api_client,
+        user,
+        member_board_list,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[member_board_list.pk])
+
+        response = api_client.patch(
+            url,
+            {"name": "In Progress"},
+        )
+
+        assert response.status_code == 200
+
+        member_board_list.refresh_from_db()
+
+        assert member_board_list.name == "In Progress"
+
+        mock_log.assert_called_once()
+
+    # ---------------------------------------------------------
+    # No activity
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_update_without_name_change_does_not_create_activity(
+        self,
+        mock_log,
+        api_client,
+        user,
+        owner_board_list,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[owner_board_list.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "order": 10,
+            },
+        )
+
+        assert response.status_code == 200
+
+        owner_board_list.refresh_from_db()
+
+        assert owner_board_list.order == 10
+
+        mock_log.assert_not_called()
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_invalid_name_returns_400(
+        self,
+        api_client,
+        user,
+        owner_board_list,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[owner_board_list.pk])
+
+        response = api_client.patch(
+            url,
+            {"name": ""},
+        )
+
+        assert response.status_code == 400
+        assert "name" in response.data
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_user_cannot_update_board_list_from_unrelated_board(
+        self,
+        api_client,
+        user,
+        stranger_board_list,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[stranger_board_list.pk])
+
+        response = api_client.patch(
+            url,
+            {"name": "Done"},
+        )
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_update_nonexistent_board_list_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[999999])
+
+        response = api_client.patch(
+            url,
+            {"name": "Done"},
+        )
+
+        assert response.status_code == 404
+
+
+
+@pytest.mark.django_db
+class TestBoardListDestroyView:
+    """Tests for BoardListViewSet.destroy()."""
+
+    @pytest.fixture
+    def owner_board_list(self, user):
+        board = BoardFactory(owner=user)
+
+        return BoardListFactory(
+            board=board,
+            name="To Do",
+        )
+
+    @pytest.fixture
+    def member_board_list(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        return BoardListFactory(
+            board=board,
+            name="Doing",
+        )
+
+    @pytest.fixture
+    def stranger_board_list(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        return BoardListFactory(
+            board=board,
+            name="Done",
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_delete_board_list(
+        self,
+        api_client,
+        owner_board_list,
+    ):
+        url = reverse("boardlist-detail", args=[owner_board_list.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 401
+        assert BoardList.objects.filter(pk=owner_board_list.pk).exists()
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_delete_board_list(
+        self,
+        mock_log,
+        api_client,
+        user,
+        owner_board_list,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[owner_board_list.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 204
+        assert not BoardList.objects.filter(pk=owner_board_list.pk).exists()
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == owner_board_list.board
+        assert kwargs["board_list"].name == owner_board_list.name
+        assert kwargs["card"] is None
+        assert kwargs["action_type"] == "remove_list"
+        assert kwargs["text"] == (
+            f"The '{owner_board_list.name}' list was removed"
+        )
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_can_delete_board_list(
+        self,
+        mock_log,
+        api_client,
+        user,
+        member_board_list,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[member_board_list.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 204
+        assert not BoardList.objects.filter(pk=member_board_list.pk).exists()
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == member_board_list.board
+        assert kwargs["board_list"].name == member_board_list.name
+        assert kwargs["card"] is None
+        assert kwargs["action_type"] == "remove_list"
+        assert kwargs["text"] == (
+            f"The '{member_board_list.name}' list was removed"
+        )
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_user_cannot_delete_board_list_from_unrelated_board(
+        self,
+        mock_log,
+        api_client,
+        user,
+        stranger_board_list,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[stranger_board_list.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+
+        assert BoardList.objects.filter(
+            pk=stranger_board_list.pk
+        ).exists()
+
+        mock_log.assert_not_called()
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_delete_nonexistent_board_list_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("boardlist-detail", args=[999999])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+#======================
+#  End BoardListViewSet Tests
 #======================
