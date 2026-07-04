@@ -14,7 +14,9 @@ from board.models import (
 	CheckList, 
 	ChecklistItem, 
 	Comment,
-	CardFile
+	CardFile,
+	CardImage,
+	CardMembership
 	)
 
 User = get_user_model()
@@ -100,6 +102,20 @@ class CardFileFactory(DjangoModelFactory):
 	user = factory.SubFactory(UserFactory)
 	card = factory.SubFactory(CardFactory)
 	file = factory.django.FileField(filename="file.txt")
+
+class CardImageFactory(DjangoModelFactory):
+	"""Factory for creating CardImage instance"""
+
+	class Meta:
+		model = CardImage
+
+	user = factory.SubFactory(UserFactory)
+	card = factory.SubFactory(CardFactory)
+	file = factory.django.ImageField(filename="image.jpg")
+
+
+
+
 
 @pytest.fixture
 def user(db):

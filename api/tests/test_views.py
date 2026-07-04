@@ -1,8 +1,11 @@
+import io
+from PIL import Image
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.utils import IntegrityError
 from django.urls import reverse
 from unittest.mock import call, patch
+from rest_framework import status
 from .conftest import (
     BoardFactory, 
     UserFactory, 
@@ -11,7 +14,8 @@ from .conftest import (
     CheckListFactory, 
     CheckListItemFactory,
     CommentFactory,
-    CardFileFactory
+    CardFileFactory,
+    CardImageFactory,
     )
 from board.models import (
     Board, 
@@ -20,7 +24,8 @@ from board.models import (
     CheckList, 
     ChecklistItem, 
     Comment,
-    CardFile
+    CardFile,
+    CardImage
     )
 
 
@@ -5984,4 +5989,1059 @@ class TestCardFileDestroyView:
         assert response.status_code == 404
 #======================
 #  End CardFileViewSet Tests
+#======================
+
+
+#======================
+#  Start CardImageViewSet Tests
+#======================
+
+@pytest.mark.django_db
+class TestCardImageListView:
+    """Tests for CardImageViewSet.list()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("cardimage-list")
+
+    @pytest.fixture
+    def owner_images(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardImageFactory.create_batch(
+            3,
+            card=card,
+            user=user,
+        )
+
+    @pytest.fixture
+    def member_images(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardImageFactory.create_batch(
+            2,
+            card=card,
+            user=owner,
+        )
+
+    @pytest.fixture
+    def stranger_images(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardImageFactory.create_batch(
+            4,
+            card=card,
+            user=owner,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_list_images(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    def test_board_owner_can_list_images(
+        self,
+        api_client,
+        user,
+        url,
+        owner_images,
+        stranger_images,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        returned_ids = {item["id"] for item in response.data}
+        expected_ids = {obj.id for obj in owner_images}
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_list_images(
+        self,
+        api_client,
+        user,
+        url,
+        member_images,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        returned_ids = {item["id"] for item in response.data}
+        expected_ids = {obj.id for obj in member_images}
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_images_from_other_boards_are_not_returned(
+        self,
+        api_client,
+        user,
+        url,
+        owner_images,
+        stranger_images,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        returned_ids = {item["id"] for item in response.data}
+        stranger_ids = {obj.id for obj in stranger_images}
+
+        assert returned_ids.isdisjoint(stranger_ids)
+
+    # ---------------------------------------------------------
+    # Distinct
+    # ---------------------------------------------------------
+
+    def test_list_contains_no_duplicates(
+        self,
+        api_client,
+        user,
+        url,
+        owner_images,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        ids = [item["id"] for item in response.data]
+
+        assert len(ids) == len(set(ids))
+
+    # ---------------------------------------------------------
+    # Serializer
+    # ---------------------------------------------------------
+
+    def test_response_contains_expected_fields(
+        self,
+        api_client,
+        user,
+        url,
+        owner_images,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert set(response.data[0].keys()) == {
+            "id", "name", "display_name","description", "file", "file_type", "upload_at", "user", "card"
+
+        }
+
+
+
+@pytest.mark.django_db
+class TestCardImageRetrieveView:
+    """Tests for CardImageViewSet.retrieve()."""
+
+    @pytest.fixture
+    def owner_image(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardImageFactory(
+            card=card,
+            user=user,
+        )
+
+    @pytest.fixture
+    def member_image(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardImageFactory(
+            card=card,
+            user=owner,
+        )
+
+    @pytest.fixture
+    def stranger_image(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardImageFactory(
+            card=card,
+            user=owner,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_retrieve_image(
+        self,
+        api_client,
+        owner_image,
+    ):
+        url = reverse("cardimage-detail", args=[owner_image.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    def test_board_owner_can_retrieve_image(
+        self,
+        api_client,
+        user,
+        owner_image,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardimage-detail", args=[owner_image.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == owner_image.id
+        assert response.data["card"] == owner_image.card.id
+        assert response.data["user"] == user.id
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_retrieve_image(
+        self,
+        api_client,
+        user,
+        member_image,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardimage-detail", args=[member_image.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == member_image.id
+        assert response.data["card"] == member_image.card.id
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_user_cannot_retrieve_image_from_unrelated_board(
+        self,
+        api_client,
+        user,
+        stranger_image,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardimage-detail", args=[stranger_image.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_retrieve_nonexistent_image_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardimage-detail", args=[999999])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+
+
+@pytest.mark.django_db
+class TestCardImageCreateView:
+    """Tests for CardImageViewSet.create()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("cardimage-list")
+
+    @pytest.fixture
+    def uploaded_image(self):
+        """
+        Return a valid in-memory PNG image.
+        """
+        image = Image.new("RGB", (100, 100), color="red")
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        return SimpleUploadedFile(
+            "test.png",
+            buffer.read(),
+            content_type="image/png",
+        )
+
+    @pytest.fixture
+    def owner_card(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def member_card(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def stranger_card(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+
+        return CardFactory(board_list=board_list)
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_create_image(
+        self,
+        api_client,
+        url,
+        owner_card,
+        uploaded_image,
+    ):
+        response = api_client.post(
+            url,
+            {
+                "card": owner_card.id,
+                "file": uploaded_image,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 401
+        assert CardImage.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_create_image(
+        self,
+        mock_log,
+        api_client,
+        user,
+        url,
+        owner_card,
+        uploaded_image,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": owner_card.id,
+                "file": uploaded_image,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 201
+
+        attachment = CardImage.objects.get()
+
+        assert attachment.user == user
+        assert attachment.card == owner_card
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == owner_card.board_list.board
+        assert kwargs["board_list"] == owner_card.board_list
+        assert kwargs["card"] == owner_card
+        assert kwargs["action_type"] == "add_attachment"
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_can_create_image(
+        self,
+        mock_log,
+        api_client,
+        user,
+        url,
+        member_card,
+        uploaded_image,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": member_card.id,
+                "file": uploaded_image,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 201
+
+        attachment = CardImage.objects.get()
+
+        assert attachment.user == user
+        assert attachment.card == member_card
+
+        mock_log.assert_called_once()
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_user_cannot_create_image_for_unrelated_card(
+        self,
+        api_client,
+        user,
+        url,
+        stranger_card,
+        uploaded_image,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": stranger_card.id,
+                "file": uploaded_image,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 403
+        assert CardImage.objects.count() == 0
+
+    def test_missing_card_returns_403(
+        self,
+        api_client,
+        user,
+        url,
+        uploaded_image,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "file": uploaded_image,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 403
+        assert CardImage.objects.count() == 0
+
+    def test_invalid_card_returns_403(
+        self,
+        api_client,
+        user,
+        url,
+        uploaded_image,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": 999999,
+                "file": uploaded_image,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 403
+        assert CardImage.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_image_is_required(
+        self,
+        api_client,
+        user,
+        url,
+        owner_card,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": owner_card.id,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 400
+        assert "file" in response.data
+
+        assert CardImage.objects.count() == 0
+
+
+@pytest.mark.django_db
+class TestCardImageUpdateView:
+    """Tests for CardImageViewSet.update()."""
+
+    @pytest.fixture
+    def updated_image(self):
+        image = Image.new("RGB", (200, 200), color="blue")
+        buffer = io.BytesIO()
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        return SimpleUploadedFile(
+            "updated.png",
+            buffer.read(),
+            content_type="image/png",
+        )
+
+    @pytest.fixture
+    def own_image(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardImageFactory(
+            user=user,
+            card=card,
+        )
+
+    @pytest.fixture
+    def owner_not_image_owner(self):
+        """
+        Board owner attempts to update another user's image.
+        """
+        board_owner = UserFactory()
+        image_owner = UserFactory()
+
+        board = BoardFactory(owner=board_owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=image_owner,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        image = CardImageFactory(
+            user=image_owner,
+            card=card,
+        )
+
+        return board_owner, image
+
+    @pytest.fixture
+    def member_not_image_owner(self):
+        """
+        Board member attempts to update another member's image.
+        """
+        owner = UserFactory()
+        member = UserFactory()
+        image_owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=member,
+            member_type="member",
+            accepted=True,
+        )
+
+        BoardMembership.objects.create(
+            board=board,
+            user=image_owner,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        image = CardImageFactory(
+            user=image_owner,
+            card=card,
+        )
+
+        return member, image
+
+    @pytest.fixture
+    def stranger_image(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardImageFactory(
+            user=owner,
+            card=card,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_image(
+        self,
+        api_client,
+        own_image,
+        updated_image,
+    ):
+        url = reverse("cardimage-detail", args=[own_image.pk])
+
+        response = api_client.patch(
+            url,
+            {"file": updated_image},
+            format="multipart",
+        )
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Image owner
+    # ---------------------------------------------------------
+
+    def test_image_owner_can_update_image(
+        self,
+        api_client,
+        user,
+        own_image,
+        updated_image,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardimage-detail", args=[own_image.pk])
+
+        response = api_client.patch(
+            url,
+            {"file": updated_image},
+            format="multipart",
+        )
+
+        assert response.status_code == 200
+
+        own_image.refresh_from_db()
+
+        assert own_image.file.name.endswith("updated.png")
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    def test_board_owner_cannot_update_other_users_image(
+        self,
+        api_client,
+        owner_not_image_owner,
+        updated_image,
+    ):
+        board_owner, image = owner_not_image_owner
+
+        api_client.force_authenticate(board_owner)
+
+        url = reverse("cardimage-detail", args=[image.pk])
+
+        response = api_client.patch(
+            url,
+            {"file": updated_image},
+            format="multipart",
+        )
+
+        assert response.status_code == 403
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_cannot_update_other_users_image(
+        self,
+        api_client,
+        member_not_image_owner,
+        updated_image,
+    ):
+        member, image = member_not_image_owner
+
+        api_client.force_authenticate(member)
+
+        url = reverse("cardimage-detail", args=[image.pk])
+
+        response = api_client.patch(
+            url,
+            {"file": updated_image},
+            format="multipart",
+        )
+
+        assert response.status_code == 403
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_user_cannot_update_image_from_unrelated_board(
+        self,
+        api_client,
+        user,
+        stranger_image,
+        updated_image,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardimage-detail", args=[stranger_image.pk])
+
+        response = api_client.patch(
+            url,
+            {"file": updated_image},
+            format="multipart",
+        )
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_update_nonexistent_image_returns_404(
+        self,
+        api_client,
+        user,
+        updated_image,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardimage-detail", args=[999999])
+
+        response = api_client.patch(
+            url,
+            {"file": updated_image},
+            format="multipart",
+        )
+
+        assert response.status_code == 404
+
+
+@pytest.mark.django_db
+class TestCardImageDestroyView:
+    """Tests for CardImageViewSet.destroy()."""
+
+    @pytest.fixture
+    def own_image(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardImageFactory(
+            user=user,
+            card=card,
+        )
+
+    @pytest.fixture
+    def owner_not_image_owner(self):
+        """
+        Board owner attempts to delete another user's image.
+        """
+        board_owner = UserFactory()
+        image_owner = UserFactory()
+
+        board = BoardFactory(owner=board_owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=image_owner,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        image = CardImageFactory(
+            user=image_owner,
+            card=card,
+        )
+
+        return board_owner, image
+
+    @pytest.fixture
+    def member_not_image_owner(self):
+        """
+        Board member attempts to delete another member's image.
+        """
+        owner = UserFactory()
+        member = UserFactory()
+        image_owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=member,
+            member_type="member",
+            accepted=True,
+        )
+
+        BoardMembership.objects.create(
+            board=board,
+            user=image_owner,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        image = CardImageFactory(
+            user=image_owner,
+            card=card,
+        )
+
+        return member, image
+
+    @pytest.fixture
+    def stranger_image(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardImageFactory(
+            user=owner,
+            card=card,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_delete_image(
+        self,
+        api_client,
+        own_image,
+    ):
+        url = reverse("cardimage-detail", args=[own_image.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 401
+        assert CardImage.objects.filter(pk=own_image.pk).exists()
+
+    # ---------------------------------------------------------
+    # Image owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_image_owner_can_delete_image(
+        self,
+        mock_log,
+        api_client,
+        user,
+        own_image,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardimage-detail", args=[own_image.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 204
+
+        assert not CardImage.objects.filter(pk=own_image.pk).exists()
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == own_image.card.board_list.board
+        assert kwargs["board_list"] == own_image.card.board_list
+        assert kwargs["card"] == own_image.card
+        assert kwargs["action_type"] == "remove_attachment"
+        assert kwargs["text"] == (
+            f"The '{own_image.get_name()}' attachment in "
+            f"'{own_image.card.name}' card was removed"
+        )
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_cannot_delete_other_users_image(
+        self,
+        mock_log,
+        api_client,
+        owner_not_image_owner,
+    ):
+        board_owner, image = owner_not_image_owner
+
+        api_client.force_authenticate(board_owner)
+
+        url = reverse("cardimage-detail", args=[image.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 403
+
+        assert CardImage.objects.filter(pk=image.pk).exists()
+
+        mock_log.assert_not_called()
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_cannot_delete_other_users_image(
+        self,
+        mock_log,
+        api_client,
+        member_not_image_owner,
+    ):
+        member, image = member_not_image_owner
+
+        api_client.force_authenticate(member)
+
+        url = reverse("cardimage-detail", args=[image.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 403
+
+        assert CardImage.objects.filter(pk=image.pk).exists()
+
+        mock_log.assert_not_called()
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_user_cannot_delete_image_from_unrelated_board(
+        self,
+        api_client,
+        user,
+        stranger_image,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardimage-detail", args=[stranger_image.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+
+        assert CardImage.objects.filter(pk=stranger_image.pk).exists()
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_delete_nonexistent_image_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardimage-detail", args=[999999])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+
+#======================
+#  End CardImageViewSet Tests
 #======================

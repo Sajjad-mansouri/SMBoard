@@ -570,7 +570,7 @@ class CardFileViewSet(viewsets.ModelViewSet):
 class CardImageViewSet(viewsets.ModelViewSet):
 
 	serializer_class = serializers.ImageAttachmentSerializer
-	permission_classes = [IsBoardOwnerOrMember]
+	permission_classes = [BoardMemberCanCreateCardRelated, CardRelatedObjOwnerCanEdit]
 
 	def get_queryset(self):
 
