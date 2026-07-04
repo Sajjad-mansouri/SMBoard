@@ -17,7 +17,8 @@ from board.models import (
 	CardFile,
 	CardImage,
 	LinkAttachment,
-	CardLabel
+	CardLabel,
+	CardMembership
 	)
 
 User = get_user_model()
@@ -134,6 +135,15 @@ class CardLabelFactory(DjangoModelFactory):
 	name = "To do"
 	color = "#4287f5"
 
+
+class CardMembershipFactory(DjangoModelFactory):
+	"""Factory for creating CardMembership instance"""
+
+	class Meta:
+		model = CardMembership
+
+	card = factory.SubFactory(CardFactory)
+	user = factory.SubFactory(UserFactory)
 @pytest.fixture
 def user(db):
 	"""create and return basic User"""

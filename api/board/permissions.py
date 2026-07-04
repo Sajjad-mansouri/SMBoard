@@ -76,14 +76,14 @@ class CardMembershipPermission(permissions.BasePermission):
 	def has_permission(self, request, view):
 
 		if view.action == "create":
-
-			obj_id = request.data.get("card")
-			user_id = request.data.get("user")
-			q = Q(id=obj_id) & Q(board_list__board__owner=request.user) & Q(board_list__board__board_memberships__user_id=user_id)
-			return models.Card.objects.filter(q).exists()
-
-		else:
-			return bool(request.user and request.user.is_authenticated)
+			if request.user and request.user.is_authenticated:
+				obj_id = request.data.get("card")
+				user_id = request.data.get("user")
+				q = Q(id=obj_id) & Q(board_list__board__owner=request.user) & Q(board_list__board__board_memberships__user_id=user_id) & Q(board_list__board__board_memberships__accepted=True)
+				return models.Card.objects.filter(q).exists()
+			else:
+				return False
+		return bool(request.user and request.user.is_authenticated)
 
 
 class BoardMembershipPermission(permissions.BasePermission):

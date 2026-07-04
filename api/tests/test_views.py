@@ -17,7 +17,8 @@ from .conftest import (
     CardFileFactory,
     CardImageFactory,
     LinkAttachmentFactory,
-    CardLabelFactory
+    CardLabelFactory,
+    CardMembershipFactory
     )
 from board.models import (
     Board, 
@@ -30,7 +31,8 @@ from board.models import (
     CardImage,
     LinkAttachment,
     CardLabel,
-    BoardList
+    BoardList,
+    CardMembership
     )
 
 
@@ -9958,4 +9960,578 @@ class TestBoardListDestroyView:
         assert response.status_code == 404
 #======================
 #  End BoardListViewSet Tests
+#======================
+
+
+#======================
+#  Start CardMemberViewSet Tests
+#======================
+
+
+
+
+@pytest.mark.django_db
+class TestCardMemberListView:
+    """Tests that CardMemberViewSet does not allow list()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("cardmember-list")
+
+    def test_list_method_is_not_allowed_for_authenticated_user(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 405
+
+    def test_list_method_is_not_allowed_for_anonymous_user(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+
+@pytest.mark.django_db
+class TestCardMemberRetrieveView:
+    """Tests that CardMemberViewSet does not allow retrieve()."""
+
+    @pytest.fixture
+    def membership(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        member = UserFactory()
+
+        return CardMembershipFactory(
+            card=card,
+            user=member,
+        )
+
+    def test_retrieve_method_is_not_allowed_for_authenticated_user(
+        self,
+        api_client,
+        user,
+        membership,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardmember-detail", args=[membership.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 405
+
+    def test_retrieve_method_is_not_allowed_for_anonymous_user(
+        self,
+        api_client,
+        membership,
+    ):
+        url = reverse("cardmember-detail", args=[membership.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+
+@pytest.mark.django_db
+class TestCardMemberCreateView:
+    """Tests for CardMemberViewSet.create()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("cardmember-list")
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def board_list(self, board):
+        return BoardListFactory(board=board)
+
+    @pytest.fixture
+    def card(self, board_list):
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def board_member(self, board):
+        user = UserFactory()
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        return user
+
+    @pytest.fixture
+    def pending_member(self, board):
+        user = UserFactory()
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=False,
+        )
+
+        return user
+
+    @pytest.fixture
+    def outsider(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def valid_data(self, card, board_member):
+        return {
+            "card": card.id,
+            "user": board_member.id,
+        }
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_create_card_membership(
+        self,
+        api_client,
+        url,
+        valid_data,
+    ):
+        response = api_client.post(url, valid_data)
+
+        assert response.status_code == 401
+        assert CardMembership.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_add_board_member_to_card(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        card,
+        board_member,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "card": card.id,
+                "user": board_member.id,
+            },
+        )
+
+        assert response.status_code == 201
+
+        membership = CardMembership.objects.get()
+
+        assert membership.card == card
+        assert membership.user == board_member
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["user"] == owner
+        assert kwargs["board"] == card.board_list.board
+        assert kwargs["board_list"] == card.board_list
+        assert kwargs["card"] == card
+        assert kwargs["action_type"] == "add_card_member"
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_board_member_cannot_add_card_member(
+        self,
+        api_client,
+        board_member,
+        card,
+        outsider,
+        url,
+    ):
+        api_client.force_authenticate(board_member)
+
+        response = api_client.post(
+            url,
+            {
+                "card": card.id,
+                "user": outsider.id,
+            },
+        )
+
+        assert response.status_code == 403
+        assert CardMembership.objects.count() == 0
+
+    def test_cannot_add_user_who_is_not_board_member(
+        self,
+        api_client,
+        owner,
+        card,
+        outsider,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "card": card.id,
+                "user": outsider.id,
+            },
+        )
+
+        assert response.status_code == 403
+        assert CardMembership.objects.count() == 0
+
+    def test_cannot_add_pending_board_member(
+        self,
+        api_client,
+        owner,
+        card,
+        pending_member,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "card": card.id,
+                "user": pending_member.id,
+            },
+        )
+
+        assert response.status_code == 403
+        assert CardMembership.objects.count() == 0
+
+    def test_missing_card_returns_403(
+        self,
+        api_client,
+        owner,
+        board_member,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "user": board_member.id,
+            },
+        )
+
+        assert response.status_code == 403
+        assert CardMembership.objects.count() == 0
+
+    def test_invalid_card_returns_403(
+        self,
+        api_client,
+        owner,
+        board_member,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "card": 999999,
+                "user": board_member.id,
+            },
+        )
+
+        assert response.status_code == 403
+        assert CardMembership.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Serializer validation
+    # ---------------------------------------------------------
+
+    def test_missing_user_returns_403(
+        self,
+        api_client,
+        owner,
+        card,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "card": card.id,
+            },
+        )
+
+        assert response.status_code == 403
+
+
+    def test_duplicate_card_membership_returns_400(
+        self,
+        api_client,
+        owner,
+        card,
+        board_member,
+        url,
+    ):
+        CardMembership.objects.create(
+            card=card,
+            user=board_member,
+        )
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "card": card.id,
+                "user": board_member.id,
+            },
+        )
+
+        assert response.status_code == 400
+
+
+@pytest.mark.django_db
+class TestCardMemberUpdateView:
+    """Tests that CardMemberViewSet does not allow updates."""
+
+    @pytest.fixture
+    def membership(self):
+        owner = UserFactory()
+        member = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardMembershipFactory(
+            card=card,
+            user=member,
+        )
+
+    def test_put_method_is_not_allowed(
+        self,
+        api_client,
+        user,
+        membership,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardmember-detail", args=[membership.pk])
+
+        response = api_client.put(
+            url,
+            {
+                "card": membership.card.id,
+                "user": membership.user.id,
+            },
+        )
+
+        assert response.status_code == 405
+
+    def test_patch_method_is_not_allowed(
+        self,
+        api_client,
+        user,
+        membership,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardmember-detail", args=[membership.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "user": membership.user.id,
+            },
+        )
+
+        assert response.status_code == 405
+
+
+@pytest.mark.django_db
+class TestCardMemberDestroyView:
+    """Tests for CardMemberViewSet.destroy()."""
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def board_list(self, board):
+        return BoardListFactory(board=board)
+
+    @pytest.fixture
+    def card(self, board_list):
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def member(self, board):
+        user = UserFactory()
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        return user
+
+    @pytest.fixture
+    def card_membership(self, card, member):
+        return CardMembershipFactory(
+            card=card,
+            user=member,
+        )
+
+    @pytest.fixture
+    def outsider(self):
+        return UserFactory()
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_delete_card_membership(
+        self,
+        api_client,
+        card_membership,
+    ):
+        url = reverse("cardmember-detail", args=[card_membership.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 401
+
+        assert CardMembership.objects.filter(
+            pk=card_membership.pk
+        ).exists()
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_delete_card_membership(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        card_membership,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse("cardmember-detail", args=[card_membership.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 204
+
+        assert not CardMembership.objects.filter(
+            pk=card_membership.pk
+        ).exists()
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == owner
+        assert kwargs["user"] == owner
+        assert kwargs["board"] == card_membership.card.board_list.board
+        assert kwargs["card"] == card_membership.card
+        assert kwargs["action_type"] == "remove_card_member"
+        assert (
+            kwargs["text"]
+            == f"The '{card_membership.user.username}' removed from '{card_membership.card.name}' card"
+        )
+
+    # ---------------------------------------------------------
+    # Object permission
+    # ---------------------------------------------------------
+
+    def test_board_member_cannot_delete_card_membership(
+        self,
+        api_client,
+        member,
+        card_membership,
+    ):
+        api_client.force_authenticate(member)
+
+        url = reverse("cardmember-detail", args=[card_membership.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+
+        assert CardMembership.objects.filter(
+            pk=card_membership.pk
+        ).exists()
+
+    def test_unrelated_user_cannot_delete_card_membership(
+        self,
+        api_client,
+        outsider,
+        card_membership,
+    ):
+        api_client.force_authenticate(outsider)
+
+        url = reverse("cardmember-detail", args=[card_membership.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+
+        assert CardMembership.objects.filter(
+            pk=card_membership.pk
+        ).exists()
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_delete_nonexistent_card_membership_returns_404(
+        self,
+        api_client,
+        owner,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse("cardmember-detail", args=[999999])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+#======================
+#  End CardMemberViewSet Tests
 #======================

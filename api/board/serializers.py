@@ -246,6 +246,7 @@ class CardMembershipSerializer(serializers.ModelSerializer):
 	class Meta:
 		model = CardMembership
 		fields = ["id", "user", "card"]
+		read_only_fields = ["id"]
 
 
 class CardNestedSerializer(CardSerializer):
