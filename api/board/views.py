@@ -971,7 +971,7 @@ class CardWatchView(ToggleWatchMixin, views.APIView):
 class LinkAttachmentViewSet(viewsets.ModelViewSet):
 
 	serializer_class = serializers.LinkAttachmentSerializer
-	permission_classes = [IsBoardOwnerOrMember]
+	permission_classes = [BoardMemberCanCreateCardRelated, CardRelatedObjOwnerCanEdit]
 
 	def get_queryset(self):
 

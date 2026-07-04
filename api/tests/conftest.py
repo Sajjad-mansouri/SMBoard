@@ -16,7 +16,7 @@ from board.models import (
 	Comment,
 	CardFile,
 	CardImage,
-	CardMembership
+	LinkAttachment
 	)
 
 User = get_user_model()
@@ -113,7 +113,15 @@ class CardImageFactory(DjangoModelFactory):
 	card = factory.SubFactory(CardFactory)
 	file = factory.django.ImageField(filename="image.jpg")
 
+class LinkAttachmentFactory(DjangoModelFactory):
+	"""Factory for creating LinkAttachment instance"""
 
+	class Meta:
+		model = LinkAttachment
+
+	user = factory.SubFactory(UserFactory)
+	card = factory.SubFactory(CardFactory)
+	file = factory.Faker("url")
 
 
 
