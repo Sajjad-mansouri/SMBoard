@@ -16,7 +16,8 @@ from .conftest import (
     CommentFactory,
     CardFileFactory,
     CardImageFactory,
-    LinkAttachmentFactory
+    LinkAttachmentFactory,
+    CardLabelFactory
     )
 from board.models import (
     Board, 
@@ -27,7 +28,8 @@ from board.models import (
     Comment,
     CardFile,
     CardImage,
-    LinkAttachment
+    LinkAttachment,
+    CardLabel
     )
 
 
@@ -8071,4 +8073,916 @@ class TestLinkAttachmentDestroyView:
         assert response.status_code == 404
 #======================
 #  End LinkAttachmentViewSet Tests
+#======================
+
+
+#======================
+#  Start CardLabelViewSet Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestCardLabelListView:
+    """Tests for CardLabelViewSet.list()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("cardlabel-list")
+
+    @pytest.fixture
+    def owner_labels(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardLabelFactory.create_batch(
+            3,
+            card=card,
+        )
+
+    @pytest.fixture
+    def member_labels(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardLabelFactory.create_batch(
+            2,
+            card=card,
+        )
+
+    @pytest.fixture
+    def stranger_labels(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardLabelFactory.create_batch(
+            4,
+            card=card,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_list_labels(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    def test_board_owner_can_list_labels(
+        self,
+        api_client,
+        user,
+        url,
+        owner_labels,
+        stranger_labels,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        returned_ids = {item["id"] for item in response.data}
+        expected_ids = {label.id for label in owner_labels}
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_list_labels(
+        self,
+        api_client,
+        user,
+        url,
+        member_labels,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        returned_ids = {item["id"] for item in response.data}
+        expected_ids = {label.id for label in member_labels}
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_labels_from_other_boards_are_not_returned(
+        self,
+        api_client,
+        user,
+        url,
+        owner_labels,
+        stranger_labels,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        returned_ids = {item["id"] for item in response.data}
+        stranger_ids = {label.id for label in stranger_labels}
+
+        assert returned_ids.isdisjoint(stranger_ids)
+
+    # ---------------------------------------------------------
+    # Distinct
+    # ---------------------------------------------------------
+
+    def test_list_contains_no_duplicates(
+        self,
+        api_client,
+        user,
+        url,
+        owner_labels,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        ids = [item["id"] for item in response.data]
+
+        assert len(ids) == len(set(ids))
+
+    # ---------------------------------------------------------
+    # Serializer
+    # ---------------------------------------------------------
+
+    def test_response_contains_expected_fields(
+        self,
+        api_client,
+        user,
+        url,
+        owner_labels,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert set(response.data[0].keys()) == {
+            "id",
+            "card",
+            "name",
+            "color",
+        }
+
+
+@pytest.mark.django_db
+class TestCardLabelRetrieveView:
+    """Tests for CardLabelViewSet.retrieve()."""
+
+    @pytest.fixture
+    def owner_label(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardLabelFactory(card=card)
+
+    @pytest.fixture
+    def member_label(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardLabelFactory(card=card)
+
+    @pytest.fixture
+    def stranger_label(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardLabelFactory(card=card)
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_retrieve_label(
+        self,
+        api_client,
+        owner_label,
+    ):
+        url = reverse("cardlabel-detail", args=[owner_label.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    def test_board_owner_can_retrieve_label(
+        self,
+        api_client,
+        user,
+        owner_label,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[owner_label.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == owner_label.id
+        assert response.data["card"] == owner_label.card.id
+        assert response.data["name"] == owner_label.name
+        assert response.data["color"] == owner_label.color
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_retrieve_label(
+        self,
+        api_client,
+        user,
+        member_label,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[member_label.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == member_label.id
+        assert response.data["card"] == member_label.card.id
+        assert response.data["name"] == member_label.name
+        assert response.data["color"] == member_label.color
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_user_cannot_retrieve_label_from_unrelated_board(
+        self,
+        api_client,
+        user,
+        stranger_label,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[stranger_label.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_retrieve_nonexistent_label_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[999999])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+
+@pytest.mark.django_db
+class TestCardLabelCreateView:
+    """Tests for CardLabelViewSet.create()."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("cardlabel-list")
+
+    @pytest.fixture
+    def owner_card(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def member_card(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def stranger_card(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+
+        return CardFactory(board_list=board_list)
+
+    @pytest.fixture
+    def valid_data(self, owner_card):
+        return {
+            "card": owner_card.id,
+            "name": "Bug",
+            "color": "#ff0000",
+        }
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_create_label(
+        self,
+        api_client,
+        url,
+        valid_data,
+    ):
+        response = api_client.post(url, valid_data)
+
+        assert response.status_code == 401
+        assert CardLabel.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_create_label(
+        self,
+        mock_log,
+        api_client,
+        user,
+        url,
+        valid_data,
+        owner_card,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(url, valid_data)
+
+        assert response.status_code == 201
+
+        label = CardLabel.objects.get()
+
+        assert label.card == owner_card
+        assert label.name == valid_data["name"]
+        assert label.color == valid_data["color"]
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == owner_card.board_list.board
+        assert kwargs["board_list"] == owner_card.board_list
+        assert kwargs["card"] == owner_card
+        assert kwargs["action_type"] == "add_card_label"
+        assert kwargs["text"] == (
+            f"'{label.name}' label added to'{owner_card.name}' card"
+        )
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_can_create_label(
+        self,
+        mock_log,
+        api_client,
+        user,
+        url,
+        member_card,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": member_card.id,
+                "name": "Feature",
+                "color": "#00ff00",
+            },
+        )
+
+        assert response.status_code == 201
+
+        label = CardLabel.objects.get()
+
+        assert label.card == member_card
+        assert label.name == "Feature"
+
+        mock_log.assert_called_once()
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_user_cannot_create_label_for_unrelated_card(
+        self,
+        api_client,
+        user,
+        url,
+        stranger_card,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": stranger_card.id,
+                "name": "Bug",
+                "color": "#ff0000",
+            },
+        )
+
+        assert response.status_code == 403
+        assert CardLabel.objects.count() == 0
+
+    def test_missing_card_returns_400(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "name": "Bug",
+                "color": "#ff0000",
+            },
+        )
+
+        assert response.status_code == 400
+
+
+    def test_invalid_card_returns_403(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": 999999,
+                "name": "Bug",
+                "color": "#ff0000",
+            },
+        )
+
+        assert response.status_code == 403
+        assert CardLabel.objects.count() == 0
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    @pytest.mark.parametrize("missing_field", ["name", "color"])
+    def test_required_fields(
+        self,
+        api_client,
+        user,
+        url,
+        valid_data,
+        missing_field,
+    ):
+        api_client.force_authenticate(user)
+
+        data = valid_data.copy()
+        data.pop(missing_field)
+
+        response = api_client.post(url, data)
+
+        assert response.status_code == 400
+        assert missing_field in response.data
+
+        assert CardLabel.objects.count() == 0
+
+
+@pytest.mark.django_db
+class TestCardLabelUpdateView:
+    """Tests for CardLabelViewSet.update()."""
+
+    @pytest.fixture
+    def owner_label(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardLabelFactory(
+            card=card,
+            name="Bug",
+            color="#ff0000",
+        )
+
+    @pytest.fixture
+    def member_label(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardLabelFactory(
+            card=card,
+            name="Bug",
+            color="#ff0000",
+        )
+
+    @pytest.fixture
+    def stranger_label(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardLabelFactory(
+            card=card,
+            name="Bug",
+            color="#ff0000",
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_label(
+        self,
+        api_client,
+        owner_label,
+    ):
+        url = reverse("cardlabel-detail", args=[owner_label.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "name": "Feature",
+            },
+        )
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    def test_board_owner_can_update_label(
+        self,
+        api_client,
+        user,
+        owner_label,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[owner_label.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "name": "Feature",
+                "color": "#00ff00",
+            },
+        )
+
+        assert response.status_code == 200
+
+        owner_label.refresh_from_db()
+
+        assert owner_label.name == "Feature"
+        assert owner_label.color == "#00ff00"
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_update_label(
+        self,
+        api_client,
+        user,
+        member_label,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[member_label.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "name": "Enhancement",
+            },
+        )
+
+        assert response.status_code == 200
+
+        member_label.refresh_from_db()
+
+        assert member_label.name == "Enhancement"
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_user_cannot_update_label_from_unrelated_board(
+        self,
+        api_client,
+        user,
+        stranger_label,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[stranger_label.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "name": "Feature",
+            },
+        )
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_invalid_color_returns_400(
+        self,
+        api_client,
+        user,
+        owner_label,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[owner_label.pk])
+
+        response = api_client.patch(
+            url,
+            {
+                "color": "",
+            },
+        )
+
+        assert response.status_code == 400
+        assert "color" in response.data
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_update_nonexistent_label_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[999999])
+
+        response = api_client.patch(
+            url,
+            {
+                "name": "Feature",
+            },
+        )
+
+        assert response.status_code == 404
+
+
+@pytest.mark.django_db
+class TestCardLabelDestroyView:
+    """Tests for CardLabelViewSet.destroy()."""
+
+    @pytest.fixture
+    def owner_label(self, user):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardLabelFactory(
+            card=card,
+            name="Bug",
+        )
+
+    @pytest.fixture
+    def member_label(self, user):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardLabelFactory(
+            card=card,
+            name="Feature",
+        )
+
+    @pytest.fixture
+    def stranger_label(self):
+        owner = UserFactory()
+
+        board = BoardFactory(owner=owner)
+        board_list = BoardListFactory(board=board)
+        card = CardFactory(board_list=board_list)
+
+        return CardLabelFactory(
+            card=card,
+            name="Bug",
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_delete_label(
+        self,
+        api_client,
+        owner_label,
+    ):
+        url = reverse("cardlabel-detail", args=[owner_label.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 401
+        assert CardLabel.objects.filter(pk=owner_label.pk).exists()
+
+    # ---------------------------------------------------------
+    # Board owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_delete_label(
+        self,
+        mock_log,
+        api_client,
+        user,
+        owner_label,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[owner_label.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 204
+        assert not CardLabel.objects.filter(pk=owner_label.pk).exists()
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == owner_label.card.board_list.board
+        assert kwargs["board_list"] == owner_label.card.board_list
+        assert kwargs["card"] == owner_label.card
+        assert kwargs["action_type"] == "remove_card_label"
+        assert kwargs["text"] == (
+            f"The '{owner_label.name}' label in "
+            f"'{owner_label.card.name}' card was removed"
+        )
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_member_can_delete_label(
+        self,
+        mock_log,
+        api_client,
+        user,
+        member_label,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[member_label.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 204
+
+        assert not CardLabel.objects.filter(pk=member_label.pk).exists()
+
+        mock_log.assert_called_once()
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_user_cannot_delete_label_from_unrelated_board(
+        self,
+        mock_log,
+        api_client,
+        user,
+        stranger_label,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[stranger_label.pk])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+
+        assert CardLabel.objects.filter(pk=stranger_label.pk).exists()
+
+        mock_log.assert_not_called()
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_delete_nonexistent_label_returns_404(
+        self,
+        api_client,
+        user,
+    ):
+        api_client.force_authenticate(user)
+
+        url = reverse("cardlabel-detail", args=[999999])
+
+        response = api_client.delete(url)
+
+        assert response.status_code == 404
+#======================
+#  End CardLabelViewSet Tests
 #======================

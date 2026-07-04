@@ -16,7 +16,8 @@ from board.models import (
 	Comment,
 	CardFile,
 	CardImage,
-	LinkAttachment
+	LinkAttachment,
+	CardLabel
 	)
 
 User = get_user_model()
@@ -123,7 +124,15 @@ class LinkAttachmentFactory(DjangoModelFactory):
 	card = factory.SubFactory(CardFactory)
 	file = factory.Faker("url")
 
+class CardLabelFactory(DjangoModelFactory):
+	"""Factory for creating CardLabel instance"""
 
+	class Meta:
+		model = CardLabel
+
+	card = factory.SubFactory(CardFactory)
+	name = "To do"
+	color = "#4287f5"
 
 @pytest.fixture
 def user(db):

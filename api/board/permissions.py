@@ -43,8 +43,7 @@ class CardRelatedObjOwnerCanEdit(permissions.BasePermission):
 class IsBoardOwnerOrMember(permissions.BasePermission):
 
 	def has_permission(self, request, view):
-		print(request.data)
-		print(view.action)
+
 		if view.action == "create":
 			if not request.user or not request.user.is_authenticated:
 				return False
