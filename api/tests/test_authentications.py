@@ -1,5 +1,6 @@
 import pytest
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 
 from django.urls import reverse
 
@@ -539,3 +540,143 @@ class TestLoginApiView:
         assert response.data == {"error": "Invalid Credentials"}
 
 
+
+
+
+@pytest.mark.django_db
+class TestLogoutApiView:
+    """Tests for LogoutApiView."""
+
+    @pytest.fixture
+    def password(self):
+        return "secure_pass_1234"
+
+    @pytest.fixture
+    def user(self):
+        return UserFactory(username="john")
+
+    @pytest.fixture
+    def login_url(self):
+        return reverse("login")
+
+    @pytest.fixture
+    def logout_url(self):
+        return reverse("logout")
+
+    @pytest.fixture
+    def refresh_token(
+        self,
+        api_client,
+        login_url,
+        user,
+        password,
+    ):
+        response = api_client.post(
+            login_url,
+            {
+                "username": user.username,
+                "password": password,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        return response.data["refresh"]
+
+    # ------------------------------------------------------------------
+    # Success
+    # ------------------------------------------------------------------
+
+    def test_user_can_logout(
+        self,
+        api_client,
+        logout_url,
+        refresh_token,
+    ):
+        response = api_client.post(
+            logout_url,
+            {
+                "refresh": refresh_token,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+        assert response.data == {
+            "message": "Successfuly logged out"
+        }
+
+    # ------------------------------------------------------------------
+    # Missing refresh token
+    # ------------------------------------------------------------------
+
+    def test_missing_refresh_token_returns_400(
+        self,
+        api_client,
+        logout_url,
+    ):
+        response = api_client.post(
+            logout_url,
+            {},
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert response.data == {
+            "error": "Logout failed"
+        }
+
+    # ------------------------------------------------------------------
+    # Invalid refresh token
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "token",
+        [
+            "invalid.token",
+            "not-a-jwt",
+            "",
+        ],
+    )
+    def test_invalid_refresh_token_returns_400(
+        self,
+        api_client,
+        logout_url,
+        token,
+    ):
+        response = api_client.post(
+            logout_url,
+            {
+                "refresh": token,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert response.data == {
+            "error": "Logout failed"
+        }
+
+    # ------------------------------------------------------------------
+    # Blacklisting
+    # ------------------------------------------------------------------
+
+    def test_refresh_token_is_blacklisted_after_logout(
+        self,
+        api_client,
+        logout_url,
+        refresh_token,
+    ):
+        response = api_client.post(
+            logout_url,
+            {
+                "refresh": refresh_token,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        with pytest.raises(TokenError):
+            RefreshToken(refresh_token).blacklist()
