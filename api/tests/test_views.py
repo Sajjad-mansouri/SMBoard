@@ -2,7 +2,7 @@ from unittest.mock import patch
 import pytest
 
 from django.urls import reverse
-from board.models import BoardMembership, BoardWatch, CardWatch
+from board.models import BoardMembership, BoardWatch, CardWatch, Card
 from .conftest import (
     UserFactory,
     BoardFactory,
@@ -1825,4 +1825,156 @@ class TestCardWatchView:
         assert response.status_code == 403
 #======================
 #  End CardWatchView Tests
+#======================
+
+#======================
+#  Start CopyCardView Tests
+#======================
+
+
+
+@pytest.mark.django_db
+class TestCopyCardView:
+    """Tests for CopyCardView."""
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def member(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def stranger(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def board_list(self, board):
+        return BoardListFactory(board=board)
+
+    @pytest.fixture
+    def card(self, board_list):
+        return CardFactory(
+            board_list=board_list,
+            name="Original Card",
+        )
+
+    @pytest.fixture
+    def member_membership(self, board, member):
+        return BoardMembershipFactory(
+            board=board,
+            user=member,
+        )
+
+    @pytest.fixture
+    def url(self, card):
+        return reverse("copy_card", args=[card.pk])
+
+    # ------------------------------------------------------------------
+    # Authentication
+    # ------------------------------------------------------------------
+
+    def test_anonymous_user_cannot_copy_card(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.post(url)
+
+        assert response.status_code == 401
+
+    # ------------------------------------------------------------------
+    # Success (owner)
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_owner_can_copy_card(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        board,
+        board_list,
+        card,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        original_pk = card.pk
+
+        response = api_client.post(url)
+
+        assert response.status_code == 200
+
+        assert Card.objects.count() == 2
+
+        copied_card = Card.objects.exclude(pk=original_pk).get()
+
+        assert copied_card.pk != original_pk
+        assert copied_card.name == card.name
+        assert copied_card.board_list == card.board_list
+
+        assert response.data["id"] == copied_card.id
+        assert response.data["name"] == copied_card.name
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == owner
+        assert kwargs["user"] == owner
+        assert kwargs["board"] == board
+        assert kwargs["board_list"] == board_list
+        assert kwargs["card"] == copied_card
+        assert kwargs["action_type"] == "copy_card"
+        assert kwargs["text"] == (
+            f"The '{copied_card.name}' card copied "
+        )
+
+    # ------------------------------------------------------------------
+    # Success (board member)
+    # ------------------------------------------------------------------
+
+    def test_board_member_can_copy_card(
+        self,
+        api_client,
+        member,
+        member_membership,
+        card,
+        url,
+    ):
+        api_client.force_authenticate(member)
+
+        response = api_client.post(url)
+
+        assert response.status_code == 200
+
+        assert Card.objects.filter(
+            name=card.name,
+            board_list=card.board_list,
+        ).count() == 2
+
+    # ------------------------------------------------------------------
+    # Permission
+    # ------------------------------------------------------------------
+
+    def test_user_cannot_copy_card_from_other_board(
+        self,
+        api_client,
+        stranger,
+        url,
+    ):
+        api_client.force_authenticate(stranger)
+
+        response = api_client.post(url)
+
+        assert response.status_code == 404
+
+#======================
+#  End CopyCardView Tests
 #======================

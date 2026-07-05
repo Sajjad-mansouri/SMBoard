@@ -1012,7 +1012,7 @@ class LinkAttachmentViewSet(viewsets.ModelViewSet):
 
 class CopyCardView(GenericAPIView):
 	serializer_class = serializers.CardNestedSerializer
-
+	permission_classes = [IsAuthenticated]
 
 
 	def post(self, request, *args, **kwargs):
