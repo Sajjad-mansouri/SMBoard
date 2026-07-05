@@ -776,14 +776,15 @@ class BoardListOrderUpdating(views.APIView):
 
 
 class CardOrderUpdating(views.APIView):
-
+	permission_classes = [IsAuthenticated]
 	def patch(self, request, *args, **kwargs):
 
 		ids = [item["id"] for item in request.data]
 		q = (Q(board_list__board__owner=self.request.user) | Q(board_list__board__board_memberships__user=self.request.user)) & Q(id__in=ids)
 
-		queryset = Card.objects.filter(id__in=ids)
-
+		queryset = Card.objects.filter(q)
+		if queryset.count() != len(ids):
+			raise NotFound("One or more cards were not found.")
 		serializer = serializers.CardOrderSerializer(
 			queryset,
 			data=request.data,

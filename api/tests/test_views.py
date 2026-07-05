@@ -1153,3 +1153,240 @@ class TestBoardListOrderUpdatingView:
 #======================
 #  End BoardListOrderUpdating Tests
 #======================
+
+
+#======================
+#  Start CardOrderUpdating Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestCardOrderUpdatingView:
+    """Tests for CardOrderUpdating."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("card_order")
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def board_list(self, board):
+        return BoardListFactory(board=board)
+
+    @pytest.fixture
+    def cards(self, board_list):
+        return [
+            CardFactory(board_list=board_list, order=1),
+            CardFactory(board_list=board_list, order=2),
+            CardFactory(board_list=board_list, order=3),
+        ]
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_card_order(
+        self,
+        api_client,
+        url,
+        cards,
+    ):
+        response = api_client.patch(
+            url,
+            [{"id": cards[0].id, "order": 5}],
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Owner
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_owner_can_update_card_order(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        board,
+        board_list,
+        cards,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        payload = [
+            {"id": cards[0].id, "order": 3},
+            {"id": cards[1].id, "order": 1},
+            {"id": cards[2].id, "order": 2},
+        ]
+
+        response = api_client.patch(
+            url,
+            payload,
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        for card, expected in zip(cards, [3, 1, 2]):
+            card.refresh_from_db()
+            assert card.order == expected
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == owner
+        assert kwargs["user"] == owner
+        assert kwargs["board"] == board
+        assert kwargs["board_list"] == board_list
+        assert kwargs["card"] is None
+        assert kwargs["action_type"] == "change_cards_order"
+        assert kwargs["text"] == (
+            f"Cards of '{board_list.name}' list, order changed"
+        )
+
+    # ---------------------------------------------------------
+    # Board member
+    # ---------------------------------------------------------
+
+    def test_board_member_can_update_card_order(
+        self,
+        api_client,
+        user,
+        board,
+        cards,
+        url,
+    ):
+        BoardMembershipFactory(
+            board=board,
+            user=user,
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.patch(
+            url,
+            [
+                {"id": cards[0].id, "order": 10},
+                {"id": cards[1].id, "order": 20},
+            ],
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        cards[0].refresh_from_db()
+        cards[1].refresh_from_db()
+
+        assert cards[0].order == 10
+        assert cards[1].order == 20
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_user_cannot_update_other_users_cards(
+        self,
+        api_client,
+        user,
+        cards,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.patch(
+            url,
+            [{"id": cards[0].id, "order": 99}],
+            format="json",
+        )
+
+        assert response.status_code == 404
+
+        cards[0].refresh_from_db()
+        assert cards[0].order == 1
+
+    def test_nonexistent_card_returns_404(
+        self,
+        api_client,
+        owner,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.patch(
+            url,
+            [{"id": 999999, "order": 1}],
+            format="json",
+        )
+
+        assert response.status_code == 404
+
+    def test_mixed_accessible_and_inaccessible_cards_returns_404(
+        self,
+        api_client,
+        owner,
+        cards,
+        url,
+    ):
+        other_board = BoardFactory()
+        other_list = BoardListFactory(board=other_board)
+        other_card = CardFactory(
+            board_list=other_list,
+            order=50,
+        )
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.patch(
+            url,
+            [
+                {"id": cards[0].id, "order": 10},
+                {"id": other_card.id, "order": 20},
+            ],
+            format="json",
+        )
+
+        assert response.status_code == 404
+
+        cards[0].refresh_from_db()
+        other_card.refresh_from_db()
+
+        assert cards[0].order == 1
+        assert other_card.order == 50
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_invalid_order_returns_400(
+        self,
+        api_client,
+        owner,
+        cards,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.patch(
+            url,
+            [{"id": cards[0].id, "order": "invalid"}],
+            format="json",
+        )
+
+        assert response.status_code == 400
+
+        cards[0].refresh_from_db()
+        assert cards[0].order == 1
+#======================
+#  End CardOrderUpdating Tests
+#======================
