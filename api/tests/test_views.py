@@ -824,3 +824,74 @@ class TestBoardRetrieveView:
 #======================
 #  End BoardRetrieveView Tests
 #======================
+
+
+
+#======================
+#  Start CurrentUser Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestCurrentUserView:
+    """Tests for CurrentUser API view."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("current_user")
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_access_current_user(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    def test_authenticated_user_receives_own_user_id(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert response.data == {
+            "user": user.id,
+        }
+
+    # ---------------------------------------------------------
+    # Always returns authenticated user
+    # ---------------------------------------------------------
+
+    def test_returns_authenticated_user_not_another_user(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        other_user = UserFactory()
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["user"] == user.id
+        assert response.data["user"] != other_user.id
+#======================
+#  End CurrentUser Tests
+#======================
