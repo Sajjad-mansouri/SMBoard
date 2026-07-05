@@ -6,6 +6,8 @@ from board.models import BoardMembership
 from .conftest import (
     UserFactory,
     BoardFactory,
+    BoardListFactory,
+    CardFactory,
 )
 
 #======================
@@ -353,4 +355,196 @@ class TestSearchBoardView:
 
 #======================
 #  End SearchBoardView Tests
+#======================
+
+
+#======================
+#  Start SearchCardView Tests
+#======================
+
+@pytest.mark.django_db
+class TestSearchCardView:
+    """Tests for SearchCardView."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("search_cards")
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_search_cards(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url, {"search": "task"})
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    def test_returns_owned_and_member_cards_matching_search(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        # Owned board
+        owned_board = BoardFactory(owner=user)
+        owned_list = BoardListFactory(board=owned_board)
+        owned_card = CardFactory(
+            board_list=owned_list,
+            name="Project Alpha",
+        )
+
+        # Member board
+        member_board = BoardFactory()
+        BoardMembership.objects.create(
+            board=member_board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+        member_list = BoardListFactory(board=member_board)
+        member_card = CardFactory(
+            board_list=member_list,
+            name="Project Beta",
+        )
+
+        # Accessible but doesn't match search
+        other_card = CardFactory(
+            board_list=owned_list,
+            name="Shopping List",
+        )
+
+        # Inaccessible board
+        private_board = BoardFactory()
+        private_list = BoardListFactory(board=private_board)
+        private_card = CardFactory(
+            board_list=private_list,
+            name="Project Secret",
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(
+            url,
+            {"search": "Project"},
+        )
+
+        assert response.status_code == 200
+        assert len(response.data) == 2
+
+        ids = {card["id"] for card in response.data}
+
+        assert owned_card.id in ids
+        assert member_card.id in ids
+        assert other_card.id not in ids
+        assert private_card.id not in ids
+
+    # ---------------------------------------------------------
+    # Case-insensitive search
+    # ---------------------------------------------------------
+
+    def test_search_is_case_insensitive(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+
+        card = CardFactory(
+            board_list=board_list,
+            name="My Awesome Task",
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(
+            url,
+            {"search": "awesome"},
+        )
+
+        assert response.status_code == 200
+        assert len(response.data) == 1
+        assert response.data[0]["id"] == card.id
+
+    # ---------------------------------------------------------
+    # Empty result
+    # ---------------------------------------------------------
+
+    def test_returns_empty_list_when_no_card_matches(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        board = BoardFactory(owner=user)
+        board_list = BoardListFactory(board=board)
+
+        CardFactory(
+            board_list=board_list,
+            name="Project Alpha",
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(
+            url,
+            {"search": "Finance"},
+        )
+
+        assert response.status_code == 200
+        assert response.data == []
+
+    # ---------------------------------------------------------
+    # Access filtering
+    # ---------------------------------------------------------
+
+    def test_matching_card_without_access_is_not_returned(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        board = BoardFactory()
+        board_list = BoardListFactory(board=board)
+
+        CardFactory(
+            board_list=board_list,
+            name="Project Alpha",
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(
+            url,
+            {"search": "Project"},
+        )
+
+        assert response.status_code == 200
+        assert response.data == []
+
+    # ---------------------------------------------------------
+    # Missing query parameter
+    # ---------------------------------------------------------
+
+    def test_missing_search_parameter_raises_key_error(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        with pytest.raises(KeyError):
+            api_client.get(url)
+#======================
+#  End SearchCardView Tests
 #======================
