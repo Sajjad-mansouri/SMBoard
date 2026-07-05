@@ -1,4 +1,5 @@
 import pytest
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from django.urls import reverse
 
@@ -380,3 +381,161 @@ class TestTokenVerifyView:
 
         assert response.status_code == 400
         assert "token" in response.data
+
+
+
+@pytest.mark.django_db
+class TestLoginApiView:
+    """Tests for LoginApiView."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("login")
+
+    @pytest.fixture
+    def password(self):
+        return "secure_pass_1234"
+
+    @pytest.fixture
+    def user(self):
+        return UserFactory(
+            username="john",
+        )
+
+    # ------------------------------------------------------------------
+    # Success
+    # ------------------------------------------------------------------
+
+    def test_user_can_login(
+        self,
+        api_client,
+        url,
+        user,
+        password,
+    ):
+        response = api_client.post(
+            url,
+            {
+                "username": user.username,
+                "password": password,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        access = response.data["access"]
+        refresh = response.data["refresh"]
+
+        # Response contains expected fields
+        assert set(response.data.keys()) == {"access", "refresh"}
+
+        # Tokens are strings
+        assert isinstance(access, str)
+        assert isinstance(refresh, str)
+
+        # Tokens are valid JWTs
+        access_token = AccessToken(access)
+        refresh_token = RefreshToken(refresh)
+
+        # Tokens belong to the authenticated user
+        assert int(access_token["user_id"]) == user.id
+        assert int(refresh_token["user_id"]) == user.id
+
+        # Refresh token can generate an access token
+        assert str(refresh_token.access_token)
+
+    # ------------------------------------------------------------------
+    # Invalid credentials
+    # ------------------------------------------------------------------
+
+    def test_invalid_password_returns_401(
+        self,
+        api_client,
+        url,
+        user,
+    ):
+        response = api_client.post(
+            url,
+            {
+                "username": user.username,
+                "password": "wrong_password",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 401
+        assert response.data == {"error": "Invalid Credentials"}
+
+    def test_unknown_username_returns_401(
+        self,
+        api_client,
+        url,
+        password,
+    ):
+        response = api_client.post(
+            url,
+            {
+                "username": "unknown_user",
+                "password": password,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 401
+        assert response.data == {"error": "Invalid Credentials"}
+
+    # ------------------------------------------------------------------
+    # Missing credentials
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            {"password": "secure_pass_1234"},
+            {"username": "john"},
+            {},
+        ],
+    )
+    def test_missing_credentials_return_401(
+        self,
+        api_client,
+        url,
+        payload,
+    ):
+        response = api_client.post(
+            url,
+            payload,
+            format="json",
+        )
+
+        assert response.status_code == 401
+        assert response.data == {"error": "Invalid Credentials"}
+
+    # ------------------------------------------------------------------
+    # Inactive user
+    # ------------------------------------------------------------------
+
+    def test_inactive_user_cannot_login(
+        self,
+        api_client,
+        url,
+        user,
+        password,
+    ):
+        user.is_active = False
+        user.save(update_fields=["is_active"])
+
+        response = api_client.post(
+            url,
+            {
+                "username": user.username,
+                "password": password,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 401
+        assert response.data == {"error": "Invalid Credentials"}
+
+

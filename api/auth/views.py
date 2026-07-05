@@ -11,13 +11,13 @@ class LoginApiView(APIView):
 
 		username = request.data.get("username")
 		password = request.data.get("password")
-		print(request.data)
+
 		user = authenticate(username=username, password=password)
-		print(user)
+
 		if not user:
 			return Response({"error":"Invalid Credentials"}, status=401)
 
-		login(request, user)
+
 		refresh = RefreshToken.for_user(user)
 
 		return Response({
