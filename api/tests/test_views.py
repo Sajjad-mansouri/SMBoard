@@ -1,3 +1,4 @@
+from unittest.mock import patch
 import pytest
 
 from django.urls import reverse
@@ -8,6 +9,7 @@ from .conftest import (
     BoardFactory,
     BoardListFactory,
     CardFactory,
+    BoardMembershipFactory
 )
 
 #======================
@@ -894,4 +896,260 @@ class TestCurrentUserView:
         assert response.data["user"] != other_user.id
 #======================
 #  End CurrentUser Tests
+#======================
+
+#======================
+#  Start BoardListOrderUpdating Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestBoardListOrderUpdatingView:
+    """Tests for BoardListOrderUpdating."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("update_list_order")
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def board_lists(self, board):
+        return [
+            BoardListFactory(board=board, order=1),
+            BoardListFactory(board=board, order=2),
+            BoardListFactory(board=board, order=3),
+        ]
+
+    # ------------------------------------------------------------------
+    # Authentication
+    # ------------------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_board_list_order(
+        self,
+        api_client,
+        url,
+        board_lists,
+    ):
+        response = api_client.patch(
+            url,
+            [{"id": board_lists[0].id, "order": 10}],
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+    # ------------------------------------------------------------------
+    # Success (Owner)
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_board_owner_can_update_board_list_order(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        board,
+        board_lists,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        payload = [
+            {"id": board_lists[0].id, "order": 3},
+            {"id": board_lists[1].id, "order": 1},
+            {"id": board_lists[2].id, "order": 2},
+        ]
+
+        response = api_client.patch(
+            url,
+            payload,
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        for obj, expected_order in zip(board_lists, [3, 1, 2]):
+            obj.refresh_from_db()
+            assert obj.order == expected_order
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == owner
+        assert kwargs["user"] == owner
+        assert kwargs["board"] == board
+        assert kwargs["board_list"] is None
+        assert kwargs["card"] is None
+        assert kwargs["action_type"] == "change_lists_order"
+        assert kwargs["text"] == "Lists order changed"
+
+    # ------------------------------------------------------------------
+    # Success (Board member)
+    # ------------------------------------------------------------------
+
+    def test_board_member_can_update_board_list_order(
+        self,
+        api_client,
+        user,
+        board,
+        board_lists,
+        url,
+    ):
+        BoardMembershipFactory(
+            board=board,
+            user=user,
+        )
+
+        api_client.force_authenticate(user)
+
+        payload = [
+            {"id": board_lists[0].id, "order": 100},
+            {"id": board_lists[1].id, "order": 200},
+        ]
+
+        response = api_client.patch(
+            url,
+            payload,
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        board_lists[0].refresh_from_db()
+        board_lists[1].refresh_from_db()
+
+        assert board_lists[0].order == 100
+        assert board_lists[1].order == 200
+
+    # ------------------------------------------------------------------
+    # Authorization
+    # ------------------------------------------------------------------
+
+    def test_user_cannot_update_other_users_board_lists(
+        self,
+        api_client,
+        user,
+        board_lists,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        payload = [
+            {"id": board_lists[0].id, "order": 10},
+        ]
+
+        response = api_client.patch(
+            url,
+            payload,
+            format="json",
+        )
+
+        assert response.status_code == 404
+
+        board_lists[0].refresh_from_db()
+        assert board_lists[0].order == 1
+
+    def test_nonexistent_board_list_returns_404(
+        self,
+        api_client,
+        owner,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.patch(
+            url,
+            [
+                {
+                    "id": 999999,
+                    "order": 1,
+                }
+            ],
+            format="json",
+        )
+
+        assert response.status_code == 404
+
+    def test_mixed_accessible_and_inaccessible_board_lists_returns_404(
+        self,
+        api_client,
+        owner,
+        board_lists,
+        url,
+    ):
+        other_board = BoardFactory()
+        other_list = BoardListFactory(
+            board=other_board,
+            order=50,
+        )
+
+        api_client.force_authenticate(owner)
+
+        payload = [
+            {
+                "id": board_lists[0].id,
+                "order": 10,
+            },
+            {
+                "id": other_list.id,
+                "order": 20,
+            },
+        ]
+
+        response = api_client.patch(
+            url,
+            payload,
+            format="json",
+        )
+
+        assert response.status_code == 404
+
+        board_lists[0].refresh_from_db()
+        other_list.refresh_from_db()
+
+        assert board_lists[0].order == 1
+        assert other_list.order == 50
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
+    def test_invalid_order_returns_400(
+        self,
+        api_client,
+        owner,
+        board_lists,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        payload = [
+            {
+                "id": board_lists[0].id,
+                "order": "invalid",
+            }
+        ]
+
+        response = api_client.patch(
+            url,
+            payload,
+            format="json",
+        )
+
+        assert response.status_code == 400
+
+        board_lists[0].refresh_from_db()
+        assert board_lists[0].order == 1
+
+
+#======================
+#  End BoardListOrderUpdating Tests
 #======================

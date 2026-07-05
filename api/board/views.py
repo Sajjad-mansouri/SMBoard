@@ -8,6 +8,7 @@ import django_filters.rest_framework
 from rest_framework import viewsets, mixins, views
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.exceptions import NotFound
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView, get_object_or_404, GenericAPIView, CreateAPIView, DestroyAPIView
 from board.models import (
 	Board, Card, CheckList, 
@@ -741,12 +742,14 @@ class BoardListArchivedUpdateView(UpdateAPIView):
 			action_type=action[0], 
 			text=action[1])
 class BoardListOrderUpdating(views.APIView):
+	permission_classes = [IsAuthenticated]
 
 	def patch(self, request, *args, **kwargs):
 		ids = [item["id"] for item in request.data]
 		q = (Q(board__owner=self.request.user) | Q(board__board_memberships__user=self.request.user)) & Q(id__in=ids)
 		queryset = BoardList.objects.filter(q)
-
+		if queryset.count() != len(ids):
+			raise NotFound("One or more board lists were not found.")
 		serializer = serializers.BoardListOrderSerializer(
 			queryset,
 			data=request.data,
