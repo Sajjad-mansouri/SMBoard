@@ -548,3 +548,122 @@ class TestSearchCardView:
 #======================
 #  End SearchCardView Tests
 #======================
+
+
+#======================
+#  Start ClosedBoardView Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestClosedBoardView:
+    """Tests for ClosedBoardView."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("closed_boards")
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_list_closed_boards(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    def test_returns_only_closed_boards_owned_by_user(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        closed_board_1 = BoardFactory(
+            owner=user,
+            closed=True,
+        )
+
+        closed_board_2 = BoardFactory(
+            owner=user,
+            closed=True,
+        )
+
+        open_board = BoardFactory(
+            owner=user,
+            closed=False,
+        )
+
+        other_users_closed_board = BoardFactory(
+            owner=UserFactory(),
+            closed=True,
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert len(response.data) == 2
+
+        ids = {board["id"] for board in response.data}
+
+        assert closed_board_1.id in ids
+        assert closed_board_2.id in ids
+        assert open_board.id not in ids
+        assert other_users_closed_board.id not in ids
+
+    # ---------------------------------------------------------
+    # Empty queryset
+    # ---------------------------------------------------------
+
+    def test_returns_empty_list_when_user_has_no_closed_boards(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        BoardFactory(
+            owner=user,
+            closed=False,
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert response.data == []
+
+    # ---------------------------------------------------------
+    # Only owner's boards are returned
+    # ---------------------------------------------------------
+
+    def test_closed_boards_of_other_users_are_not_returned(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        BoardFactory(
+            owner=UserFactory(),
+            closed=True,
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert response.data == []
+
+#======================
+#  End ClosedBoardView Tests
+#======================
