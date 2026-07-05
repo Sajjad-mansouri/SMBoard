@@ -2,6 +2,8 @@ from unittest.mock import patch
 import pytest
 
 from django.urls import reverse
+from django.core.files.uploadedfile import SimpleUploadedFile
+
 from board.models import BoardMembership, BoardWatch, CardWatch, Card, Activity
 from .conftest import (
     UserFactory,
@@ -11,7 +13,8 @@ from .conftest import (
     BoardMembershipFactory,
     BoardWatchFactory,
     CardWatchFactory,
-    ActivityFactory
+    ActivityFactory,
+    ProfileFactory
 )
 
 #======================
@@ -1661,7 +1664,7 @@ class TestCardWatchView:
         card,
         url,
     ):
-        print("user", user)
+
         api_client.force_authenticate(user)
 
         response = api_client.post(
@@ -2767,4 +2770,190 @@ class TestActivityView:
 
 #======================
 #  End ActivitytView Tests
+#======================
+
+
+#======================
+#  Start ProfileUpdateView Tests
+#======================
+
+@pytest.mark.django_db
+class TestProfileUpdateView:
+    """Tests for ProfileUpdateView."""
+
+    @pytest.fixture
+    def user(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def profile(self, user):
+        return ProfileFactory(
+            user=user,
+            bio="Old bio",
+        )
+
+    @pytest.fixture
+    def another_profile(self):
+        return ProfileFactory(bio="Another bio")
+
+    @pytest.fixture
+    def url(self):
+        return reverse("update_profile")
+
+    # ------------------------------------------------------------------
+    # Authentication
+    # ------------------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_profile(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.patch(
+            url,
+            {"bio": "New bio"},
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+    # ------------------------------------------------------------------
+    # Partial update
+    # ------------------------------------------------------------------
+
+    def test_user_can_update_bio(
+        self,
+        api_client,
+        user,
+        profile,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.patch(
+            url,
+            {
+                "bio": "Updated biography",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+        profile.refresh_from_db()
+
+        assert profile.bio == "Updated biography"
+
+    # ------------------------------------------------------------------
+    # Full update
+    # ------------------------------------------------------------------
+
+    def test_user_can_put_profile(
+        self,
+        api_client,
+        user,
+        profile,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.put(
+            url,
+            {
+                "bio": "Completely replaced bio",
+            },
+            format="json",
+        )
+        assert response.status_code == 200
+
+        profile.refresh_from_db()
+
+        assert profile.bio == "Completely replaced bio"
+
+    # ------------------------------------------------------------------
+    # Image upload
+    # ------------------------------------------------------------------
+
+    def test_user_can_update_profile_image(
+        self,
+        api_client,
+        user,
+        profile,
+        url,
+        simple_uploaded_image_file
+    ):
+        api_client.force_authenticate(user)
+
+
+
+        response = api_client.patch(
+            url,
+            {
+                "profile_image": simple_uploaded_image_file,
+            },
+            format="multipart",
+        )
+
+        assert response.status_code == 200
+
+        profile.refresh_from_db()
+
+        assert profile.profile_image
+        assert profile.profile_image.name.endswith(".jpg")
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
+    def test_bio_cannot_exceed_max_length(
+        self,
+        api_client,
+        user,
+        profile,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.patch(
+            url,
+            {
+                "bio": "a" * 201,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "bio" in response.data
+
+    # ------------------------------------------------------------------
+    # Isolation
+    # ------------------------------------------------------------------
+
+    def test_only_authenticated_users_profile_is_updated(
+        self,
+        api_client,
+        user,
+        profile,
+        another_profile,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.patch(
+            url,
+            {
+                "bio": "My new bio",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        profile.refresh_from_db()
+        another_profile.refresh_from_db()
+
+        assert profile.bio == "My new bio"
+        assert another_profile.bio == "Another bio"
+
+#======================
+#  End ProfileUpdateView Tests
 #======================

@@ -39,6 +39,12 @@ class ProfileSerializer(serializers.ModelSerializer):
 		model = Profile
 		fields = ["user", "profile_image", "bio"]
 
+	def to_internal_value(self, data):
+		data = data.copy()
+		request = self.context["request"]
+		data["user"] = request.user.id
+		return super().to_internal_value(data)
+
 class UserSerializer(serializers.ModelSerializer):
 	profile_image = serializers.SerializerMethodField()
 	fullname = serializers.SerializerMethodField()

@@ -1079,12 +1079,14 @@ class PublicBoardAddress(views.APIView):
 
 class ProfileUpdateView(UpdateAPIView):
 	serializer_class = serializers.ProfileSerializer
+	permission_classes = [IsAuthenticated]
 	def get_object(self):
 		return self.request.user.profile
 
 
 class UserUpdateView(UpdateAPIView):
 	serializer_class = serializers.UserSerializer
+	permission_classes = [IsAuthenticated]
 	def get_object(self):
 		return self.request.user
 

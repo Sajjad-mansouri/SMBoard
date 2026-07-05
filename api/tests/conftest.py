@@ -24,7 +24,7 @@ from board.models import (
 	CardWatch,
 	Activity
 	)
-from account.models import Notification
+from account.models import Notification, Profile
 User = get_user_model()
 
 
@@ -41,7 +41,14 @@ class UserFactory(DjangoModelFactory):
 	first_name = factory.Faker("first_name")
 	last_name = factory.Faker("last_name")
 
+class ProfileFactory(DjangoModelFactory):
+	"""Factory for creating Profile instance"""
 
+	class Meta:
+		model = Profile
+		
+
+	user = factory.SubFactory(UserFactory)
 
 class BoardFactory(DjangoModelFactory):
 	"""Factory for creating Board instance"""
