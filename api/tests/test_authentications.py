@@ -248,3 +248,135 @@ class TestTokenRefreshView:
         )
 
         assert response.status_code == 401
+
+
+@pytest.mark.django_db
+class TestTokenVerifyView:
+    """Tests for JWT token verification endpoint."""
+
+    @pytest.fixture
+    def password(self):
+        return "secure_pass_1234"
+
+    @pytest.fixture
+    def user(self):
+        return UserFactory(username="john")
+
+    @pytest.fixture
+    def obtain_url(self):
+        return reverse("token_obtain_pair")
+
+    @pytest.fixture
+    def verify_url(self):
+        return reverse("token_verify")
+
+    @pytest.fixture
+    def tokens(
+        self,
+        api_client,
+        obtain_url,
+        user,
+        password,
+    ):
+        response = api_client.post(
+            obtain_url,
+            {
+                "username": user.username,
+                "password": password,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        return response.data
+
+    # ------------------------------------------------------------------
+    # Success
+    # ------------------------------------------------------------------
+
+    def test_valid_access_token_can_be_verified(
+        self,
+        api_client,
+        verify_url,
+        tokens,
+    ):
+        response = api_client.post(
+            verify_url,
+            {
+                "token": tokens["access"],
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+        assert response.data == {}
+
+    def test_valid_refresh_token_can_be_verified(
+        self,
+        api_client,
+        verify_url,
+        tokens,
+    ):
+        response = api_client.post(
+            verify_url,
+            {
+                "token": tokens["refresh"],
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+        assert response.data == {}
+
+    # ------------------------------------------------------------------
+    # Invalid token
+    # ------------------------------------------------------------------
+
+    def test_invalid_token_returns_401(
+        self,
+        api_client,
+        verify_url,
+    ):
+        response = api_client.post(
+            verify_url,
+            {
+                "token": "invalid.token",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+    def test_malformed_token_returns_401(
+        self,
+        api_client,
+        verify_url,
+    ):
+        response = api_client.post(
+            verify_url,
+            {
+                "token": "not-a-jwt",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
+    def test_missing_token_returns_400(
+        self,
+        api_client,
+        verify_url,
+    ):
+        response = api_client.post(
+            verify_url,
+            {},
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "token" in response.data
