@@ -2,14 +2,15 @@ from unittest.mock import patch
 import pytest
 
 from django.urls import reverse
-
+from board.models import BoardWatch
 from board.models import BoardMembership
 from .conftest import (
     UserFactory,
     BoardFactory,
     BoardListFactory,
     CardFactory,
-    BoardMembershipFactory
+    BoardMembershipFactory,
+    BoardWatchFactory
 )
 
 #======================
@@ -1389,4 +1390,209 @@ class TestCardOrderUpdatingView:
         assert cards[0].order == 1
 #======================
 #  End CardOrderUpdating Tests
+#======================
+
+
+#======================
+#  Start BoardWatchView Tests
+#======================
+
+
+
+@pytest.mark.django_db
+class TestBoardWatchView:
+    """Tests for BoardWatchView."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("board_watch")
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_toggle_board_watch(
+        self,
+        api_client,
+        board,
+        url,
+    ):
+        response = api_client.post(
+            url,
+            {
+                "board": board.id,
+                "watch": True,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Watch
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_user_can_watch_board(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        board,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "board": board.id,
+                "watch": True,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        board_watch = BoardWatch.objects.get(
+            user=owner,
+            board=board,
+        )
+
+        assert board_watch.watch is True
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == owner
+        assert kwargs["user"] == owner
+        assert kwargs["board"] == board
+        assert kwargs["board_list"] is None
+        assert kwargs["card"] is None
+        assert kwargs["action_type"] == "watch_board"
+        assert kwargs["text"] == (
+            f"{board.name} Board started being watched"
+        )
+
+    # ---------------------------------------------------------
+    # Unwatch
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_user_can_unwatch_board(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        board,
+        url,
+    ):
+        BoardWatchFactory(
+            user=owner,
+            board=board,
+            watch=True,
+        )
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "board": board.id,
+                "watch": False,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        board_watch = BoardWatch.objects.get(
+            user=owner,
+            board=board,
+        )
+
+        assert board_watch.watch is False
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["action_type"] == "unwatch_board"
+        assert kwargs["text"] == (
+            f"{board.name} Board stopped being watched"
+        )
+
+    # ---------------------------------------------------------
+    # Update existing watch object
+    # ---------------------------------------------------------
+
+    def test_existing_board_watch_is_updated_not_recreated(
+        self,
+        api_client,
+        owner,
+        board,
+        url,
+    ):
+        board_watch = BoardWatchFactory(
+            user=owner,
+            board=board,
+            watch=False,
+        )
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "board": board.id,
+                "watch": True,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        assert BoardWatch.objects.filter(
+            user=owner,
+            board=board,
+        ).count() == 1
+
+        board_watch.refresh_from_db()
+
+        assert board_watch.watch is True
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_invalid_data_returns_400(
+        self,
+        api_client,
+        owner,
+        board,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.post(
+            url,
+            {
+                "board": board.id,
+                "watch": "invalid",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+#======================
+#  End BoardWatchView Tests
 #======================
