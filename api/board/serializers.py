@@ -412,7 +412,6 @@ class CardWatchSerializer(serializers.ModelSerializer):
 	def to_internal_value(self, data):
 		request = self.context["request"]
 		data["user"] = request.user.id
-		print(data)
 		return super().to_internal_value(data)
 
 	def create(self, validated_data):

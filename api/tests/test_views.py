@@ -2,15 +2,15 @@ from unittest.mock import patch
 import pytest
 
 from django.urls import reverse
-from board.models import BoardWatch
-from board.models import BoardMembership
+from board.models import BoardMembership, BoardWatch, CardWatch
 from .conftest import (
     UserFactory,
     BoardFactory,
     BoardListFactory,
     CardFactory,
     BoardMembershipFactory,
-    BoardWatchFactory
+    BoardWatchFactory,
+    CardWatchFactory
 )
 
 #======================
@@ -1595,4 +1595,234 @@ class TestBoardWatchView:
         assert response.status_code == 400
 #======================
 #  End BoardWatchView Tests
+#======================
+
+
+#======================
+#  Start CardWatchView Tests
+#======================
+
+@pytest.mark.django_db
+class TestCardWatchView:
+
+    @pytest.fixture
+    def url(self):
+        return reverse("card_watch")
+
+    @pytest.fixture
+    def user(self):
+        return UserFactory()
+
+
+    @pytest.fixture
+    def board(self, user):
+        return BoardFactory(owner=user)
+
+    @pytest.fixture
+    def board_list(self, board):
+        return BoardListFactory(board=board)
+
+    @pytest.fixture
+    def card(self, board_list):
+        return CardFactory(board_list=board_list)
+
+    # ------------------------------------------------------------------
+    # Authentication
+    # ------------------------------------------------------------------
+
+    def test_anonymous_user_cannot_toggle_card_watch(
+        self,
+        api_client,
+        card,
+        url,
+    ):
+        response = api_client.post(
+            url,
+            {
+                "card": card.id,
+                "watch": True,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+    # ------------------------------------------------------------------
+    # Watch
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_user_can_watch_card(
+        self,
+        mock_log,
+        api_client,
+        user,
+        card,
+        url,
+    ):
+        print("user", user)
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": card.id,
+                "watch": True,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        card_watch = CardWatch.objects.get(
+            user=user,
+            card=card,
+        )
+
+        assert card_watch.watch is True
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == user
+        assert kwargs["user"] == user
+        assert kwargs["board"] == card.board_list.board
+        assert kwargs["board_list"] == card.board_list
+        assert kwargs["card"] == card
+        assert kwargs["action_type"] == "watch_card"
+        assert kwargs["text"] == (
+            f"{card.name} Card started being watched"
+        )
+
+    # ------------------------------------------------------------------
+    # Unwatch
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_user_can_unwatch_card(
+        self,
+        mock_log,
+        api_client,
+        user,
+        card,
+        url,
+    ):
+        CardWatchFactory(
+            user=user,
+            card=card,
+            watch=True,
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": card.id,
+                "watch": False,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        card_watch = CardWatch.objects.get(
+            user=user,
+            card=card,
+        )
+
+        assert card_watch.watch is False
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["action_type"] == "unwatch_card"
+        assert kwargs["text"] == (
+            f"{card.name} Card stopped being watched"
+        )
+
+    # ------------------------------------------------------------------
+    # Existing object is updated
+    # ------------------------------------------------------------------
+
+    def test_existing_card_watch_is_updated_not_recreated(
+        self,
+        api_client,
+        user,
+        card,
+        url,
+    ):
+        card_watch = CardWatchFactory(
+            user=user,
+            card=card,
+            watch=False,
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": card.id,
+                "watch": True,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        assert CardWatch.objects.filter(
+            user=user,
+            card=card,
+        ).count() == 1
+
+        card_watch.refresh_from_db()
+
+        assert card_watch.watch is True
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
+    def test_invalid_watch_value_returns_400(
+        self,
+        api_client,
+        user,
+        card,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "card": card.id,
+                "watch": "invalid",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+
+    def test_missing_card_returns_403(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            {
+                "watch": True,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 403
+#======================
+#  End CardWatchView Tests
 #======================

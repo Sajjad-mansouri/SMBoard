@@ -20,7 +20,8 @@ from board.models import (
 	CardLabel,
 	CardMembership,
 	BoardMembership,
-	BoardWatch
+	BoardWatch,
+	CardWatch
 	)
 from account.models import Notification
 User = get_user_model()
@@ -176,6 +177,17 @@ class BoardWatchFactory(DjangoModelFactory):
 
 	user = factory.SubFactory(UserFactory)
 	board = factory.SubFactory(BoardFactory)
+	watch = False
+
+class CardWatchFactory(DjangoModelFactory):
+	"""Factory for creating CardWatch instance"""
+
+	class Meta:
+		model = CardWatch
+
+
+	user = factory.SubFactory(UserFactory)
+	card = factory.SubFactory(CardFactory)
 	watch = False
 
 @pytest.fixture
