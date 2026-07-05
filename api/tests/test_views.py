@@ -8,6 +8,9 @@ from .conftest import (
     BoardFactory,
 )
 
+#======================
+#  Start GuestBoardListView Tests
+#======================
 
 @pytest.mark.django_db
 class TestGuestBoardListView:
@@ -97,3 +100,85 @@ class TestGuestBoardListView:
         assert response.status_code == 200
         assert response.data == []
 
+
+
+
+#======================
+#  End GuestBoardListView Tests
+#======================
+
+
+
+
+#======================
+#  Start UserRetrieveView Tests
+#======================
+
+@pytest.mark.django_db
+class TestUserRetrieveView:
+    """Tests for UserRetrieveView."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("user")
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_retrieve_profile(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    def test_authenticated_user_can_retrieve_own_profile(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == user.id
+        assert response.data["username"] == user.username
+        assert response.data["email"] == user.email
+
+    # ---------------------------------------------------------
+    # Always returns authenticated user
+    # ---------------------------------------------------------
+
+    def test_returns_authenticated_user_not_another_user(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        other_user = UserFactory()
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["id"] == user.id
+        assert response.data["username"] == user.username
+
+        assert response.data["id"] != other_user.id
+        assert response.data["username"] != other_user.username
+
+#======================
+#  End UserRetrieveView Tests
+#======================
