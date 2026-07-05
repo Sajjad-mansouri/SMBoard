@@ -203,7 +203,7 @@ class ClosedBoardView(ListAPIView):
 
 class BoardRetrieveView(RetrieveAPIView):
 	serializer_class = serializers.BoardNestedSerializer
-
+	permission_classes = [IsAuthenticated]
 	def get_queryset(self):
 		q = (Q(board_memberships__user=self.request.user) | Q(owner=self.request.user)) & Q(closed=False)
 

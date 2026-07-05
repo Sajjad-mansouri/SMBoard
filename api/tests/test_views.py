@@ -667,3 +667,160 @@ class TestClosedBoardView:
 #======================
 #  End ClosedBoardView Tests
 #======================
+
+
+#======================
+#  Start BoardRetrieveView Tests
+#======================
+
+@pytest.mark.django_db
+class TestBoardRetrieveView:
+    """Tests for BoardRetrieveView."""
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(
+            owner=owner,
+            closed=False,
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_retrieve_board(
+        self,
+        api_client,
+        board,
+    ):
+        url = reverse("board", args=[board.pk])
+
+        response = api_client.get(url)
+
+        # Adjust to 401 if your project uses Basic/Token authentication.
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    def test_owner_can_retrieve_board(
+        self,
+        api_client,
+        owner,
+        board,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse("board", args=[board.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert response.data["id"] == board.id
+        assert response.data["name"] == board.name
+
+    def test_board_member_can_retrieve_board(
+        self,
+        api_client,
+        user,
+        board,
+    ):
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        api_client.force_authenticate(user)
+
+        url = reverse("board", args=[board.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert response.data["id"] == board.id
+
+    # ---------------------------------------------------------
+    # Queryset filtering
+    # ---------------------------------------------------------
+
+    def test_unrelated_user_gets_404(
+        self,
+        api_client,
+        board,
+    ):
+        outsider = UserFactory()
+
+        api_client.force_authenticate(outsider)
+
+        url = reverse("board", args=[board.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    def test_closed_board_is_not_retrievable_by_owner(
+        self,
+        api_client,
+        owner,
+    ):
+        board = BoardFactory(
+            owner=owner,
+            closed=True,
+        )
+
+        api_client.force_authenticate(owner)
+
+        url = reverse("board", args=[board.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    def test_closed_board_is_not_retrievable_by_member(
+        self,
+        api_client,
+        user,
+    ):
+        board = BoardFactory(closed=True)
+
+        BoardMembership.objects.create(
+            board=board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        api_client.force_authenticate(user)
+
+        url = reverse("board", args=[board.pk])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Not found
+    # ---------------------------------------------------------
+
+    def test_nonexistent_board_returns_404(
+        self,
+        api_client,
+        owner,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse("board", args=[999999])
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+#======================
+#  End BoardRetrieveView Tests
+#======================
