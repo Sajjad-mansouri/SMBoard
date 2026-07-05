@@ -21,7 +21,8 @@ from board.models import (
 	CardMembership,
 	BoardMembership,
 	BoardWatch,
-	CardWatch
+	CardWatch,
+	Activity
 	)
 from account.models import Notification
 User = get_user_model()
@@ -189,6 +190,20 @@ class CardWatchFactory(DjangoModelFactory):
 	user = factory.SubFactory(UserFactory)
 	card = factory.SubFactory(CardFactory)
 	watch = False
+
+class ActivityFactory(DjangoModelFactory):
+	"""Factory for creating Activity instance"""
+
+	class Meta:
+		model = Activity
+
+
+	user = factory.SubFactory(UserFactory)
+	board = factory.SubFactory(BoardListFactory)
+	board_list = factory.SubFactory(BoardListFactory)
+	card = factory.SubFactory(CardFactory)
+	action_type = "create_card"
+	text = "Card Created"
 
 @pytest.fixture
 def user(db):

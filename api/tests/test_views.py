@@ -2,7 +2,7 @@ from unittest.mock import patch
 import pytest
 
 from django.urls import reverse
-from board.models import BoardMembership, BoardWatch, CardWatch, Card
+from board.models import BoardMembership, BoardWatch, CardWatch, Card, Activity
 from .conftest import (
     UserFactory,
     BoardFactory,
@@ -10,7 +10,8 @@ from .conftest import (
     CardFactory,
     BoardMembershipFactory,
     BoardWatchFactory,
-    CardWatchFactory
+    CardWatchFactory,
+    ActivityFactory
 )
 
 #======================
@@ -2566,4 +2567,204 @@ class TestPublicBoardAddressView:
         assert response.status_code == 404
 #======================
 #  End PublicBoardAddress Tests
+#======================
+
+
+#======================
+#  Start ActivitytView Tests
+#======================
+
+@pytest.mark.django_db
+class TestActivityView:
+    """Tests for ActivityView."""
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def member(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def stranger(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def other_board(self):
+        return BoardFactory()
+
+    @pytest.fixture
+    def membership(self, board, member):
+        return BoardMembershipFactory(
+            board=board,
+            user=member,
+        )
+
+    @pytest.fixture
+    def url(self, board):
+        return reverse(
+            "activities",
+            kwargs={"board": board.pk},
+        )
+
+    # ------------------------------------------------------------------
+    # Authentication
+    # ------------------------------------------------------------------
+
+    def test_anonymous_user_cannot_list_activities(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ------------------------------------------------------------------
+    # Owner
+    # ------------------------------------------------------------------
+
+    def test_owner_can_list_board_activities(
+        self,
+        api_client,
+        owner,
+        board,
+        other_board,
+        url,
+    ):
+        activities = ActivityFactory.create_batch(
+            3,
+            board=board,
+        )
+
+        ActivityFactory.create_batch(
+            2,
+            board=other_board,
+        )
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert len(response.data) == 3
+
+        returned_ids = {item["id"] for item in response.data}
+        expected_ids = {activity.id for activity in activities}
+
+        assert returned_ids == expected_ids
+
+    # ------------------------------------------------------------------
+    # Board member
+    # ------------------------------------------------------------------
+
+    def test_board_member_can_list_board_activities(
+        self,
+        api_client,
+        member,
+        membership,
+        board,
+        url,
+    ):
+        activities = ActivityFactory.create_batch(
+            2,
+            board=board,
+        )
+
+        api_client.force_authenticate(member)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert len(response.data) == 2
+
+        returned_ids = {item["id"] for item in response.data}
+        expected_ids = {activity.id for activity in activities}
+
+        assert returned_ids == expected_ids
+
+    # ------------------------------------------------------------------
+    # Empty
+    # ------------------------------------------------------------------
+
+    def test_returns_empty_list_when_board_has_no_activities(
+        self,
+        api_client,
+        owner,
+        board,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert response.data == []
+
+    # ------------------------------------------------------------------
+    # Permission
+    # ------------------------------------------------------------------
+
+    def test_non_member_cannot_list_board_activities(
+        self,
+        api_client,
+        stranger,
+        url,
+    ):
+        api_client.force_authenticate(stranger)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ------------------------------------------------------------------
+    # Invalid board
+    # ------------------------------------------------------------------
+
+    def test_nonexistent_board_returns_404(
+        self,
+        api_client,
+        owner,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse(
+            "activities",
+            kwargs={"board": 999999},
+        )
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ------------------------------------------------------------------
+    # Filtering
+    # ------------------------------------------------------------------
+
+    def test_only_requested_board_activities_are_returned(
+        self,
+        api_client,
+        owner,
+        board,
+        other_board,
+        url,
+    ):
+        board_activity = ActivityFactory(board=board)
+        ActivityFactory(board=other_board)
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert len(response.data) == 1
+        assert response.data[0]["id"] == board_activity.id
+
+#======================
+#  End ActivitytView Tests
 #======================

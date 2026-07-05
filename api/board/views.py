@@ -1052,8 +1052,14 @@ class ActivitytView(ListAPIView):
 
 	def get_queryset(self):
 		board_id = self.kwargs.get("board")
-		
-		return Activity.objects.filter(board=board_id)
+		board = get_object_or_404(
+			Board.objects.filter(
+				Q(owner=self.request.user)
+				| Q(board_memberships__user=self.request.user)
+			).distinct(),
+			pk=board_id,
+		)
+		return Activity.objects.filter(board=board)
 
 
 
