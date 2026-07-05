@@ -1,10 +1,12 @@
 from unittest.mock import patch
 import pytest
-
+from django.conf import settings
+from django.test import override_settings
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
 from board.models import BoardMembership, BoardWatch, CardWatch, Card, Activity
+from account.models import Notification
 from .conftest import (
     UserFactory,
     BoardFactory,
@@ -3448,4 +3450,87 @@ class TestUserDestroyView:
 
 #======================
 #  End UserDestroyView Tests
+#======================
+
+
+#======================
+#  Start SettingConfig Tests
+#======================
+
+@pytest.mark.django_db
+class TestSettingConfigView:
+    """Tests for SettingConfig view."""
+
+    @pytest.fixture
+    def notification(self, user):
+        return Notification.objects.create(user=user)
+
+    @pytest.fixture
+    def url(self):
+        return reverse("setting_config")
+
+    # ------------------------------------------------------------------
+    # Authentication
+    # ------------------------------------------------------------------
+
+    def test_anonymous_user_cannot_access_settings(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ------------------------------------------------------------------
+    # Success
+    # ------------------------------------------------------------------
+
+    @override_settings(HOST_ASYNC_ABILITY=True)
+    def test_authenticated_user_can_get_settings(
+        self,
+        api_client,
+        user,
+        notification,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data == {
+            "host_async_ability": True,
+            "notification_setting": notification.id,
+        }
+
+    # ------------------------------------------------------------------
+    # Response structure
+    # ------------------------------------------------------------------
+
+    def test_response_contains_expected_fields(
+        self,
+        api_client,
+        user,
+        notification,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert set(response.data.keys()) == {
+            "host_async_ability",
+            "notification_setting",
+        }
+
+        assert response.data["notification_setting"] == notification.id
+        assert response.data["host_async_ability"] == settings.HOST_ASYNC_ABILITY
+
+
+#======================
+#  End SettingConfig Tests
 #======================
