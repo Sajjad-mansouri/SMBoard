@@ -3107,3 +3107,245 @@ class TestUserUpdateView:
 #======================
 #  End UserUpdateView Tests
 #======================
+
+#======================
+#  Start CardListView Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestCardListView:
+    """Tests for CardListView."""
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def other_user(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def other_board(self, other_user):
+        return BoardFactory(owner=other_user)
+
+    @pytest.fixture
+    def board_list(self, board):
+        return BoardListFactory(board=board)
+
+    @pytest.fixture
+    def other_board_list(self, other_board):
+        return BoardListFactory(board=other_board)
+
+    @pytest.fixture
+    def url(self):
+        return reverse("card_list")
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_list_cards(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # List
+    # ---------------------------------------------------------
+
+    def test_owner_can_list_only_their_cards(
+        self,
+        api_client,
+        owner,
+        board_list,
+        other_board_list,
+        url,
+    ):
+        own_cards = CardFactory.create_batch(
+            5,
+            board_list=board_list,
+        )
+
+        CardFactory.create_batch(
+            3,
+            board_list=other_board_list,
+        )
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["count"] == 5
+        assert len(response.data["results"]) == 5
+
+        returned_ids = {
+            card["id"]
+            for card in response.data["results"]
+        }
+
+        expected_ids = {
+            card.id
+            for card in own_cards
+        }
+
+        assert returned_ids == expected_ids
+
+    # ---------------------------------------------------------
+    # Empty
+    # ---------------------------------------------------------
+
+    def test_returns_empty_list_when_user_has_no_cards(
+        self,
+        api_client,
+        owner,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+        assert response.data["count"] == 0
+        assert response.data["results"] == []
+
+    # ---------------------------------------------------------
+    # archived=True
+    # ---------------------------------------------------------
+
+    def test_filter_archived_true(
+        self,
+        api_client,
+        owner,
+        board_list,
+        url,
+    ):
+        archived = CardFactory(
+            board_list=board_list,
+            archived=True,
+        )
+
+        CardFactory(
+            board_list=board_list,
+            archived=False,
+        )
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.get(
+            url,
+            {"archived": True},
+        )
+
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == archived.id
+
+    # ---------------------------------------------------------
+    # archived=False
+    # ---------------------------------------------------------
+
+    def test_filter_archived_false(
+        self,
+        api_client,
+        owner,
+        board_list,
+        url,
+    ):
+        active = CardFactory(
+            board_list=board_list,
+            archived=False,
+        )
+
+        CardFactory(
+            board_list=board_list,
+            archived=True,
+        )
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.get(
+            url,
+            {"archived": False},
+        )
+
+        assert response.status_code == 200
+        assert response.data["count"] == 1
+        assert response.data["results"][0]["id"] == active.id
+
+    # ---------------------------------------------------------
+    # Pagination metadata
+    # ---------------------------------------------------------
+
+    def test_returns_paginated_response(
+        self,
+        api_client,
+        owner,
+        board_list,
+        url,
+    ):
+        CardFactory.create_batch(
+            15,
+            board_list=board_list,
+        )
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        assert response.data["count"] == 15
+        assert response.data["page"] == 1
+        assert response.data["total_pages"] == 2
+        assert response.data["previous"] is None
+        assert response.data["next"] is not None
+
+        assert len(response.data["results"]) == 10
+
+    # ---------------------------------------------------------
+    # Second page
+    # ---------------------------------------------------------
+
+    def test_can_get_second_page(
+        self,
+        api_client,
+        owner,
+        board_list,
+        url,
+    ):
+        CardFactory.create_batch(
+            15,
+            board_list=board_list,
+        )
+
+        api_client.force_authenticate(owner)
+
+        response = api_client.get(
+            url,
+            {"page": 2},
+        )
+
+        assert response.status_code == 200
+
+        assert response.data["page"] == 2
+        assert response.data["count"] == 15
+        assert response.data["total_pages"] == 2
+
+        assert response.data["next"] is None
+        assert response.data["previous"] is not None
+
+        assert len(response.data["results"]) == 5
+#======================
+#  End CardListView Tests
+#======================

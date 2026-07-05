@@ -1097,6 +1097,7 @@ class CardListView(ListAPIView):
 	pagination_class = CustomCursorPagination
 	filter_backends = [django_filters.rest_framework.DjangoFilterBackend]
 	filterset_fields = ['archived',]
+	permission_classes = [IsAuthenticated]
 
 	def get_queryset(self):
 		return Card.objects.filter(board_list__board__owner=self.request.user)
