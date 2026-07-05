@@ -182,3 +182,175 @@ class TestUserRetrieveView:
 #======================
 #  End UserRetrieveView Tests
 #======================
+
+
+#======================
+#  Start SearchBoardView Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestSearchBoardView:
+    """Tests for SearchBoardView."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("search_boards")
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_search_boards(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.get(url, {"search": "project"})
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    def test_returns_owned_and_member_boards_matching_search(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        owned_board = BoardFactory(
+            owner=user,
+            name="Project Alpha",
+        )
+
+        member_board = BoardFactory(
+            name="Project Beta",
+        )
+
+        BoardMembership.objects.create(
+            board=member_board,
+            user=user,
+            member_type="member",
+            accepted=True,
+        )
+
+        BoardFactory(
+            owner=user,
+            name="Shopping List",
+        )
+
+        inaccessible_board = BoardFactory(
+            name="Project Secret",
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(
+            url,
+            {"search": "Project"},
+        )
+
+        assert response.status_code == 200
+        assert len(response.data) == 2
+
+        ids = {board["id"] for board in response.data}
+
+        assert owned_board.id in ids
+        assert member_board.id in ids
+        assert inaccessible_board.id not in ids
+
+    # ---------------------------------------------------------
+    # Case-insensitive search
+    # ---------------------------------------------------------
+
+    def test_search_is_case_insensitive(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        board = BoardFactory(
+            owner=user,
+            name="My Awesome Project",
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(
+            url,
+            {"search": "awesome"},
+        )
+
+        assert response.status_code == 200
+        assert len(response.data) == 1
+        assert response.data[0]["id"] == board.id
+
+    # ---------------------------------------------------------
+    # No matches
+    # ---------------------------------------------------------
+
+    def test_returns_empty_list_when_no_board_matches(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        BoardFactory(
+            owner=user,
+            name="Project Alpha",
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(
+            url,
+            {"search": "Finance"},
+        )
+
+        assert response.status_code == 200
+        assert response.data == []
+
+    # ---------------------------------------------------------
+    # Access filtering
+    # ---------------------------------------------------------
+
+    def test_matching_board_without_access_is_not_returned(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        BoardFactory(
+            name="Project Alpha",
+        )
+
+        api_client.force_authenticate(user)
+
+        response = api_client.get(
+            url,
+            {"search": "Project"},
+        )
+
+        assert response.status_code == 200
+        assert response.data == []
+
+    # ---------------------------------------------------------
+    # Missing query parameter
+    # ---------------------------------------------------------
+
+    def test_missing_search_parameter_returns_server_error(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        with pytest.raises(KeyError):
+            api_client.get(url)
+
+#======================
+#  End SearchBoardView Tests
+#======================
