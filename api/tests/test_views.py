@@ -2194,3 +2194,221 @@ class TestCardArchivedUpdateView:
 #======================
 #  End CardArchivedUpdateView Tests
 #======================
+
+#======================
+#  Start BoardListArchivedUpdateView Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestBoardListArchivedUpdateView:
+    """Tests for BoardListArchivedUpdateView."""
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def stranger(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def board_list(self, board):
+        return BoardListFactory(
+            board=board,
+            archived=False,
+        )
+
+    @pytest.fixture
+    def archived_board_list(self, board):
+        return BoardListFactory(
+            board=board,
+            archived=True,
+        )
+
+    @pytest.fixture
+    def url(self, board_list):
+        return reverse(
+            "archive_list",
+            args=[board_list.pk],
+        )
+
+    # ------------------------------------------------------------------
+    # Authentication
+    # ------------------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_archive_status(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.patch(
+            url,
+            {"archived": True},
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+    # ------------------------------------------------------------------
+    # Archive
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_owner_can_archive_board_list(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        board,
+        board_list,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.patch(
+            url,
+            {"archived": True},
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        board_list.refresh_from_db()
+        assert board_list.archived is True
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == owner
+        assert kwargs["user"] == owner
+        assert kwargs["board"] == board
+        assert kwargs["board_list"] == board_list
+        assert kwargs["card"] is None
+        assert kwargs["action_type"] == "archive_list"
+        assert kwargs["text"] == (
+            f"The '{board_list.name}' list was archived"
+        )
+
+    # ------------------------------------------------------------------
+    # Unarchive
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_owner_can_unarchive_board_list(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        archived_board_list,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse(
+            "archive_list",
+            args=[archived_board_list.pk],
+        )
+
+        response = api_client.patch(
+            url,
+            {"archived": False},
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        archived_board_list.refresh_from_db()
+        assert archived_board_list.archived is False
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["action_type"] == "unarchive_list"
+        assert kwargs["text"] == (
+            f"The '{archived_board_list.name}' list was unarchived"
+        )
+
+    # ------------------------------------------------------------------
+    # No change
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_no_activity_logged_when_archive_status_is_unchanged(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        board_list,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.patch(
+            url,
+            {"archived": False},
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        board_list.refresh_from_db()
+        assert board_list.archived is False
+
+        mock_log.assert_not_called()
+
+    # ------------------------------------------------------------------
+    # Permission
+    # ------------------------------------------------------------------
+
+    def test_non_owner_cannot_update_archive_status(
+        self,
+        api_client,
+        stranger,
+        board_list,
+        url,
+    ):
+        api_client.force_authenticate(stranger)
+
+        response = api_client.patch(
+            url,
+            {"archived": True},
+            format="json",
+        )
+
+        assert response.status_code == 404
+
+        board_list.refresh_from_db()
+        assert board_list.archived is False
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
+    def test_invalid_archived_value_returns_400(
+        self,
+        api_client,
+        owner,
+        board_list,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.patch(
+            url,
+            {"archived": "invalid"},
+            format="json",
+        )
+
+        assert response.status_code == 400
+
+        board_list.refresh_from_db()
+        assert board_list.archived is False
+#======================
+#  End BoardListArchivedUpdateView Tests
+#======================

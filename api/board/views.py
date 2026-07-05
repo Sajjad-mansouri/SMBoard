@@ -710,6 +710,7 @@ class BoardListViewSet(viewsets.ModelViewSet):
 
 class BoardListArchivedUpdateView(UpdateAPIView):
 	serializer_class = serializers.BoardListArchivedSerializer
+	permission_classes = [IsAuthenticated]
 
 	def get_queryset(self):
 		q = Q(board__owner=self.request.user)
