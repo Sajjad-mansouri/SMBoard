@@ -28,15 +28,6 @@ router.register(r'notification-settings', board_views.NotificationSettingViewset
 
 
 
-
-
-
-
-
-
-
-
-
 urlpatterns = router.urls
 
 urlpatterns += [
