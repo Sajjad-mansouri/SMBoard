@@ -1978,3 +1978,219 @@ class TestCopyCardView:
 #======================
 #  End CopyCardView Tests
 #======================
+
+
+#======================
+#  Start CardArchivedUpdateView Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestCardArchivedUpdateView:
+    """Tests for CardArchivedUpdateView."""
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def stranger(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def board(self, owner):
+        return BoardFactory(owner=owner)
+
+    @pytest.fixture
+    def board_list(self, board):
+        return BoardListFactory(board=board)
+
+    @pytest.fixture
+    def card(self, board_list):
+        return CardFactory(
+            board_list=board_list,
+            archived=False,
+        )
+
+    @pytest.fixture
+    def archived_card(self, board_list):
+        return CardFactory(
+            board_list=board_list,
+            archived=True,
+        )
+
+    @pytest.fixture
+    def url(self, card):
+        return reverse("archive_card", args=[card.pk])
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_card_archive(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.patch(
+            url,
+            {"archived": True},
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Archive
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_owner_can_archive_card(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        board,
+        board_list,
+        card,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.patch(
+            url,
+            {"archived": True},
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        card.refresh_from_db()
+        assert card.archived is True
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["request"].user == owner
+        assert kwargs["user"] == owner
+        assert kwargs["board"] == board
+        assert kwargs["board_list"] == board_list
+        assert kwargs["card"] == card
+        assert kwargs["action_type"] == "archive_card"
+        assert kwargs["text"] == f"The '{card.name}' card was archived"
+
+    # ---------------------------------------------------------
+    # Unarchive
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_owner_can_unarchive_card(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        archived_card,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse("archive_card", args=[archived_card.pk])
+
+        response = api_client.patch(
+            url,
+            {"archived": False},
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        archived_card.refresh_from_db()
+        assert archived_card.archived is False
+
+        mock_log.assert_called_once()
+
+        kwargs = mock_log.call_args.kwargs
+
+        assert kwargs["action_type"] == "unarchive_card"
+        assert kwargs["text"] == (
+            f"The '{archived_card.name}' card was unarchived"
+        )
+
+    # ---------------------------------------------------------
+    # No change
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.ActivityLog.log")
+    def test_no_activity_logged_when_archived_value_does_not_change(
+        self,
+        mock_log,
+        api_client,
+        owner,
+        card,
+        url,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.patch(
+            url,
+            {"archived": False},
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        card.refresh_from_db()
+        assert card.archived is False
+
+        mock_log.assert_not_called()
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_non_owner_cannot_update_card_archive(
+        self,
+        api_client,
+        stranger,
+        url,
+        card,
+    ):
+        api_client.force_authenticate(stranger)
+
+        response = api_client.patch(
+            url,
+            {"archived": True},
+            format="json",
+        )
+
+        assert response.status_code == 404
+
+        card.refresh_from_db()
+        assert card.archived is False
+
+    # ---------------------------------------------------------
+    # Validation
+    # ---------------------------------------------------------
+
+    def test_invalid_archived_value_returns_400(
+        self,
+        api_client,
+        owner,
+        url,
+        card,
+    ):
+        api_client.force_authenticate(owner)
+
+        response = api_client.patch(
+            url,
+            {"archived": "invalid"},
+            format="json",
+        )
+
+        assert response.status_code == 400
+
+        card.refresh_from_db()
+        assert card.archived is False
+#======================
+#  End CardArchivedUpdateView Tests
+#======================

@@ -310,6 +310,7 @@ class CardViewSet(viewsets.ModelViewSet):
 
 class CardArchivedUpdateView(UpdateAPIView):
 	serializer_class = serializers.CardArchivedSerializer
+	permission_classes = [IsAuthenticated]
 
 	def get_queryset(self):
 
