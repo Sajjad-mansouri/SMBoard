@@ -68,14 +68,15 @@ class UserSerializer(serializers.ModelSerializer):
 	def update(self, instance, validated_data):
 		profile_data = validated_data.pop('profile', {})
 
-		profile = instance.profile
 		for field in ("username", "email", "first_name", "last_name"):
 			if field in validated_data:
 				setattr(instance, field, validated_data[field])
 		instance.save()
-
-		profile.bio = profile_data.get("bio", profile.bio)
-		profile.save()
+		if hasattr(instance, "profile"):
+			
+			profile = instance.profile
+			profile.bio = profile_data.get("bio", profile.bio)
+			profile.save()
 		return instance
 
 class BoardSerializer(serializers.ModelSerializer):

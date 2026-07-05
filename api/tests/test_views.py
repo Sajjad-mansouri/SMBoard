@@ -2957,3 +2957,153 @@ class TestProfileUpdateView:
 #======================
 #  End ProfileUpdateView Tests
 #======================
+
+#======================
+#  Start UserUpdateView Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestUserUpdateView:
+    """Tests for UserUpdateView."""
+
+    @pytest.fixture
+    def user(self):
+        return UserFactory(
+            username="john",
+            email="john@example.com",
+            first_name="John",
+            last_name="Doe",
+        )
+
+    @pytest.fixture
+    def another_user(self):
+        return UserFactory(
+            username="alice",
+            email="alice@example.com",
+        )
+
+    @pytest.fixture
+    def url(self):
+        return reverse("update_user")
+
+    # ------------------------------------------------------------------
+    # Authentication
+    # ------------------------------------------------------------------
+
+    def test_anonymous_user_cannot_update_user(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.patch(
+            url,
+            {"first_name": "New"},
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+    # ------------------------------------------------------------------
+    # PATCH
+    # ------------------------------------------------------------------
+
+    def test_user_can_partially_update_profile(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.patch(
+            url,
+            {
+                "first_name": "Michael",
+                "last_name": "Scott",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        user.refresh_from_db()
+
+        assert user.first_name == "Michael"
+        assert user.last_name == "Scott"
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
+    def test_invalid_email_returns_400(
+        self,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.patch(
+            url,
+            {
+                "email": "invalid-email",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "email" in response.data
+
+    def test_duplicate_username_returns_400(
+        self,
+        api_client,
+        user,
+        another_user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.patch(
+            url,
+            {
+                "username": another_user.username,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "username" in response.data
+
+    # ------------------------------------------------------------------
+    # Isolation
+    # ------------------------------------------------------------------
+
+    def test_only_authenticated_user_is_updated(
+        self,
+        api_client,
+        user,
+        another_user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        response = api_client.patch(
+            url,
+            {
+                "first_name": "Updated",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        user.refresh_from_db()
+        another_user.refresh_from_db()
+
+        assert user.first_name == "Updated"
+        assert another_user.first_name != "Updated"
+
+#======================
+#  End UserUpdateView Tests
+#======================
