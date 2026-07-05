@@ -6,7 +6,7 @@ from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
 from board.models import BoardMembership, BoardWatch, CardWatch, Card, Activity
-from account.models import Notification
+from account.models import Notification, EmailInbox
 from .conftest import (
     UserFactory,
     BoardFactory,
@@ -3533,4 +3533,165 @@ class TestSettingConfigView:
 
 #======================
 #  End SettingConfig Tests
+#======================
+
+
+#======================
+#  Start ContactMessage Tests
+#======================
+
+@pytest.mark.django_db
+class TestContactMessage:
+    """Tests for ContactMessage."""
+
+    @pytest.fixture
+    def url(self):
+        return reverse("message")
+
+    @pytest.fixture
+    def valid_data(self):
+        return {
+            "name": "test_user",
+            "email": "test_user@example.com",
+            "message": "Hello! I have a question.",
+        }
+
+    # ------------------------------------------------------------------
+    # Anonymous user
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.message_feedback")
+    def test_anonymous_user_can_send_message(
+        self,
+        mock_feedback,
+        api_client,
+        url,
+        valid_data,
+    ):
+        response = api_client.post(
+            url,
+            valid_data,
+            format="json",
+        )
+
+        assert response.status_code == 201
+
+        assert EmailInbox.objects.count() == 1
+
+        inbox = EmailInbox.objects.get()
+
+        assert inbox.name == valid_data["name"]
+        assert inbox.email == valid_data["email"]
+        assert inbox.message == valid_data["message"]
+
+        mock_feedback.assert_called_once_with(
+            mock_feedback.call_args.args[0],  # request
+            valid_data["name"],
+            valid_data["email"],
+            valid_data["message"],
+        )
+
+    # ------------------------------------------------------------------
+    # Authenticated user
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.message_feedback")
+    def test_authenticated_user_can_send_message(
+        self,
+        mock_feedback,
+        api_client,
+        url,
+        valid_data,
+    ):
+        user = UserFactory()
+        api_client.force_authenticate(user)
+
+        response = api_client.post(
+            url,
+            valid_data,
+            format="json",
+        )
+
+        assert response.status_code == 201
+        assert EmailInbox.objects.count() == 1
+
+        mock_feedback.assert_called_once()
+
+    # ------------------------------------------------------------------
+    # Validation
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.message_feedback")
+    def test_invalid_email_returns_400(
+        self,
+        mock_feedback,
+        api_client,
+        url,
+        valid_data,
+    ):
+        valid_data["email"] = "invalid-email"
+
+        response = api_client.post(
+            url,
+            valid_data,
+            format="json",
+        )
+
+        assert response.status_code == 400
+
+        assert EmailInbox.objects.count() == 0
+
+        mock_feedback.assert_not_called()
+
+    @patch("api.board.views.message_feedback")
+    def test_missing_required_field_returns_400(
+        self,
+        mock_feedback,
+        api_client,
+        url,
+        valid_data,
+    ):
+        valid_data.pop("message")
+
+        response = api_client.post(
+            url,
+            valid_data,
+            format="json",
+        )
+
+        assert response.status_code == 400
+
+        assert EmailInbox.objects.count() == 0
+
+        mock_feedback.assert_not_called()
+
+    # ------------------------------------------------------------------
+    # Side effect
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.message_feedback")
+    def test_message_feedback_receives_correct_arguments(
+        self,
+        mock_feedback,
+        api_client,
+        url,
+        valid_data,
+    ):
+        response = api_client.post(
+            url,
+            valid_data,
+            format="json",
+        )
+
+        assert response.status_code == 201
+
+        request, name, email, message = mock_feedback.call_args.args
+
+        assert request.method == "POST"
+        assert name == valid_data["name"]
+        assert email == valid_data["email"]
+        assert message == valid_data["message"]
+
+#======================
+#  End ContactMessage Tests
 #======================
