@@ -3,7 +3,7 @@ import pytest
 
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
-
+from django.contrib.auth import get_user_model
 from board.models import BoardMembership, BoardWatch, CardWatch, Card, Activity
 from .conftest import (
     UserFactory,
@@ -16,6 +16,8 @@ from .conftest import (
     ActivityFactory,
     ProfileFactory
 )
+
+User = get_user_model()
 
 #======================
 #  Start GuestBoardListView Tests
@@ -3348,4 +3350,102 @@ class TestCardListView:
         assert len(response.data["results"]) == 5
 #======================
 #  End CardListView Tests
+#======================
+
+
+#======================
+#  Start UserDestroyView Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestUserDestroyView:
+    """Tests for UserDestroyView."""
+
+    @pytest.fixture
+    def user(self):
+        return UserFactory(
+            username="john",
+            email="john@example.com",
+        )
+
+    @pytest.fixture
+    def url(self):
+        return reverse("delete_account")
+
+    # ------------------------------------------------------------------
+    # Authentication
+    # ------------------------------------------------------------------
+
+    def test_anonymous_user_cannot_delete_account(
+        self,
+        api_client,
+        url,
+    ):
+        response = api_client.delete(url)
+
+        assert response.status_code == 401
+
+    # ------------------------------------------------------------------
+    # Success
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.send_deletion_notification")
+    def test_authenticated_user_can_delete_account(
+        self,
+        mock_notification,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+
+        user_id = user.id
+        response = api_client.delete(url)
+        assert response.status_code == 204
+
+        assert not User.objects.filter(pk=user.pk).exists()
+
+        mock_notification.assert_called_once()
+
+        args, kwargs = mock_notification.call_args
+
+        assert args[0].user == user
+
+        assert args[1] == {
+            "id": user_id,
+            "username": "john",
+            "email": "john@example.com",
+        }
+
+    # ------------------------------------------------------------------
+    # Notification data
+    # ------------------------------------------------------------------
+
+    @patch("api.board.views.send_deletion_notification")
+    def test_notification_receives_user_data_before_deletion(
+        self,
+        mock_notification,
+        api_client,
+        user,
+        url,
+    ):
+        api_client.force_authenticate(user)
+        user_id = user.id
+        response = api_client.delete(url)
+
+        assert response.status_code == 204
+
+        mock_notification.assert_called_once()
+
+        _, user_data = mock_notification.call_args.args
+
+        assert user_data["id"] == user_id
+        assert user_data["username"] == user.username
+        assert user_data["email"] == user.email
+
+        assert not User.objects.filter(pk=user.pk).exists()
+
+#======================
+#  End UserDestroyView Tests
 #======================

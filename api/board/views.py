@@ -1125,6 +1125,7 @@ def send_deletion_notification(request, user_data):
 
 
 class UserDestroyView(DestroyAPIView):
+	permission_classes = [IsAuthenticated]
 
 	def perform_destroy(self, instance):
 		user_data = {
