@@ -40,7 +40,10 @@ class UserFactory(DjangoModelFactory):
 	password = factory.PostGenerationMethodCall("set_password", "secure_pass_1234")
 	first_name = factory.Faker("first_name")
 	last_name = factory.Faker("last_name")
-
+	@classmethod
+	def _after_postgeneration(cls, instance, create, results=None):
+		if create:
+			instance.save()
 class ProfileFactory(DjangoModelFactory):
 	"""Factory for creating Profile instance"""
 
@@ -251,23 +254,23 @@ def api_request(user, request_factory):
 
 @pytest.fixture
 def simple_uploaded_image_file():
-        file = io.BytesIO()
-        image = Image.new("RGB", (100,100), color="red")
-        image.save(file, format="JPEG")
-        file.seek(0)
-        return SimpleUploadedFile(
-                "img_file.jpg",
-                file.read(),
-                content_type="image/jpeg"
-            )
+	file = io.BytesIO()
+	image = Image.new("RGB", (100,100), color="red")
+	image.save(file, format="JPEG")
+	file.seek(0)
+	return SimpleUploadedFile(
+		"img_file.jpg",
+		file.read(),
+		content_type="image/jpeg"
+	    )
 
 @pytest.fixture
 def simple_uploaded_file():
-        return SimpleUploadedFile(
-                "file.txt",
-                b"fake content",
-                content_type="plain/text"
-            )
+	return SimpleUploadedFile(
+		"file.txt",
+		b"fake content",
+		content_type="plain/text"
+	    )
 
 @pytest.fixture
 def serializer_context(api_request):
