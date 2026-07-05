@@ -50,7 +50,7 @@ urlpatterns += [
 	path("list/update-archived/<int:pk>/", board_views.BoardListArchivedUpdateView.as_view(), name="archive_list"),
 
 
-	path("public-board-address/<int:pk>/", board_views.BoardListArchivedUpdateView.as_view(), name="public_board_address"),
+	path("public-board-address/<int:pk>/", board_views.PublicBoardAddress.as_view(), name="public_board_address"),
 	path("activities/<int:board>/", board_views.ActivitytView.as_view(), name="activities"),
 	path("update-profile/", board_views.ProfileUpdateView.as_view(), name="update_profile"),
 	path("update-user/", board_views.UserUpdateView.as_view(), name="update_user"),

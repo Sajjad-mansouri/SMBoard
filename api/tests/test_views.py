@@ -2412,3 +2412,158 @@ class TestBoardListArchivedUpdateView:
 #======================
 #  End BoardListArchivedUpdateView Tests
 #======================
+
+
+#======================
+#  Start PublicBoardAddress Tests
+#======================
+
+
+@pytest.mark.django_db
+class TestPublicBoardAddressView:
+    """Tests for PublicBoardAddress."""
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def stranger(self):
+        return UserFactory()
+
+    @pytest.fixture
+    def public_board(self, owner):
+        return BoardFactory(
+            owner=owner,
+            status="public",
+        )
+
+    @pytest.fixture
+    def private_board(self, owner):
+        return BoardFactory(
+            owner=owner,
+            status="private",
+        )
+
+    # ---------------------------------------------------------
+    # Authentication
+    # ---------------------------------------------------------
+
+    def test_anonymous_user_cannot_get_public_board_address(
+        self,
+        api_client,
+        public_board,
+    ):
+        url = reverse(
+            "public_board_address",
+            args=[public_board.pk],
+        )
+
+        response = api_client.get(url)
+
+        assert response.status_code == 401
+
+    # ---------------------------------------------------------
+    # Success
+    # ---------------------------------------------------------
+
+    @patch("api.board.views.get_current_site_address")
+    def test_owner_can_get_public_board_address(
+        self,
+        mock_site,
+        api_client,
+        owner,
+        public_board,
+    ):
+        mock_site.return_value = (
+            "example.com",
+            "https://example.com",
+        )
+
+        api_client.force_authenticate(owner)
+
+        url = reverse(
+            "public_board_address",
+            args=[public_board.pk],
+        )
+
+        response = api_client.get(url)
+
+        assert response.status_code == 200
+
+        expected = (
+            f"https://example.com/public/"
+            f"{public_board.short_uuid}/"
+            f"{public_board.slug}/"
+        )
+
+        assert response.data == {
+            "board_address": expected,
+        }
+
+        mock_site.assert_called_once()
+
+    # ---------------------------------------------------------
+    # Permission
+    # ---------------------------------------------------------
+
+    def test_non_owner_gets_404(
+        self,
+        api_client,
+        stranger,
+        public_board,
+    ):
+        api_client.force_authenticate(stranger)
+
+        url = reverse(
+            "public_board_address",
+            args=[public_board.pk],
+        )
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Private board
+    # ---------------------------------------------------------
+
+    def test_private_board_returns_404(
+        self,
+        api_client,
+        owner,
+        private_board,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse(
+            "public_board_address",
+            args=[private_board.pk],
+        )
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+
+    # ---------------------------------------------------------
+    # Nonexistent board
+    # ---------------------------------------------------------
+
+    def test_nonexistent_board_returns_404(
+        self,
+        api_client,
+        owner,
+    ):
+        api_client.force_authenticate(owner)
+
+        url = reverse(
+            "public_board_address",
+            args=[999999],
+        )
+
+        response = api_client.get(url)
+
+        assert response.status_code == 404
+#======================
+#  End PublicBoardAddress Tests
+#======================
