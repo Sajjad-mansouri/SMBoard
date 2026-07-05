@@ -125,3 +125,126 @@ class TestTokenObtainPairView:
 
         assert response.status_code == 400
         assert missing_field in response.data
+
+
+@pytest.mark.django_db
+class TestTokenRefreshView:
+    """Tests for JWT token refresh endpoint."""
+
+    @pytest.fixture
+    def password(self):
+        return "secure_pass_1234"
+
+    @pytest.fixture
+    def user(self):
+        return UserFactory(
+            username="john",
+        )
+
+    @pytest.fixture
+    def obtain_url(self):
+        return reverse("token_obtain_pair")
+
+    @pytest.fixture
+    def refresh_url(self):
+        return reverse("token_refresh")
+
+    @pytest.fixture
+    def refresh_token(
+        self,
+        api_client,
+        obtain_url,
+        user,
+        password,
+    ):
+        response = api_client.post(
+            obtain_url,
+            {
+                "username": user.username,
+                "password": password,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        return response.data["refresh"]
+
+    # ------------------------------------------------------------------
+    # Success
+    # ------------------------------------------------------------------
+
+    def test_can_refresh_access_token(
+        self,
+        api_client,
+        refresh_url,
+        refresh_token,
+    ):
+        response = api_client.post(
+            refresh_url,
+            {
+                "refresh": refresh_token,
+            },
+            format="json",
+        )
+
+        assert response.status_code == 200
+
+        assert "access" in response.data
+        assert isinstance(response.data["access"], str)
+
+    # ------------------------------------------------------------------
+    # Invalid token
+    # ------------------------------------------------------------------
+
+    def test_invalid_refresh_token_returns_401(
+        self,
+        api_client,
+        refresh_url,
+    ):
+        response = api_client.post(
+            refresh_url,
+            {
+                "refresh": "invalid.token",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 401
+
+    # ------------------------------------------------------------------
+    # Missing token
+    # ------------------------------------------------------------------
+
+    def test_missing_refresh_token_returns_400(
+        self,
+        api_client,
+        refresh_url,
+    ):
+        response = api_client.post(
+            refresh_url,
+            {},
+            format="json",
+        )
+
+        assert response.status_code == 400
+        assert "refresh" in response.data
+
+    # ------------------------------------------------------------------
+    # Malformed token
+    # ------------------------------------------------------------------
+
+    def test_malformed_refresh_token_returns_401(
+        self,
+        api_client,
+        refresh_url,
+    ):
+        response = api_client.post(
+            refresh_url,
+            {
+                "refresh": "not-a-jwt-token",
+            },
+            format="json",
+        )
+
+        assert response.status_code == 401
