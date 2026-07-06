@@ -54,7 +54,7 @@ class BoardModelTests(TestCase):
 		super().tearDownClass()
 		
 	def setUp(self):
-		self.user = User.objects.create_user(username="sajjad", password="secure_pass_1234")
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
 
 	def test_string_representation(self):
 		"""Ensure __str__ formats user ownership and board name correctly."""
@@ -127,7 +127,7 @@ class BoardListModelTests(TestCase):
 		super().tearDownClass()
 		
 	def setUp(self):
-		self.user = User.objects.create_user(username="sajjad", password="secure_pass_1234")
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
 		self.board = Board.objects.create(owner=self.user, name="Project")
 
 	def test_string_representation(self):
@@ -195,7 +195,7 @@ class CardModelTests(TestCase):
 		super().tearDownClass()
 		
 	def setUp(self):
-		self.user = User.objects.create_user(username="sajjad", password="secure_pass_1234")
+		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
 		self.board = Board.objects.create(owner=self.user, name="Project")
 		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
 
