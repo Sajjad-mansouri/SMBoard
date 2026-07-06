@@ -148,8 +148,10 @@ class EmailInbox(models.Model):
 
 class AboutSite(models.Model):
 	title = models.CharField(max_length=150, blank=True)
-	api_endpoints = models.CharField(max_length=20,blank=True)
-	data_models = models.CharField(max_length=20,blank=True)
+	api_endpoint_total_count = models.IntegerField(default=0)
+	test_total_count = models.IntegerField(default=0)
+	model_total_count = models.IntegerField(default=0)
+	celery_task_total_count = models.IntegerField(default=0)
 	source_code_page = models.URLField()
 
 class AboutSiteImage(models.Model):

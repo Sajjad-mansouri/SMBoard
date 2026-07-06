@@ -49,7 +49,11 @@
                         <a href="{{source_code_url}}" class="btn btn-outline btn-lg">View Source Code</a>
                     </div>
                     <div class="hero-stats">
-
+                        <div class="stat-item"><span class="stat-number" data-count="{{api_endpoint_total_count}}">0</span><span class="stat-label">API Endpoints</span></div>
+                        <div class="stat-item"><span class="stat-number" data-count="{{model_total_count}}">0</span><span class="stat-label">Data Models</span></div>
+                        <div class="stat-item"><span class="stat-number" data-count="{{celery_task_total_count}}">0</span><span class="stat-label">Celery Tasks</span></div>
+                        <!-- Replaced Test Coverage with pytest Tests count -->
+                        <div class="stat-item"><span class="stat-number" data-count="{{test_total_count}}">0</span><span class="stat-label">pytest Tests</span></div>
                     </div>
                 </div>
                 <div class="hero-screenshot" id="heroIllustration" aria-hidden="true">

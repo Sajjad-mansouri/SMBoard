@@ -654,6 +654,7 @@ class TestBoardSerializer:
         assert set(serializer.data.keys()) == {
             "id",
             "owner",
+            "owner_username",
             "name",
             "status",
             "background_color",
@@ -3288,6 +3289,7 @@ class TestBoardNestedSerializer:
         expected_fields = {
             "id",
             "owner",
+            "owner_username",
             "name",
             "status",
             "background_color",

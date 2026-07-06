@@ -3272,9 +3272,8 @@
 
                         addActivity();
                         board.boardClosed = true;
-
-                        alert('Board closed (archived).');
                         closeBoardMenuDropdown();
+                        window.location.href = "/"
                     }
                 }
             }

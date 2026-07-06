@@ -90,17 +90,21 @@ class UserSerializer(serializers.ModelSerializer):
 		return instance
 
 class BoardSerializer(serializers.ModelSerializer):
-	# user = UserSerializer()
+	# owner = UserSerializer()
 	cards = serializers.SerializerMethodField()
 	is_owner = serializers.SerializerMethodField()
+	owner_username = serializers.SerializerMethodField()
+
 
 	class Meta:
 		model = Board
-		fields = ["id", "owner", "name", "status", "background_color", "background_image", "cards", "is_owner", "closed"]
+		fields = ["id", "owner", "owner_username", "name", "status", "background_color", "background_image", "cards", "is_owner", "closed"]
 
 	def get_cards(self, obj):
 		return obj.board_lists.aggregate(card_count=Count("list_cards"))["card_count"]
-		
+	
+	def get_owner_username(self, obj):
+		return obj.owner.username	
 
 	def get_is_owner(self, obj):
 		request = self.context["request"]

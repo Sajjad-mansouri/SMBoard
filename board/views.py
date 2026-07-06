@@ -72,7 +72,7 @@ class LandingPage(TemplateView):
 			email = Connection.objects.get(title="email")
 			telegram = Connection.objects.get(title="telegram")
 			about_site = AboutSite.objects.first()
-
+			print("about_site",about_site)
 
 			context["dashboard_img_url"] = dashboard_image.img.url
 			context["setting_notif_img_url"] = setting_notif_image.img.url
@@ -81,6 +81,12 @@ class LandingPage(TemplateView):
 			context["card_img_url"] = card_image.img.url
 			context["member_management_img_url"] = member_management_image.img.url
 			context["source_code_url"] = about_site.source_code_page if about_site else ""
+			context["celery_task_total_count"] = about_site.celery_task_total_count 
+			context["test_total_count"] = about_site.test_total_count 
+			context["model_total_count"] = about_site.model_total_count 
+			context["api_endpoint_total_count"] = about_site.api_endpoint_total_count 
+
+
 
 
 			context["linkedln"] = linkedln.address

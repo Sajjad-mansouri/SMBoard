@@ -63,8 +63,9 @@
 
 
         let metaInfo = `${board.cards} cards`;
+        console.log(board)
         if (isGuest) {
-            metaInfo = `Owner: ${board.owner.username} · ${board.cards} cards`;
+            metaInfo = `Owner: ${board.owner_username} · ${board.cards} cards`;
         }
 
         card.innerHTML = `

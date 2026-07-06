@@ -254,3 +254,7 @@ async function getHeaderData() {
 }
 
 getHeaderData()
+
+document.querySelector(".header-left").addEventListener("click", ()=>{
+    window.location.href = "/"
+})
