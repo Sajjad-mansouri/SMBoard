@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 
 UserModel = get_user_model()
 
-class MyBackend(ModelBackend):
+class EmailBackend(ModelBackend):
 	def authenticate(self, request, username=None, password=None, **kwargs):
 		print(kwargs, username, password)
 		if username is None or password is None:

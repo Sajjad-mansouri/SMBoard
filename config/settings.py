@@ -181,7 +181,7 @@ SIMPLE_JWT = {
 
 from django.urls import reverse_lazy
 LOGIN_URL = reverse_lazy("account:login")
-AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend", "account.backends.MyBackend"]
+AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.ModelBackend", "account.backends.EmailBackend"]
 
 from celery.schedules import crontab
 
