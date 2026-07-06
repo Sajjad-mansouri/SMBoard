@@ -1,6 +1,6 @@
 import pytest
 
-from board.models import CardMembership
+from board.models import CardMembership, BoardMembership
 
 from api.tests.conftest import (
     UserFactory,
@@ -166,3 +166,68 @@ class TestDeleteCardMembershipSignal:
         board_membership.delete()
 
         assert CardMembership.objects.count() == 0
+
+
+@pytest.mark.django_db
+class TestAddOwnerMembershipSignal:
+    """Tests for the add_owner_membership post_save signal."""
+
+    @pytest.fixture
+    def owner(self):
+        return UserFactory()
+
+    # ------------------------------------------------------------------
+    # Create
+    # ------------------------------------------------------------------
+
+    def test_creating_board_creates_owner_membership(
+        self,
+        owner,
+    ):
+        board = BoardFactory(owner=owner)
+
+        membership = BoardMembership.objects.get(
+            board=board,
+            user=owner,
+        )
+
+        assert membership.member_type == "admin"
+        assert membership.accepted is True
+
+    # ------------------------------------------------------------------
+    # Create only one membership
+    # ------------------------------------------------------------------
+
+    def test_creating_board_creates_exactly_one_owner_membership(
+        self,
+        owner,
+    ):
+        board = BoardFactory(owner=owner)
+
+        assert BoardMembership.objects.filter(
+            board=board,
+            user=owner,
+        ).count() == 1
+
+    # ------------------------------------------------------------------
+    # Update
+    # ------------------------------------------------------------------
+
+    def test_updating_board_does_not_create_additional_membership(
+        self,
+        owner,
+    ):
+        board = BoardFactory(owner=owner)
+
+        original_count = BoardMembership.objects.filter(
+            board=board,
+            user=owner,
+        ).count()
+
+        board.name = "Updated board"
+        board.save()
+
+        assert BoardMembership.objects.filter(
+            board=board,
+            user=owner,
+        ).count() == original_count
