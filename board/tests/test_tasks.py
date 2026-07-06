@@ -1,7 +1,8 @@
 import pytest
-
+from unittest.mock import patch
 from django.core import mail
 from django.test import override_settings
+from board.tasks import daily_notification, weekly_notification
 
 from account.models import NotificationDelivery
 from board.tasks import send_email_task
@@ -11,6 +12,7 @@ from api.tests.conftest import (
     BoardFactory,
     BoardMembershipFactory,
     UserFactory,
+    NotificationFactory
 )
 
 
@@ -144,3 +146,75 @@ class TestSendEmailTask:
             activity=activity,
             recipient=recipient,
         ).count() == 1
+
+
+
+@pytest.mark.django_db
+class TestDailyNotificationTask:
+
+    @patch("board.tasks.group")
+    @patch("board.tasks.send_bulk_activity_email_task")
+    def test_daily_notification_dispatches_one_task_per_user(
+        self,
+        mock_task,
+        mock_group,
+    ):
+        user1 = UserFactory(email="u1@test.com")
+        user2 = UserFactory(email="u2@test.com")
+
+        NotificationFactory(
+            user=user1,
+            email_frequency="daily",
+        )
+
+        NotificationFactory(
+            user=user2,
+            email_frequency="daily",
+        )
+
+        daily_notification()
+
+        assert mock_task.s.call_count == 2
+
+        mock_task.s.assert_any_call(
+            user1.id,
+            user1.username,
+            user1.email,
+            days=1,
+        )
+
+        mock_task.s.assert_any_call(
+            user2.id,
+            user2.username,
+            user2.email,
+            days=1,
+        )
+        mock_group.return_value.delay.assert_called_once()
+
+@pytest.mark.django_db
+class TestWeeklyNotificationTask:
+
+    @patch("board.tasks.group")
+    @patch("board.tasks.send_bulk_activity_email_task")
+    def test_weekly_notification_dispatches_tasks(
+        self,
+        mock_task,
+        mock_group,
+    ):
+        user = UserFactory()
+
+        NotificationFactory(
+            user=user,
+            email_frequency="weekly",
+        )
+
+        weekly_notification()
+
+        mock_task.s.assert_called_once_with(
+            user.id,
+            user.username,
+            user.email,
+            days=7,
+        )
+
+        mock_group.return_value.delay.assert_called_once()

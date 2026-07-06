@@ -119,8 +119,7 @@ def send_bulk_activity_email_task(recipient_id, recipient, recipient_email, days
 @shared_task
 def daily_notification():
     notifications = Notification.objects.filter(email_frequency="daily").select_related("user")
-
-    job = group(
+    signatures = [
         send_bulk_activity_email_task.s(
                 notification.user.id,
                 notification.user.username,
@@ -128,15 +127,15 @@ def daily_notification():
                 days=1
             )
         for notification in notifications
-        )
+    ]
+    job = group(signatures)
 
     job.delay()
 
 @shared_task
 def weekly_notification():
     notifications = Notification.objects.filter(email_frequency="weekly").select_related("user")
-
-    job = group(
+    signatures = [
         send_bulk_activity_email_task.s(
                 notification.user.id,
                 notification.user.username,
@@ -144,6 +143,7 @@ def weekly_notification():
                 days=7
             )
         for notification in notifications
-        )
+    ]
+    job = group(signatures)
 
     job.delay()
