@@ -1,5 +1,7 @@
 import os
-from django.test import TestCase
+import shutil
+import tempfile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile
 
@@ -33,7 +35,24 @@ class HomePageViewTests(TestCase):
 		self.assertTemplateUsed(response, "board/home/home.html")
 
 class LandingPageViewTests(TestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
 
+		cls.temp_media = tempfile.mkdtemp()
+
+		cls.override = override_settings(
+			MEDIA_ROOT=cls.temp_media
+		)
+		cls.override.enable()
+
+	@classmethod
+	def tearDownClass(cls):
+		cls.override.disable()
+		shutil.rmtree(cls.temp_media)
+
+		super().tearDownClass()
+		
 	def setUp(self):
 		self.url = reverse("board:landing")
 

@@ -43,17 +43,19 @@ class ProfileSerializer(serializers.ModelSerializer):
 		data = data.copy()
 		request = self.context["request"]
 		data["user"] = request.user.id
+		print("to to_internal_value", data)
 		return super().to_internal_value(data)
 
 class UserSerializer(serializers.ModelSerializer):
 	profile_image = serializers.SerializerMethodField()
 	fullname = serializers.SerializerMethodField()
-	profile = ProfileSerializer()
+	profile = ProfileSerializer(read_only=True)
 
 
 	class Meta:
 		model = UserModel
 		fields = ["id", "username", "email", "profile_image", "fullname", "first_name", "last_name", "profile"]
+
 
 	def get_profile_image(self, obj):
 		if hasattr(obj, "profile"):
@@ -62,21 +64,29 @@ class UserSerializer(serializers.ModelSerializer):
 		else:
 			return ""
 
+
 	def get_fullname(self, obj):
 		return obj.get_full_name()
 
 	def update(self, instance, validated_data):
-		profile_data = validated_data.pop('profile', {})
+		profile_data = self.initial_data.get("profile")
 
 		for field in ("username", "email", "first_name", "last_name"):
 			if field in validated_data:
 				setattr(instance, field, validated_data[field])
 		instance.save()
-		if hasattr(instance, "profile"):
-			
-			profile = instance.profile
-			profile.bio = profile_data.get("bio", profile.bio)
-			profile.save()
+
+
+		if hasattr(instance, "profile") and profile_data:
+
+			profile_serializer = ProfileSerializer(
+				instance=instance.profile,
+				data=profile_data,
+				partial=True,
+				context=self.context,
+			)
+			profile_serializer.is_valid(raise_exception=True)
+			profile_serializer.save()
 		return instance
 
 class BoardSerializer(serializers.ModelSerializer):

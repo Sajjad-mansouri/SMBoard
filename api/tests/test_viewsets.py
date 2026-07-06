@@ -6724,7 +6724,7 @@ class TestCardImageUpdateView:
         assert response.status_code == 200
 
         own_image.refresh_from_db()
-
+        print("own_image.file.name:", own_image.file.name)
         assert own_image.file.name.endswith("updated.png")
 
     # ---------------------------------------------------------

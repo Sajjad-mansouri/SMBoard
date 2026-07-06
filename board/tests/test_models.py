@@ -1,5 +1,7 @@
 import os
-from django.test import TestCase
+import shutil
+import tempfile
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from django.utils.text import slugify
 from django.contrib.auth import get_user_model
@@ -32,6 +34,25 @@ from ..models import (
 User = get_user_model()
 
 class BoardModelTests(TestCase):
+
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+
+		cls.temp_media = tempfile.mkdtemp()
+
+		cls.override = override_settings(
+			MEDIA_ROOT=cls.temp_media
+		)
+		cls.override.enable()
+
+	@classmethod
+	def tearDownClass(cls):
+		cls.override.disable()
+		shutil.rmtree(cls.temp_media)
+
+		super().tearDownClass()
+		
 	def setUp(self):
 		self.user = User.objects.create_user(username="sajjad", password="secure_pass_1234")
 
@@ -87,6 +108,24 @@ class BoardModelTests(TestCase):
 			os.remove(board.background_image.path)
 
 class BoardListModelTests(TestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+
+		cls.temp_media = tempfile.mkdtemp()
+
+		cls.override = override_settings(
+			MEDIA_ROOT=cls.temp_media
+		)
+		cls.override.enable()
+
+	@classmethod
+	def tearDownClass(cls):
+		cls.override.disable()
+		shutil.rmtree(cls.temp_media)
+
+		super().tearDownClass()
+		
 	def setUp(self):
 		self.user = User.objects.create_user(username="sajjad", password="secure_pass_1234")
 		self.board = Board.objects.create(owner=self.user, name="Project")
@@ -137,6 +176,24 @@ class BoardListModelTests(TestCase):
 			os.remove(board_list.cover_image.path)
 
 class CardModelTests(TestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+
+		cls.temp_media = tempfile.mkdtemp()
+
+		cls.override = override_settings(
+			MEDIA_ROOT=cls.temp_media
+		)
+		cls.override.enable()
+
+	@classmethod
+	def tearDownClass(cls):
+		cls.override.disable()
+		shutil.rmtree(cls.temp_media)
+
+		super().tearDownClass()
+		
 	def setUp(self):
 		self.user = User.objects.create_user(username="sajjad", password="secure_pass_1234")
 		self.board = Board.objects.create(owner=self.user, name="Project")
@@ -215,7 +272,24 @@ class BoardMembershipdModelTests(TestCase):
 			duplicate_membership.save()
 
 class BoardOwnerMembershipSignalTests(TestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
 
+		cls.temp_media = tempfile.mkdtemp()
+
+		cls.override = override_settings(
+			MEDIA_ROOT=cls.temp_media
+		)
+		cls.override.enable()
+
+	@classmethod
+	def tearDownClass(cls):
+		cls.override.disable()
+		shutil.rmtree(cls.temp_media)
+
+		super().tearDownClass()
+		
 	def setUp(self):
 		self.owner = User.objects.create_user(username="test_user", password="secure_pass_1234")
 
@@ -322,6 +396,24 @@ class ChecklistItemModelTests(TestCase):
 
 
 class CardAttachmentTests(TestCase):
+	@classmethod
+	def setUpClass(cls):
+		super().setUpClass()
+
+		cls.temp_media = tempfile.mkdtemp()
+
+		cls.override = override_settings(
+			MEDIA_ROOT=cls.temp_media
+		)
+		cls.override.enable()
+
+	@classmethod
+	def tearDownClass(cls):
+		cls.override.disable()
+		shutil.rmtree(cls.temp_media)
+
+		super().tearDownClass()
+		
 	def setUp(self):
 		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
 		self.board = Board.objects.create(owner=self.user, name="Project")

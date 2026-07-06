@@ -247,36 +247,46 @@ class TestProfileSerializer:
     # Validation
     # --------------------------------------------------------
 
-    def test_serializer_is_valid(self, valid_data):
-        serializer = ProfileSerializer(data=valid_data)
+    def test_serializer_is_valid(self, valid_data, serializer_context):
+        serializer = ProfileSerializer(data=valid_data, context=serializer_context)
 
         assert serializer.is_valid(), serializer.errors
 
-    def test_serializer_with_image_is_valid(self, valid_data_with_image):
-        serializer = ProfileSerializer(data=valid_data_with_image)
+    def test_serializer_with_image_is_valid(self, valid_data_with_image, serializer_context):
+        serializer = ProfileSerializer(data=valid_data_with_image, context=serializer_context)
 
         assert serializer.is_valid(), serializer.errors
-    def test_serializer_is_valid_without_profile_image(self, valid_data):
-        serializer = ProfileSerializer(data=valid_data)
+    def test_serializer_is_valid_without_profile_image(self, valid_data, serializer_context):
+        serializer = ProfileSerializer(data=valid_data, context=serializer_context)
 
         assert serializer.is_valid(), serializer.errors
 
-    def test_serializer_accepts_blank_bio(self, valid_data):
+    def test_serializer_accepts_blank_bio(self, valid_data, serializer_context):
         data = valid_data.copy()
         data["bio"] = ""
 
-        serializer = ProfileSerializer(data=data)
+        serializer = ProfileSerializer(data=data, context=serializer_context)
 
         assert serializer.is_valid(), serializer.errors
+    def test_user_is_taken_from_request(self, valid_data, serializer_context, user):
+        serializer = ProfileSerializer(data=valid_data, context=serializer_context)
+        serializer.is_valid()
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["user"] == user
 
-    def test_user_is_required(self, valid_data):
-        data = valid_data.copy()
-        data.pop("user")
+    def test_payload_user_is_overwritten_by_request_user(self, serializer_context, valid_data, user, another_user):
+        valid_data["user"] = another_user.id
+        serializer = ProfileSerializer(data=valid_data, context=serializer_context)
+        serializer.is_valid()
+        assert serializer.is_valid(), serializer.errors
+        assert serializer.validated_data["user"] == user
 
-        serializer = ProfileSerializer(data=data)
 
-        assert not serializer.is_valid()
-        assert "user" in serializer.errors
+    def test_to_internal_value_handles_missing_request(self, valid_data):
+        serializer = ProfileSerializer(data=valid_data, context={})
+        with pytest.raises(KeyError):
+            serializer.is_valid()
+
 
     # --------------------------------------------------------
     # Output
@@ -304,8 +314,8 @@ class TestProfileSerializer:
     # Create
     # --------------------------------------------------------
 
-    def test_create_profile(self, valid_data):
-        serializer = ProfileSerializer(data=valid_data)
+    def test_create_profile(self, valid_data, serializer_context):
+        serializer = ProfileSerializer(data=valid_data, context=serializer_context)
 
         assert serializer.is_valid(), serializer.errors
 
@@ -320,13 +330,14 @@ class TestProfileSerializer:
     # Update
     # --------------------------------------------------------
 
-    def test_update_profile(self, profile):
+    def test_update_profile(self, profile, serializer_context):
         serializer = ProfileSerializer(
             instance=profile,
             data={
                 "bio": "Senior Backend Developer",
             },
             partial=True,
+            context=serializer_context
         )
 
         assert serializer.is_valid(), serializer.errors
@@ -429,11 +440,13 @@ class TestUserSerializer:
         self,
         user_with_profile,
         update_data,
+        serializer_context
     ):
         serializer = UserSerializer(
             instance=user_with_profile,
             data=update_data,
-            partial=True
+            partial=True,
+            context=serializer_context
         )
 
         assert serializer.is_valid(), serializer.errors
@@ -450,11 +463,13 @@ class TestUserSerializer:
         self,
         user_with_profile,
         update_data,
+        serializer_context
     ):
         serializer = UserSerializer(
             instance=user_with_profile,
             data=update_data,
-            partial=True
+            partial=True,
+            context=serializer_context
         )
 
         assert serializer.is_valid(), serializer.errors
@@ -491,6 +506,7 @@ class TestUserSerializer:
     def test_partial_update_only_profile(
         self,
         user_with_profile,
+        serializer_context
     ):
         old_username = user_with_profile.username
 
@@ -502,6 +518,7 @@ class TestUserSerializer:
                 }
             },
             partial=True,
+            context=serializer_context
         )
 
         assert serializer.is_valid(), serializer.errors
@@ -1875,7 +1892,7 @@ class TestImageAttachmentSerializer:
         valid_data,
         serializer_context,
     ):
-        print(valid_data)
+
         serializer = ImageAttachmentSerializer(
             data=valid_data,
             context=serializer_context,
@@ -4160,7 +4177,7 @@ class TestNotificationSerializer:
         assert serializer.is_valid(), serializer.errors
 
         notification = serializer.save()
-        print("notification.user", notification.user, "user",user)
+
         assert notification.user == user
 
         for field, value in valid_data.items():

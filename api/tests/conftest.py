@@ -1,6 +1,9 @@
 import io
 import factory
 import pytest
+import shutil
+import tempfile
+from django.test import override_settings
 from PIL import Image
 from django.core.files.uploadedfile import SimpleUploadedFile
 from factory.django import DjangoModelFactory
@@ -27,6 +30,21 @@ from board.models import (
 from account.models import Notification, Profile, NotificationDelivery
 User = get_user_model()
 
+
+
+# conftest.py
+
+
+
+
+@pytest.fixture(autouse=True)
+def media_root():
+    temp_dir = tempfile.mkdtemp()
+
+    with override_settings(MEDIA_ROOT=temp_dir):
+        yield
+
+    shutil.rmtree(temp_dir)
 
 class UserFactory(DjangoModelFactory):
 	"""Factory for creating User instance"""
