@@ -1,18 +1,22 @@
 import pytest
 from unittest.mock import patch
+from datetime import timedelta
+
+from django.utils import timezone
 from django.core import mail
 from django.test import override_settings
 from board.tasks import daily_notification, weekly_notification
 
 from account.models import NotificationDelivery
-from board.tasks import send_email_task
+from board.tasks import send_email_task, send_bulk_activity_email_task
 
 from api.tests.conftest import (
     ActivityFactory,
     BoardFactory,
     BoardMembershipFactory,
     UserFactory,
-    NotificationFactory
+    NotificationFactory,
+    NotificationDeliveryFactory
 )
 
 
@@ -218,3 +222,254 @@ class TestWeeklyNotificationTask:
         )
 
         mock_group.return_value.delay.assert_called_once()
+
+
+@pytest.mark.django_db
+class TestSendBulkActivityEmailTask:
+
+    @pytest.fixture
+    def actor(self):
+        return UserFactory()
+
+
+    @pytest.fixture
+    def recipient(self):
+        return UserFactory(
+            username="recipient",
+            email="recipient@example.com",
+        )
+
+    @pytest.fixture
+    def notification(self, recipient):
+        return NotificationFactory(user=recipient)
+
+    @pytest.fixture
+    def board(self, actor):
+        return BoardFactory(owner=actor)
+
+    @pytest.fixture
+    def membership(self, board, recipient):
+        return BoardMembershipFactory(
+            board=board,
+            user=recipient,
+            accepted=True,
+        )
+
+    @pytest.fixture
+    def kwargs(self, recipient):
+        return {
+            "recipient_id": recipient.id,
+            "recipient": recipient.username,
+            "recipient_email": recipient.email,
+            "days": 1,
+        }
+
+    def test_send_email_successfully(
+        self,
+        actor,
+        notification,
+        recipient,
+        board,
+        membership,
+        kwargs,
+    ):
+        recipient.notification.add_comment = True
+        recipient.notification.save(update_fields=["add_comment"])
+
+        activity = ActivityFactory(
+            board=board,
+            user=actor,
+            action_type="add_comment",
+        )
+
+        send_bulk_activity_email_task(**kwargs)
+
+        assert len(mail.outbox) == 1
+
+        email = mail.outbox[0]
+
+        assert email.subject == "New Activities"
+        assert email.to == [recipient.email]
+        assert len(email.alternatives) == 1
+
+        assert NotificationDelivery.objects.filter(
+            activity=activity,
+            recipient=recipient,
+        ).exists()
+
+    def test_missing_recipient_returns(
+        self,
+        kwargs,
+    ):
+        kwargs["recipient_id"] = 999999
+
+        send_bulk_activity_email_task(**kwargs)
+
+        assert len(mail.outbox) == 0
+        assert NotificationDelivery.objects.count() == 0
+
+    def test_no_matching_activity(
+        self,
+        recipient,
+        notification,
+        kwargs,
+    ):
+        recipient.notification.add_comment = True
+        recipient.notification.save(update_fields=["add_comment"])
+
+        send_bulk_activity_email_task(**kwargs)
+
+        assert len(mail.outbox) == 0
+        assert NotificationDelivery.objects.count() == 0
+
+    def test_old_activity_is_ignored(
+        self,
+        actor,
+        recipient,
+        notification,
+        board,
+        membership,
+        kwargs,
+    ):
+        recipient.notification.add_comment = True
+        recipient.notification.save(update_fields=["add_comment"])
+
+        activity = ActivityFactory(
+            board=board,
+            user=actor,
+            action_type="comment_card",
+        )
+
+        activity.created = timezone.now() - timedelta(days=10)
+        activity.save(update_fields=["created"])
+
+        send_bulk_activity_email_task(**kwargs)
+
+        assert len(mail.outbox) == 0
+
+    def test_self_activity_is_not_sent(
+        self,
+        recipient,
+        notification,
+        board,
+        membership,
+        kwargs,
+    ):
+        recipient.notification.add_comment = True
+        recipient.notification.save(update_fields=["add_comment"])
+
+        ActivityFactory(
+            board=board,
+            user=recipient,
+            action_type="add_comment",
+        )
+
+        send_bulk_activity_email_task(**kwargs)
+
+        assert len(mail.outbox) == 0
+
+    def test_disabled_notification_type(
+        self,
+        actor,
+        recipient,
+        notification,
+        board,
+        membership,
+        kwargs,
+    ):
+        ActivityFactory(
+            board=board,
+            user=actor,
+            action_type="add_comment",
+        )
+
+        send_bulk_activity_email_task(**kwargs)
+
+        assert len(mail.outbox) == 0
+
+    def test_already_delivered_activity(
+        self,
+        actor,
+        recipient,
+        notification,
+        board,
+        membership,
+        kwargs,
+    ):
+        recipient.notification.add_comment = True
+        recipient.notification.save(update_fields=["add_comment"])
+
+        activity = ActivityFactory(
+            board=board,
+            user=actor,
+            action_type="add_comment",
+        )
+
+        NotificationDeliveryFactory(
+            activity=activity,
+            recipient=recipient,
+        )
+
+        send_bulk_activity_email_task(**kwargs)
+
+        assert len(mail.outbox) == 0
+
+        assert NotificationDelivery.objects.filter(
+            activity=activity,
+            recipient=recipient,
+        ).count() == 1
+
+    def test_multiple_activities(
+        self,
+        actor,
+        recipient,
+        notification,
+        board,
+        membership,
+        kwargs,
+    ):
+        recipient.notification.add_comment = True
+        recipient.notification.save(update_fields=["add_comment"])
+
+        activities = ActivityFactory.create_batch(
+            3,
+            board=board,
+            user=actor,
+            action_type="add_comment",
+        )
+
+        send_bulk_activity_email_task(**kwargs)
+
+        assert len(mail.outbox) == 1
+
+        assert NotificationDelivery.objects.filter(
+            recipient=recipient,
+        ).count() == len(activities)
+
+    def test_task_is_idempotent(
+        self,
+        actor,
+        recipient,
+        notification,
+        board,
+        membership,
+        kwargs,
+    ):
+        recipient.notification.add_comment = True
+        recipient.notification.save(update_fields=["add_comment"])
+
+        activity = ActivityFactory(
+            board=board,
+            user=actor,
+            action_type="add_comment",
+        )
+
+        send_bulk_activity_email_task(**kwargs)
+        send_bulk_activity_email_task(**kwargs)
+
+        assert NotificationDelivery.objects.filter(
+            activity=activity,
+            recipient=recipient,
+        ).count() == 1
+
+        assert len(mail.outbox) == 1
