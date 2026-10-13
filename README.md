@@ -2,7 +2,7 @@
 
 **SMBoard** is a Trello-like board management application built with Django and Django REST Framework. It provides a way to organize projects and tasks using boards, lists, and cards, with supporting features for collaboration, attachments, activity tracking, and email notifications.
 
-The project demonstrates backend development with Django, REST API design, authentication, data modeling, automated testing, and integration with background task processing. Its frontend is built with HTML, CSS, and vanilla JavaScript.
+The project demonstrates backend development with Django, REST API design, authentication, data modeling, automated testing, code quality tooling, and integration with background task processing. Its frontend is built with HTML, CSS, and vanilla JavaScript.
 
 ## Live Demo
 
@@ -14,6 +14,7 @@ The deployed version is intended as a demonstration of the project. Feature avai
 
 - [Features](#features)
 - [Technology Stack](#technology-stack)
+- [Code Quality and Formatting](#code-quality-and-formatting)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [Environment Configuration](#environment-configuration)
@@ -88,7 +89,7 @@ The deployed version is intended as a demonstration of the project. Feature avai
 - Background task processing with Celery.
 - Automatic retry configuration for selected email delivery failures.
 
-> Note: Features defined in the source code may require additional configuration or running services. In particular, Celery-based notifications depend on a configured message broker and running worker and scheduler processes.
+> **Note:** Features defined in the source code may require additional configuration or running services. In particular, Celery-based notifications depend on a configured message broker and running worker and scheduler processes.
 
 ## Technology Stack
 
@@ -132,6 +133,110 @@ The frontend uses standard HTML, CSS, and JavaScript without a JavaScript framew
 | Faker | Test data generation |
 
 The project uses pytest and pytest-django for automated testing.
+
+### Code Quality and Development Tools
+
+| Tool | Version | Purpose |
+|---|---|---|
+| Ruff | 0.17.0 | Python linting and code formatting |
+| pre-commit | 4.7.0 | Automated Git hook management |
+
+Ruff is integrated with pre-commit to run configured code quality checks automatically through Git hooks. This helps maintain consistent Python code style and identify common code issues before commits are created.
+
+## Code Quality and Formatting
+
+SMBoard uses Ruff for Python linting and formatting, with pre-commit managing the Git hooks.
+
+### Ruff
+
+Ruff provides Python linting and code formatting. The project pins Ruff to version `0.17.0`.
+
+To run the linter manually from the project root:
+
+```bash
+ruff check .
+```
+
+To automatically fix supported linting issues:
+
+```bash
+ruff check --fix .
+```
+
+To format Python files:
+
+```bash
+ruff format .
+```
+
+To check formatting without modifying files:
+
+```bash
+ruff format --check .
+```
+
+Linting and formatting are separate operations. Running `ruff check` does not replace `ruff format`, and formatting files does not automatically resolve every linting issue.
+
+### pre-commit
+
+The project uses pre-commit version `4.7.0` to manage Git hooks.
+
+Install the development dependencies if they are not already installed:
+
+```bash
+python -m pip install ruff==0.17.0 pre_commit==4.7.0
+```
+
+Install the configured Git hooks:
+
+```bash
+pre-commit install
+```
+
+Once installed, the configured hooks run when you create a Git commit. The exact checks performed depend on the hooks defined in `.pre-commit-config.yaml`.
+
+To run all configured hooks against every file in the repository:
+
+```bash
+pre-commit run --all-files
+```
+
+To run the hooks against files staged for a commit:
+
+```bash
+pre-commit run
+```
+
+To update hook environments and revisions when appropriate:
+
+```bash
+pre-commit autoupdate
+```
+
+Review the changes produced by `pre-commit autoupdate` before committing them, and ensure the configured hook revisions remain compatible with the project's pinned tooling.
+
+### Recommended Development Workflow
+
+Before committing changes, run the following commands from the project root:
+
+```bash
+ruff check .
+ruff format .
+pre-commit run --all-files
+pytest
+```
+
+These commands lint the Python code, format it, execute the configured pre-commit hooks across the repository, and run the automated test suite.
+
+The pre-commit configuration determines which checks are actually enforced during commits. Running `pre-commit run --all-files` is useful after introducing or changing hooks because it checks existing files as well as recently modified ones.
+
+**Configuration files:**
+
+- `pyproject.toml` — Ruff configuration, including any configured linting and formatting options.
+- `.pre-commit-config.yaml` — Hook definitions and their configuration.
+- `requirements.txt` — Project dependencies, if Ruff and pre-commit are included in the project's dependency list.
+
+The commands above assume Ruff and pre-commit are installed in the active Python environment. The README does not assume specific linting rule selections or hook definitions beyond the versions provided.
 
 ## Project Structure
 
@@ -185,8 +290,12 @@ smboard/
 ├── static/
 ├── manage.py
 ├── pytest.ini
+├── pyproject.toml
+├── .pre-commit-config.yaml
 └── requirements.txt
 ```
+
+This tree illustrates the main project components and the code quality configuration files. The exact contents of individual directories may vary as the project evolves.
 
 ### Application Responsibilities
 
@@ -198,6 +307,9 @@ smboard/
 - **`media/`** — Uploaded media files.
 - **`migrations/`** — Database schema migrations for the Django applications.
 - **`tests/`** — Automated tests organized within the relevant applications.
+- **`pyproject.toml`** — Project tooling configuration, including Ruff settings.
+- **`.pre-commit-config.yaml`** — Configuration for the Git pre-commit hooks.
+- **`requirements.txt`** — Python dependency specifications.
 
 ## Getting Started
 
@@ -240,9 +352,29 @@ venv\Scripts\activate
 
 ### 3. Install Dependencies
 
+Upgrade pip and install the project dependencies:
+
 ```bash
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
+
+If Ruff and pre-commit are not included in `requirements.txt`, install the pinned development tools separately:
+
+```bash
+python -m pip install ruff==0.17.0 pre_commit==4.7.0
+```
+
+If the repository already contains `.pre-commit-config.yaml`, install its Git hooks:
+
+```bash
+pre-commit install
+```
+
+Run the configured hooks against the entire repository:
+
+```bash
+pre-commit run --all-files
 ```
 
 ### 4. Configure Environment Variables
@@ -517,7 +649,7 @@ Celery-based functionality requires the relevant broker, worker, and scheduler t
 
 The project uses pytest and pytest-django.
 
-Run the tests from the project root:
+Run the full test suite from the project root:
 
 ```bash
 pytest
@@ -555,6 +687,8 @@ Before deploying or updating the application, verify the following:
 - Media uploads use a suitable writable location.
 - Email credentials are configured securely.
 - Any required Celery broker, worker, and scheduler are actually available.
+- Ruff and pre-commit configuration changes are committed and available in the repository.
+- The automated test suite passes in the intended environment.
 
 Do not assume that optional background services are active merely because their configuration and task definitions exist in the codebase.
 
@@ -568,6 +702,9 @@ Do not assume that optional background services are active merely because their 
 - Review token lifetimes and refresh-token behavior against the application's security requirements.
 - Confirm that production settings are loaded by the deployed WSGI application.
 - Keep dependencies updated and test changes before deploying them.
+- Run Ruff linting and formatting checks during development.
+- Install the configured pre-commit hooks in each local Git clone where automatic checks are required.
+- Run `pre-commit run --all-files` after modifying the hook configuration to validate the repository against the configured checks.
 
 ## License
 
