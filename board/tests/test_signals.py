@@ -1,20 +1,18 @@
 import pytest
 
-from board.models import CardMembership, BoardMembership
-
 from api.tests.conftest import (
-    UserFactory,
     BoardFactory,
-    BoardMembershipFactory,
     BoardListFactory,
+    BoardMembershipFactory,
     CardFactory,
     CardMembershipFactory,
+    UserFactory,
 )
+from board.models import BoardMembership, CardMembership
 
 
 @pytest.mark.django_db
 class TestDeleteCardMembershipSignal:
-
     @pytest.fixture
     def user(self):
         return UserFactory()
@@ -204,10 +202,13 @@ class TestAddOwnerMembershipSignal:
     ):
         board = BoardFactory(owner=owner)
 
-        assert BoardMembership.objects.filter(
-            board=board,
-            user=owner,
-        ).count() == 1
+        assert (
+            BoardMembership.objects.filter(
+                board=board,
+                user=owner,
+            ).count()
+            == 1
+        )
 
     # ------------------------------------------------------------------
     # Update
@@ -227,7 +228,10 @@ class TestAddOwnerMembershipSignal:
         board.name = "Updated board"
         board.save()
 
-        assert BoardMembership.objects.filter(
-            board=board,
-            user=owner,
-        ).count() == original_count
+        assert (
+            BoardMembership.objects.filter(
+                board=board,
+                user=owner,
+            ).count()
+            == original_count
+        )

@@ -5,28 +5,66 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0006_alter_boardlist_order'),
+        ("board", "0006_alter_boardlist_order"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Card',
+            name="Card",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=250, verbose_name='Name')),
-                ('description', models.TextField(blank=True, verbose_name='Description')),
-                ('start_date', models.DateTimeField(blank=True, null=True, verbose_name='Start Date')),
-                ('due_date', models.DateTimeField(blank=True, null=True, verbose_name='Due Date')),
-                ('status', models.CharField(choices=[('complete', 'Complete'), ('incomplete', 'Incomplete')], default='incomplete', verbose_name='Status')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('updated', models.DateTimeField(auto_now=True)),
-                ('board_list', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='list_cards', to='board.boardlist', verbose_name='Board List')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=250, verbose_name="Name")),
+                (
+                    "description",
+                    models.TextField(blank=True, verbose_name="Description"),
+                ),
+                (
+                    "start_date",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="Start Date"
+                    ),
+                ),
+                (
+                    "due_date",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="Due Date"
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("complete", "Complete"),
+                            ("incomplete", "Incomplete"),
+                        ],
+                        default="incomplete",
+                        verbose_name="Status",
+                    ),
+                ),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                ("updated", models.DateTimeField(auto_now=True)),
+                (
+                    "board_list",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="list_cards",
+                        to="board.boardlist",
+                        verbose_name="Board List",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Card',
-                'verbose_name_plural': 'Cards',
+                "verbose_name": "Card",
+                "verbose_name_plural": "Cards",
             },
         ),
     ]

@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0015_card_cover_color_card_cover_image_cardmembership'),
+        ("board", "0015_card_cover_color_card_cover_image_cardmembership"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='comment',
-            name='edited',
-            field=models.BooleanField(default=False, verbose_name='Edited'),
+            model_name="comment",
+            name="edited",
+            field=models.BooleanField(default=False, verbose_name="Edited"),
         ),
     ]

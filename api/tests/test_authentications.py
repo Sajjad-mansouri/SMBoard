@@ -1,11 +1,9 @@
 import pytest
-from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
-from rest_framework_simplejwt.exceptions import TokenError
-
 from django.urls import reverse
+from rest_framework_simplejwt.exceptions import TokenError
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from .conftest import UserFactory
-from django.contrib.auth import get_user_model
 
 
 @pytest.mark.django_db
@@ -37,7 +35,6 @@ class TestTokenObtainPairView:
         user,
         password,
     ):
-
         response = api_client.post(
             url,
             {
@@ -46,7 +43,6 @@ class TestTokenObtainPairView:
             },
             format="json",
         )
-
 
         assert response.status_code == 200
 
@@ -384,7 +380,6 @@ class TestTokenVerifyView:
         assert "token" in response.data
 
 
-
 @pytest.mark.django_db
 class TestLoginApiView:
     """Tests for LoginApiView."""
@@ -540,9 +535,6 @@ class TestLoginApiView:
         assert response.data == {"error": "Invalid Credentials"}
 
 
-
-
-
 @pytest.mark.django_db
 class TestLogoutApiView:
     """Tests for LogoutApiView."""
@@ -603,9 +595,7 @@ class TestLogoutApiView:
         )
 
         assert response.status_code == 200
-        assert response.data == {
-            "message": "Successfuly logged out"
-        }
+        assert response.data == {"message": "Successfuly logged out"}
 
     # ------------------------------------------------------------------
     # Missing refresh token
@@ -623,9 +613,7 @@ class TestLogoutApiView:
         )
 
         assert response.status_code == 400
-        assert response.data == {
-            "error": "Logout failed"
-        }
+        assert response.data == {"error": "Logout failed"}
 
     # ------------------------------------------------------------------
     # Invalid refresh token
@@ -654,9 +642,7 @@ class TestLogoutApiView:
         )
 
         assert response.status_code == 400
-        assert response.data == {
-            "error": "Logout failed"
-        }
+        assert response.data == {"error": "Logout failed"}
 
     # ------------------------------------------------------------------
     # Blacklisting

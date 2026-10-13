@@ -4,20 +4,24 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0020_card_cover_image_fk'),
+        ("board", "0020_card_cover_image_fk"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='cardlabel',
-            name='label',
+            model_name="cardlabel",
+            name="label",
         ),
         migrations.AddField(
-            model_name='cardlabel',
-            name='color',
-            field=models.CharField(default='12', help_text='format:#00fca8', max_length=7, verbose_name='Color'),
+            model_name="cardlabel",
+            name="color",
+            field=models.CharField(
+                default="12",
+                help_text="format:#00fca8",
+                max_length=7,
+                verbose_name="Color",
+            ),
             preserve_default=False,
         ),
     ]

@@ -4,38 +4,37 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('account', '0009_remove_aboutsiteimage_about_site'),
+        ("account", "0009_remove_aboutsiteimage_about_site"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='aboutsite',
-            name='api_endpoints',
+            model_name="aboutsite",
+            name="api_endpoints",
         ),
         migrations.RemoveField(
-            model_name='aboutsite',
-            name='data_models',
+            model_name="aboutsite",
+            name="data_models",
         ),
         migrations.AddField(
-            model_name='aboutsite',
-            name='api_endpoint_total_count',
+            model_name="aboutsite",
+            name="api_endpoint_total_count",
             field=models.IntegerField(default=0),
         ),
         migrations.AddField(
-            model_name='aboutsite',
-            name='celery_task_total_count',
+            model_name="aboutsite",
+            name="celery_task_total_count",
             field=models.IntegerField(default=0),
         ),
         migrations.AddField(
-            model_name='aboutsite',
-            name='model_total_count',
+            model_name="aboutsite",
+            name="model_total_count",
             field=models.IntegerField(default=0),
         ),
         migrations.AddField(
-            model_name='aboutsite',
-            name='test_total_count',
+            model_name="aboutsite",
+            name="test_total_count",
             field=models.IntegerField(default=0),
         ),
     ]

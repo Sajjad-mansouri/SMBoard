@@ -4,15 +4,14 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0024_linkattachment'),
+        ("board", "0024_linkattachment"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='linkattachment',
-            old_name='link',
-            new_name='file',
+            model_name="linkattachment",
+            old_name="link",
+            new_name="file",
         ),
     ]

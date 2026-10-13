@@ -1,591 +1,613 @@
 import json
 import re
-from unittest.mock import patch, Mock
-from django.test import TestCase, RequestFactory
-from django.urls import reverse
+from unittest.mock import Mock, patch
+
 from django.contrib.auth import get_user_model
-from django.utils.translation import gettext as _
-from django.http import JsonResponse
-from django.core import mail
-
 from django.contrib.auth.tokens import default_token_generator
+from django.core import mail
 from django.core.exceptions import ImproperlyConfigured
-from django.utils.http import urlsafe_base64_encode
+from django.http import JsonResponse
+from django.test import RequestFactory, TestCase
+from django.urls import reverse
 from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.utils.translation import gettext as _
 
+from account.models import Notification, Profile
 from account.views import (
-	RegistrationView,
-	RegistrationDoneView,
-	RegistrationConfirmView,
-	INTERNAL_REGISTRATION_SESSION_TOKEN,
+    INTERNAL_REGISTRATION_SESSION_TOKEN,
+    RegistrationConfirmView,
+    RegistrationDoneView,
+    RegistrationView,
 )
 
-from account.models import Profile, Notification
 User = get_user_model()
 
+
 class RegistrationViewTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.url = reverse("account:register")
+        self.valid_data = {
+            "username": "testuser",
+            "email": "test@example.com",
+            "password1": "TestPassword123!",
+            "password2": "TestPassword123!",
+        }
 
-	def setUp(self):
-		self.factory = RequestFactory()
-		self.url = reverse("account:register")
-		self.valid_data = {
-			'username': "testuser",
-			'email': "test@example.com",
-			'password1': "TestPassword123!",
-			'password2': "TestPassword123!",
+    def test_user_registration_view_url_exists(self):
+        """Test that registration view is accessible"""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
 
-		}
+    def test_registeration_view_template_used(self):
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, "account/registration/register.html")
 
-	def test_user_registration_view_url_exists(self):
-		"""Test that registration view is accessible"""
-		response = self.client.get(self.url)
-		self.assertEqual(response.status_code, 200)
+    def test_registeration_view_context(self):
+        response = self.client.get(self.url)
+        self.assertIn("form", response.context)
 
-	def test_registeration_view_template_used(self):
-		response = self.client.get(self.url)
-		self.assertTemplateUsed(response, "account/registration/register.html")
+    def test_registeration_form_valid_json_response(self):
+        response = self.client.post(
+            self.url, data=self.valid_data, HTTP_ACCEPT="application/json"
+        )
 
-	def test_registeration_view_context(self):
-		response = self.client.get(self.url)
-		self.assertIn("form", response.context)
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response, JsonResponse)
+        content = json.loads(response.content)
+        self.assertIn("status", content)
 
+        self.assertTrue(User.objects.filter(username="testuser").exists())
+        user = User.objects.get(username="testuser")
+        self.assertEqual(user.email, "test@example.com")
 
-	def test_registeration_form_valid_json_response(self):
-		response = self.client.post(
-			self.url,
-			data=self.valid_data,
-			HTTP_ACCEPT="application/json"
-			)
+        self.assertEqual(self.client.session["email"], "test@example.com")
 
-		self.assertEqual(response.status_code, 200)
-		self.assertIsInstance(response, JsonResponse)
-		content = json.loads(response.content)
-		self.assertIn("status", content)
+    def test_registration_form_invalid_json_response(self):
+        invalid_data = {
+            "username": "testuser",
+            "email": "invalid-email",  # Invalid email
+            "password1": "password123",
+            "password2": "password456",  # Passwords don't match
+        }
 
-		self.assertTrue(User.objects.filter(username="testuser").exists())
-		user = User.objects.get(username="testuser")
-		self.assertEqual(user.email, "test@example.com")
+        response = self.client.post(
+            self.url, data=invalid_data, HTTP_ACCEPT="application/json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIsInstance(response, JsonResponse)
 
-		self.assertEqual(self.client.session["email"], "test@example.com")
+        content = json.loads(response.content)
+        self.assertIn("errors", content)
+        self.assertFalse(content["status"])
+        self.assertIsInstance(content["errors"], dict)
 
-	def test_registration_form_invalid_json_response(self):
-		invalid_data = {
-			'username': 'testuser',
-			'email': 'invalid-email',  # Invalid email
-			'password1': 'password123',
-			'password2': 'password456',  # Passwords don't match
-		}
+    def test_registeration_form_valid_non_json_response(self):
+        with patch.object(RegistrationView, "response_type", "html"):
+            response = self.client.post(
+                self.url,
+                data=self.valid_data,
+            )
 
-		response = self.client.post(
-			self.url,
-			data=invalid_data,
-			HTTP_ACCEPT="application/json"
-			)
-		self.assertEqual(response.status_code, 200)
-		self.assertIsInstance(response, JsonResponse)
+            self.assertRedirects(response, reverse("account:registration_done"))
+            self.assertTrue(User.objects.filter(username="testuser").exists())
 
-		content = json.loads(response.content)
-		self.assertIn("errors", content)
-		self.assertFalse(content["status"])
-		self.assertIsInstance(content["errors"], dict)
+    def test_registeration_form_invalid_non_json_response(self):
+        invalid_data = {
+            "username": "testuser",
+            "email": "invalid-email",  # Invalid email
+            "password1": "password123",
+            "password2": "password456",  # Passwords don't match
+        }
+        with patch.object(RegistrationView, "response_type", "html"):
+            response = self.client.post(
+                self.url,
+                data=invalid_data,
+            )
 
+            self.assertEqual(response.status_code, 200)
+            self.assertTemplateUsed(response, "account/registration/register.html")
+            self.assertTrue(response.context["form"].errors)
 
-	def test_registeration_form_valid_non_json_response(self):
-		with patch.object(RegistrationView, "response_type", "html"):
-			response = self.client.post(
-				self.url,
-				data=self.valid_data,
-				)
+    def test_registration_form_send_email(self):
+        self.client.post(self.url, data=self.valid_data, HTTP_ACCEPT="application/json")
 
+        # Check that one email was sent
+        self.assertEqual(len(mail.outbox), 1)
 
-			self.assertRedirects(response, reverse("account:registration_done"))
-			self.assertTrue(User.objects.filter(username="testuser").exists())
+        # check email content
+        email = mail.outbox[0]
+        self.assertIn("test@example.com", email.to)
+        self.assertIn(
+            "You're receiving this email because you created an account", email.body
+        )
 
-	def test_registeration_form_invalid_non_json_response(self):
-		invalid_data = {
-			'username': 'testuser',
-			'email': 'invalid-email',  # Invalid email
-			'password1': 'password123',
-			'password2': 'password456',  # Passwords don't match
-		}
-		with patch.object(RegistrationView, "response_type", "html"):
-			response = self.client.post(
-				self.url,
-				data=invalid_data,
-				)
+        # Check that user is inactive until confirmed
+        user = User.objects.get(username="testuser")
+        self.assertFalse(user.is_active)
 
+    def test_registration_form_email_template_used(self):
+        """Test that correct email templates are used"""
+        with (
+            patch.object(
+                RegistrationView,
+                "html_email_template_name",
+                "account/registration/registration_email.txt",
+            ),
+            patch(
+                "account.views.RegistrationView.subject_template_name",
+                "account/registration/registration_subject.txt",
+            ),
+        ):
+            self.client.post(
+                self.url, data=self.valid_data, HTTP_ACCEPT="application/json"
+            )
 
-			self.assertEqual(response.status_code, 200)
-			self.assertTemplateUsed(response, "account/registration/register.html")
-			self.assertTrue(response.context["form"].errors)
+            self.assertEqual(len(mail.outbox), 1)
 
-	def test_registration_form_send_email(self):
-		response = self.client.post(
-			self.url,
-			data=self.valid_data,
-			HTTP_ACCEPT="application/json"
-			)
+    def test_registration_view_extra_email_context(self):
+        extra_email_context = {"test_context": "value"}
+        with patch.object(RegistrationView, "extra_email_context", extra_email_context):
+            with patch("account.forms.UserRegistrationForm.save") as mock_save:
+                self.client.post(
+                    self.url, data=self.valid_data, HTTP_ACCEPT="application/json"
+                )
+                # Check that extra_email_context was passed to form.save
+                call_args = mock_save.call_args[1]
+                self.assertEqual(call_args["extra_email_context"], extra_email_context)
 
-		# Check that one email was sent
-		self.assertEqual(len(mail.outbox), 1)
+    def test_registeration_view_token_generator(self):
+        custome_token = Mock()
+        with patch.object(RegistrationView, "token_generator", custome_token):
+            with patch("account.forms.UserRegistrationForm.save") as mock_save:
+                self.client.post(self.url, data=self.valid_data)
+                call_args = mock_save.call_args[1]
+                self.assertEqual(call_args["token_generator"], custome_token)
 
-		#check email content
-		email = mail.outbox[0]
-		self.assertIn("test@example.com", email.to)
-		self.assertIn("You're receiving this email because you created an account", email.body)
+    def test_registration_view_from_email(self):
+        cusom_from_email = "custom@email.com"
+        with patch.object(RegistrationView, "from_email", cusom_from_email):
+            with patch("account.forms.UserRegistrationForm.save") as mock_save:
+                self.client.post(self.url, data=self.valid_data)
+                call_args = mock_save.call_args[1]
+                self.assertEqual(call_args["from_email"], cusom_from_email)
 
-		# Check that user is inactive until confirmed
-		user = User.objects.get(username="testuser")
-		self.assertFalse(user.is_active)
+    def test_registration_view_https_enabled(self):
+        """Test HTTPS option is passed correctly when request is secure"""
 
+        request = self.factory.post(self.url, data=self.valid_data)
+        request.is_secure = Mock(return_value=True)
+        request.session = {}
+        with patch("account.forms.UserRegistrationForm.save") as mock_save:
+            view = RegistrationView()
+            view.request = request
+            form = view.form_class(data=self.valid_data)
+            form.is_valid()
+            view.form_valid(form)
+            call_args = mock_save.call_args[1]
+            self.assertTrue(call_args["use_https"])
 
-	def test_registration_form_email_template_used(self):
-		"""Test that correct email templates are used"""
-		with patch.object(RegistrationView, "html_email_template_name", "account/registration/registration_email.txt"),\
-		patch("account.views.RegistrationView.subject_template_name", "account/registration/registration_subject.txt"):
-			response = self.client.post(
-				self.url,
-				data=self.valid_data,
-				HTTP_ACCEPT="application/json"
-				)
+    def test_registration_view_https_disabled(self):
+        request = self.factory.post(self.url, data=self.valid_data)
+        request.is_secure = Mock(return_value=False)
+        request.session = {}
+        with patch("account.forms.UserRegistrationForm.save") as mock_save:
+            view = RegistrationView()
+            view.request = request
+            form = view.form_class(data=self.valid_data)
+            form.is_valid()
+            view.form_valid(form)
+            call_args = mock_save.call_args[1]
+            self.assertFalse(call_args["use_https"])
 
-			self.assertEqual(len(mail.outbox), 1)
+    def test_registration_form_preserves_session_email(self):
+        """Test that email is stored in session after successful registration"""
+        self.client.post(self.url, data=self.valid_data)
 
-	def test_registration_view_extra_email_context(self):
-		extra_email_context = {
-			"test_context": "value"
-		}
-		with patch.object(RegistrationView, "extra_email_context", extra_email_context):
-			with patch("account.forms.UserRegistrationForm.save") as mock_save:
-				response = self.client.post(
-					self.url,
-					data=self.valid_data,
-					HTTP_ACCEPT="application/json"
-					)
-				# Check that extra_email_context was passed to form.save
-				call_args = mock_save.call_args[1]
-				self.assertEqual(call_args["extra_email_context"] ,extra_email_context)
+        session = self.client.session
+        self.assertEqual(session["email"], "test@example.com")
 
-	def test_registeration_view_token_generator(self):
-		custome_token = Mock()
-		with patch.object(RegistrationView, "token_generator", custome_token):
-			with patch("account.forms.UserRegistrationForm.save") as mock_save:
-				self.client.post(self.url, data=self.valid_data)
-				call_args = mock_save.call_args[1]
-				self.assertEqual(call_args["token_generator"], custome_token)
+    def test_registration_form_duplicate_username(self):
+        """Test registration with duplicate username"""
+        # First create a user
+        User.objects.create_user(
+            username="testuser",
+            email="existing@example.com",
+            password="TestPassword123!",
+        )
 
-	def test_registration_view_from_email(self):
-		cusom_from_email = "custom@email.com"
-		with patch.object(RegistrationView, "from_email", cusom_from_email):
-			with patch("account.forms.UserRegistrationForm.save") as mock_save:
-				self.client.post(self.url, data=self.valid_data)
-				call_args = mock_save.call_args[1]
-				self.assertEqual(call_args["from_email"], cusom_from_email)
+        # Try to register with same username
+        response = self.client.post(
+            self.url, data=self.valid_data, HTTP_ACCEPT="application/json"
+        )
 
-	def test_registration_view_https_enabled(self):
-		"""Test HTTPS option is passed correctly when request is secure"""
+        content = json.loads(response.content)
+        self.assertFalse(content["status"])
+        self.assertIn("username", content["errors"])
 
-		request = self.factory.post(self.url, data=self.valid_data)
-		request.is_secure = Mock(return_value=True)
-		request.session = {}
-		with patch("account.forms.UserRegistrationForm.save") as mock_save:
-			view = RegistrationView()
-			view.request = request
-			form = view.form_class(data=self.valid_data)
-			form.is_valid()
-			view.form_valid(form)
-			call_args = mock_save.call_args[1]
-			self.assertTrue(call_args["use_https"])
+    def test_registration_form_duplicate_email(self):
+        """Test registration with duplicate username"""
+        # First create a user
+        User.objects.create_user(
+            username="test_user", email="test@example.com", password="TestPassword123!"
+        )
 
-	def test_registration_view_https_disabled(self):
-		request = self.factory.post(self.url, data=self.valid_data)
-		request.is_secure = Mock(return_value=False)
-		request.session = {}
-		with patch("account.forms.UserRegistrationForm.save") as mock_save:
-			view = RegistrationView()
-			view.request = request
-			form = view.form_class(data=self.valid_data)
-			form.is_valid()
-			view.form_valid(form)
-			call_args = mock_save.call_args[1]
-			self.assertFalse(call_args["use_https"])
+        # Try to register with same username
+        response = self.client.post(
+            self.url, data=self.valid_data, HTTP_ACCEPT="application/json"
+        )
 
-	def test_registration_form_preserves_session_email(self):
-		"""Test that email is stored in session after successful registration"""
-		response = self.client.post(self.url, data=self.valid_data)
-		
-		session = self.client.session
-		self.assertEqual(session["email"], "test@example.com")
+        content = json.loads(response.content)
+        self.assertFalse(content["status"])
+        self.assertIn("email", content["errors"])
 
-	def test_registration_form_duplicate_username(self):
-		"""Test registration with duplicate username"""
-		# First create a user
-		User.objects.create_user(
-			username="testuser",
-			email="existing@example.com",
-			password="TestPassword123!"
-		)
-		
-		# Try to register with same username
-		response = self.client.post(
-			self.url,
-			data=self.valid_data,
-			HTTP_ACCEPT="application/json"
-		)
-		
-		content = json.loads(response.content)
-		self.assertFalse(content["status"])
-		self.assertIn("username", content["errors"])
+    def test_registration_form_password_too_short(self):
+        """Test registration with password that's too short"""
+        invalid_data = self.valid_data.copy()
+        invalid_data["password1"] = "short"
+        invalid_data["password2"] = "short"
 
-	def test_registration_form_duplicate_email(self):
-		"""Test registration with duplicate username"""
-		# First create a user
-		User.objects.create_user(
-			username="test_user",
-			email="test@example.com",
-			password="TestPassword123!"
-		)
-		
-		# Try to register with same username
-		response = self.client.post(
-			self.url,
-			data=self.valid_data,
-			HTTP_ACCEPT="application/json"
-		)
-		
-		content = json.loads(response.content)
-		self.assertFalse(content['status'])
-		self.assertIn("email", content["errors"])
+        response = self.client.post(
+            self.url, data=invalid_data, HTTP_ACCEPT="application/json"
+        )
 
-	def test_registration_form_password_too_short(self):
-		"""Test registration with password that's too short"""
-		invalid_data = self.valid_data.copy()
-		invalid_data["password1"] = "short"
-		invalid_data["password2"] = "short"
-		
-		response = self.client.post(
-			self.url,
-			data=invalid_data,
-			HTTP_ACCEPT="application/json"
-		)
-		
-		content = json.loads(response.content)
-		self.assertFalse(content["status"])
-		
-		# Check that user was not created
-		self.assertEqual(User.objects.count(), 0)
+        content = json.loads(response.content)
+        self.assertFalse(content["status"])
+
+        # Check that user was not created
+        self.assertEqual(User.objects.count(), 0)
+
 
 class RegistrationDoneViewTests(TestCase):
-	def setUp(self):
+    def setUp(self):
+        self.url = reverse("account:registration_done")
+        self.valid_email = "example@email.com"
 
-		self.url = reverse("account:registration_done")
-		self.valid_email = "example@email.com"
+    def test_registeration_view_done_url_exists(self):
+        """Test that the view is accessible"""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
 
-	def test_registeration_view_done_url_exists(self):
-		"""Test that the view is accessible"""
-		response = self.client.get(self.url)
-		self.assertEqual(response.status_code, 200)
+    def test_registration_view_done_template_used(self):
+        """Test that correct template is used"""
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, "account/registration/registration_done.html")
 
-	def test_registration_view_done_template_used(self):
-		"""Test that correct template is used"""
-		response = self.client.get(self.url)
-		self.assertTemplateUsed(response, "account/registration/registration_done.html")
+    def test_registration_done_view_context_contains_title(self):
+        """Test that context contains the title"""
+        custome_title = "custome_title"
+        with patch("account.views.RegistrationDoneView.title", custome_title):
+            response = self.client.get(self.url)
 
-	def test_registration_done_view_context_contains_title(self):
-		"""Test that context contains the title"""
-		custome_title = "custome_title"
-		with patch("account.views.RegistrationDoneView.title",custome_title):
-			response = self.client.get(self.url)
+            self.assertIn("title", response.context)
+            self.assertEqual(response.context["title"], custome_title)
 
-			self.assertIn("title", response.context)
-			self.assertEqual(response.context["title"], custome_title)
+    def test_registration_done_view_title_is_set(self):
+        """Test that title attribute is set correctly"""
+        response = self.client.get(self.url)
+        self.assertEqual(response.context["title"], _("Activition Email sent"))
 
-	def test_registration_done_view_title_is_set(self):
-		"""Test that title attribute is set correctly"""
-		response = self.client.get(self.url)
-		self.assertEqual(response.context["title"], _("Activition Email sent"))
+    def test_registration_done_view_email_from_session(self):
+        """Test that email is retrieved from session correctly"""
+        session = self.client.session
+        session["email"] = self.valid_email
+        session.save()
 
-	def test_registration_done_view_email_from_session(self):
-		"""Test that email is retrieved from session correctly"""
-		session = self.client.session
-		session["email"] = self.valid_email
-		session.save()
+        response = self.client.get(self.url)
 
-		response = self.client.get(self.url)
+        self.assertEqual(response.context["email"], self.client.session["email"])
 
-		self.assertEqual(response.context["email"], self.client.session["email"])
+    def test_registration_done_view_no_email_in_session(self):
+        """Test that context returns None when email not in session"""
+        session = self.client.session
+        session.flush()
 
-	def test_registration_done_view_no_email_in_session(self):
-		"""Test that context returns None when email not in session"""
-		session = self.client.session
-		session.flush()
+        response = self.client.get(self.url)
 
-		response = self.client.get(self.url)
+        self.assertIn("email", response.context)
+        self.assertIsNone(response.context["email"])
 
-		self.assertIn('email', response.context)
-		self.assertIsNone(response.context["email"])
+    def test_registration_done_view_inherits_from_templateview(self):
+        """Test that view properly inherits from TemplateView"""
+        from django.views.generic.base import TemplateView
 
-	def test_registration_done_view_inherits_from_templateview(self):
-		"""Test that view properly inherits from TemplateView"""
-		from django.views.generic.base import TemplateView
-		self.assertTrue(issubclass(RegistrationDoneView, TemplateView))
+        self.assertTrue(issubclass(RegistrationDoneView, TemplateView))
+
 
 class RegistrationConfirmViewTests(TestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.user = User.objects.create_user(
+            username="test_user",
+            email="test@email.com",
+            password="secure_pass_1234",
+            is_active=False,
+        )
+        user_pk_bytes = force_bytes(User._meta.pk.value_to_string(self.user))
+        self.uidb64 = urlsafe_base64_encode(user_pk_bytes)
+        self.token = default_token_generator.make_token(self.user)
 
-	def setUp(self):
-		self.factory = RequestFactory()
-		self.user = User.objects.create_user(username="test_user", email="test@email.com", password="secure_pass_1234", is_active=False)
-		user_pk_bytes = force_bytes(User._meta.pk.value_to_string(self.user))
-		self.uidb64 = urlsafe_base64_encode(user_pk_bytes)
-		self.token = default_token_generator.make_token(self.user)
+    def get_url(self, uidb64, token):
+        return reverse(
+            "account:register-confirm", kwargs={"uidb64": uidb64, "token": token}
+        )
 
+    # Dispatch validation
+    def test_dispatch_requires_uidb64(self):
+        request = self.factory.get("/")
+        view = RegistrationConfirmView()
+        with self.assertRaises(ImproperlyConfigured):
+            view.dispatch(request, token=self.token)
 
-	def get_url(self, uidb64, token):
-		return reverse("account:register-confirm", kwargs={"uidb64":uidb64, "token":token})
+    def test_dispatch_requires_token(self):
+        request = self.factory.get("/")
+        view = RegistrationConfirmView()
+        with self.assertRaises(ImproperlyConfigured):
+            view.dispatch(request, uidb64=self.uidb64)
 
-	# Dispatch validation
-	def test_dispatch_requires_uidb64(self):
-		request = self.factory.get("/")
-		view = RegistrationConfirmView()
-		with self.assertRaises(ImproperlyConfigured):
-			view.dispatch(request, token=self.token)
+    # get_user
+    def test_get_user_return_user(self):
+        view = RegistrationConfirmView()
+        self.assertEqual(view.get_user(self.uidb64), self.user)
 
-	def test_dispatch_requires_token(self):
-		request = self.factory.get("/")
-		view = RegistrationConfirmView()
-		with self.assertRaises(ImproperlyConfigured):
-			view.dispatch(request, uidb64=self.uidb64)
+    def test_get_user_return_none_for_invalid_uid(self):
+        view = RegistrationConfirmView()
+        self.assertIsNone(view.get_user("invalid"))
 
+    def test_get_user_return_none_for_nonexistent_user(self):
+        uidb64 = urlsafe_base64_encode(force_bytes(999999))
+        view = RegistrationConfirmView()
+        self.assertIsNone(view.get_user(uidb64))
 
-	# get_user
-	def test_get_user_return_user(self):
-		view = RegistrationConfirmView()
-		self.assertEqual(view.get_user(self.uidb64), self.user)
+    # First request
 
+    def test_valid_token_redirects_to_confirm_url(self):
+        url = self.get_url(self.uidb64, self.token)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("confirm-registration", response.url)
 
-	def test_get_user_return_none_for_invalid_uid(self):
-		view = RegistrationConfirmView()
-		self.assertIsNone(view.get_user("invalid"))
+    def test_valid_token_stored_in_session(self):
+        url = self.get_url(self.uidb64, self.token)
 
-	def test_get_user_return_none_for_nonexistent_user(self):
-		uidb64 = urlsafe_base64_encode(
-			force_bytes(999999)
-		)
-		view = RegistrationConfirmView()
-		self.assertIsNone(view.get_user(uidb64))
+        self.client.get(url)
+        session = self.client.session
+        self.assertEqual(session[INTERNAL_REGISTRATION_SESSION_TOKEN], self.token)
 
-	# First request
+    # Invalid flows
+    def test_invalid_token_shows_unsuccessful_page(self):
+        url = self.get_url(self.uidb64, "invalid")
 
-	def test_valid_token_redirects_to_confirm_url(self):
-		url = self.get_url(self.uidb64, self.token)
-		response = self.client.get(url)
-		self.assertEqual(response.status_code, 302)
-		self.assertIn("confirm-registration", response.url)
+        response = self.client.get(url)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+        self.assertFalse(response.context["validlink"])
 
-	def test_valid_token_stored_in_session(self):
-		url = self.get_url(self.uidb64, self.token)
+    def test_invalid_uidb_shows_unsuccessful_page(self):
+        url = self.get_url("invalid", self.token)
 
-		response = self.client.get(url)
-		session = self.client.session
-		self.assertEqual(session[INTERNAL_REGISTRATION_SESSION_TOKEN], self.token)
+        response = self.client.get(url)
+        self.user.refresh_from_db()
+        self.assertFalse(self.user.is_active)
+        self.assertFalse(response.context["validlink"])
 
-	# Invalid flows
-	def test_invalid_token_shows_unsuccessful_page(self):
-		url = self.get_url(self.uidb64, "invalid")
+    def test_expired_token_shows_unsuccessful_page(self):
+        url = self.get_url(self.uidb64, self.token)
+        self.user.set_password("another_secure_pass_1234")
+        self.user.save()
+        response = self.client.get(url)
 
-		response = self.client.get(url)
-		self.user.refresh_from_db()
-		self.assertFalse(self.user.is_active)
-		self.assertFalse(response.context["validlink"])
+        self.assertFalse(self.user.is_active)
+        self.assertFalse(response.context["validlink"])
 
-	def test_invalid_uidb_shows_unsuccessful_page(self):
-		url = self.get_url("invalid", self.token)
+    # Context
+    def test_context_for_valid_link(self):
+        view = RegistrationConfirmView()
+        view.validlink = True
+        context = view.get_context_data()
+        self.assertTrue(context["validlink"])
 
-		response = self.client.get(url)
-		self.user.refresh_from_db()
-		self.assertFalse(self.user.is_active)
-		self.assertFalse(response.context["validlink"])
+    def test_context_for_invalid_link(self):
+        view = RegistrationConfirmView()
+        view.validlink = False
+        context = view.get_context_data()
+        self.assertFalse(context["validlink"])
+        self.assertEqual(context["title"], "Password reset unsuccessful")
 
-	def test_expired_token_shows_unsuccessful_page(self):
+    # security
+    def test_redirect_url_does_not_contain_original_token(self):
+        url = self.get_url(self.uidb64, self.token)
 
-		url = self.get_url(self.uidb64, self.token)
-		self.user.set_password("another_secure_pass_1234")
-		self.user.save()
-		response = self.client.get(url)
+        response = self.client.get(url)
 
-		self.assertFalse(self.user.is_active)
-		self.assertFalse(response.context["validlink"])
+        self.assertIn("confirm-registration", response.url)
+        self.assertNotIn(self.token, response.url)
 
+    # Full confirmation flow
 
-	# Context
-	def test_context_for_valid_link(self):
-		view = RegistrationConfirmView()
-		view.validlink = True
-		context = view.get_context_data()
-		self.assertTrue(context["validlink"])
+    def test_confirmation_activate_user(self):
+        url = self.get_url(self.uidb64, self.token)
+        response = self.client.get(url)  # redirect
+        self.client.get(response.url)
 
-	def test_context_for_invalid_link(self):
-		view = RegistrationConfirmView()
-		view.validlink = False
-		context = view.get_context_data()
-		self.assertFalse(context["validlink"])
-		self.assertEqual(context["title"], "Password reset unsuccessful")
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.is_active)
 
+    def test_confirmation_creates_profile(self):
+        url = self.get_url(self.uidb64, self.token)
+        response = self.client.get(url)  # redirect
+        self.client.get(response.url)
+        self.assertTrue(Profile.objects.filter(user=self.user).exists())
 
-	#security
-	def test_redirect_url_does_not_contain_original_token(self):
-		url = self.get_url(self.uidb64, self.token)
+    def test_confirmation_creates_notification(self):
+        url = self.get_url(self.uidb64, self.token)
+        response = self.client.get(url)  # redirect
+        self.client.get(response.url)
+        self.assertTrue(Notification.objects.filter(user=self.user).exists())
 
-		response = self.client.get(url)
+    def test_confirmation_renders_success_page(self):
+        url = self.get_url(self.uidb64, self.token)
+        response = self.client.get(url)  # redirect
+        response = self.client.get(response.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response, "account/registration/registration_complete.html"
+        )
+        self.assertTrue(response.context)
 
-		self.assertIn("confirm-registration", response.url)
-		self.assertNotIn(self.token, response.url)
-
-
-	# Full confirmation flow
-
-	def test_confirmation_activate_user(self):
-		url = self.get_url(self.uidb64, self.token)
-		response = self.client.get(url)#redirect
-		self.client.get(response.url)
-
-		self.user.refresh_from_db()
-		self.assertTrue(self.user.is_active)
-
-	def test_confirmation_creates_profile(self):
-		url = self.get_url(self.uidb64, self.token)
-		response = self.client.get(url)#redirect
-		self.client.get(response.url)
-		self.assertTrue(Profile.objects.filter(user=self.user).exists())
-
-	def test_confirmation_creates_notification(self):
-		url = self.get_url(self.uidb64, self.token)
-		response = self.client.get(url)#redirect
-		self.client.get(response.url)
-		self.assertTrue(Notification.objects.filter(user=self.user).exists())
-
-	def test_confirmation_renders_success_page(self):
-		url = self.get_url(self.uidb64, self.token)
-		response = self.client.get(url)#redirect
-		response = self.client.get(response.url)
-		self.assertEqual(response.status_code, 200)
-		self.assertTemplateUsed(response, "account/registration/registration_complete.html")
-		self.assertTrue(response.context)
 
 class PasswordResetViewTests(TestCase):
+    def setUp(self):
+        self.url = reverse("account:password_reset")
 
-	def setUp(self):
-		self.url = reverse("account:password_reset")
+    def test_password_reset_page_loads(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
 
-	def test_password_reset_page_loads(self):
-		response = self.client.get(self.url)
-		self.assertEqual(response.status_code, 200)
+    def test_uses_custom_template(self):
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, "account/registration/pass_reset_form.html")
 
-	def test_uses_custom_template(self):
-		response = self.client.get(self.url)
-		self.assertTemplateUsed(response, "account/registration/pass_reset_form.html")
+    def test_valid_email_redirects(self):
+        User.objects.create_user(
+            username="test_user", email="test@email.com", password="secure_pass_1234"
+        )
+        response = self.client.post(
+            self.url,
+            {
+                "email": "test@email.com",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertRedirects(response, reverse("account:password_reset_done"))
 
-	def test_valid_email_redirects(self):
-		user = User.objects.create_user(username="test_user", email="test@email.com",password="secure_pass_1234")
-		response = self.client.post(self.url, {"email":"test@email.com",})
-		self.assertEqual(response.status_code, 302)
-		self.assertRedirects(response, reverse("account:password_reset_done"))
+    def test_password_reset_email_sent(self):
+        User.objects.create_user(
+            username="test_user", email="test@email.com", password="secure_pass_1234"
+        )
+        self.client.post(
+            self.url,
+            {
+                "email": "test@email.com",
+            },
+        )
+        self.assertEqual(len(mail.outbox), 1)
 
-	def test_password_reset_email_sent(self):
-		user = User.objects.create_user(username="test_user", email="test@email.com",password="secure_pass_1234")
-		response = self.client.post(self.url, {"email":"test@email.com",})
-		self.assertEqual(len(mail.outbox),1)
+    def test_email_contain_reset_link(self):
+        User.objects.create_user(
+            username="test_user", email="test@email.com", password="secure_pass_1234"
+        )
+        self.client.post(
+            self.url,
+            {
+                "email": "test@email.com",
+            },
+        )
+        email = mail.outbox[0]
+        self.assertIn("reset", email.body.lower())
 
-	def test_email_contain_reset_link(self):
-		user = User.objects.create_user(username="test_user", email="test@email.com",password="secure_pass_1234")
-		response = self.client.post(self.url, {"email":"test@email.com",})
-		email = mail.outbox[0]
-		self.assertIn("reset", email.body.lower())	
-
-	def test_unkown_email_redirects(self):
-		response = self.client.post(self.url, {"email":"unknown@email.com",})
-		self.assertRedirects(response, reverse("account:password_reset_done"))
-		self.assertEqual(len(mail.outbox),0)
-
+    def test_unkown_email_redirects(self):
+        response = self.client.post(
+            self.url,
+            {
+                "email": "unknown@email.com",
+            },
+        )
+        self.assertRedirects(response, reverse("account:password_reset_done"))
+        self.assertEqual(len(mail.outbox), 0)
 
 
 class PasswordResetDoneViewTests(TestCase):
+    def setUp(self):
+        self.url = reverse("account:password_reset_done")
 
-	def setUp(self):
-		self.url = reverse("account:password_reset_done")
+    def test_page_load(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
 
-	def test_page_load(self):
-		response = self.client.get(self.url)
-		self.assertEqual(response.status_code, 200)
-
-	def test_use_correct_template(self):
-		response = self.client.get(self.url)
-		self.assertTemplateUsed(response, "account/registration/pass_reset_done.html")
+    def test_use_correct_template(self):
+        response = self.client.get(self.url)
+        self.assertTemplateUsed(response, "account/registration/pass_reset_done.html")
 
 
 class PasswordResetWorkflowTests(TestCase):
+    def setUp(self):
+        User.objects.create_user(
+            username="test_user", email="test@email.com", password="secure_pass_1234"
+        )
 
-	def setUp(self):
-		User.objects.create_user(username="test_user", email="test@email.com", password="secure_pass_1234")
-	def test_full_password_reset_integration_flow(self):
-		reset_url = reverse("account:password_reset")
-		# Verify page layout
-		response = self.client.get(reset_url)
-		self.assertEqual(response.status_code, 200)
-		self.assertTemplateUsed(response, "account/registration/pass_reset_form.html")
+    def test_full_password_reset_integration_flow(self):
+        reset_url = reverse("account:password_reset")
+        # Verify page layout
+        response = self.client.get(reset_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "account/registration/pass_reset_form.html")
 
-		# Submit valid user email payload
-		post_response = self.client.post(reset_url, {"email":"test@email.com"})
+        # Submit valid user email payload
+        post_response = self.client.post(reset_url, {"email": "test@email.com"})
 
-		# Verify redirect to 'Done' placeholder view
-		expected_done_url = reverse("account:password_reset_done")
-		self.assertRedirects(post_response, expected_done_url)
+        # Verify redirect to 'Done' placeholder view
+        expected_done_url = reverse("account:password_reset_done")
+        self.assertRedirects(post_response, expected_done_url)
 
-		# Follow redirect and verify its template rendering
-		done_page_response = self.client.get(expected_done_url)
-		self.assertEqual(done_page_response.status_code, 200)
-		self.assertTemplateUsed(done_page_response, "account/registration/pass_reset_done.html")
+        # Follow redirect and verify its template rendering
+        done_page_response = self.client.get(expected_done_url)
+        self.assertEqual(done_page_response.status_code, 200)
+        self.assertTemplateUsed(
+            done_page_response, "account/registration/pass_reset_done.html"
+        )
 
-		# STEP 2: Intercept Outbox & Extract Cryptographic Reset Link
-		self.assertEqual(len(mail.outbox), 1)
-		email = mail.outbox[0]
-		self.assertIn("test@email.com", email.to)
+        # STEP 2: Intercept Outbox & Extract Cryptographic Reset Link
+        self.assertEqual(len(mail.outbox), 1)
+        email = mail.outbox[0]
+        self.assertIn("test@email.com", email.to)
 
+        url_match = re.search(r"http.+/reset/[^/\s]+/[^/\s]+/", email.body)
+        self.assertTrue(
+            url_match, "Could not find valid password reset link format in email body."
+        )
+        confirm_initial_url = url_match.group(0)
 
-		url_match = re.search(r"http.+/reset/[^/\s]+/[^/\s]+/", email.body)
-		self.assertTrue(url_match, "Could not find valid password reset link format in email body.")
-		confirm_initial_url = url_match.group(0)
+        # STEP 3: Load Confirm Page & Post New Password
+        confirm_response = self.client.get(confirm_initial_url)
+        self.assertEqual(confirm_response.status_code, 302)
+        confirm_url = confirm_response.url
 
-		# STEP 3: Load Confirm Page & Post New Password
-		confirm_response = self.client.get(confirm_initial_url)
-		self.assertEqual(confirm_response.status_code, 302)
-		confirm_url = confirm_response.url
+        confirm_get_response = self.client.get(confirm_url)
+        self.assertEqual(confirm_get_response.status_code, 200)
+        self.assertTemplateUsed(
+            confirm_get_response, "account/registration/pass_reset_confirm.html"
+        )
 
-		confirm_get_response = self.client.get(confirm_url)
-		self.assertEqual(confirm_get_response.status_code, 200)
-		self.assertTemplateUsed(confirm_get_response, "account/registration/pass_reset_confirm.html")
+        new_password_data = {
+            "new_password1": "NewSecurePass1234!",
+            "new_password2": "NewSecurePass1234!",
+        }
 
-		new_password_data = {
-			"new_password1": "NewSecurePass1234!",
-			"new_password2": "NewSecurePass1234!",
-		}
+        post_response = self.client.post(confirm_url, data=new_password_data)
+        expected_complete_url = reverse("account:password_reset_complete")
+        self.assertRedirects(post_response, expected_complete_url)
 
-		post_response = self.client.post(confirm_url, data=new_password_data)
-		expected_complete_url = reverse("account:password_reset_complete")
-		self.assertRedirects(post_response, expected_complete_url)
+        # STEP 4: Verify Database State Change & Complete View Renders
+        complete_page_response = self.client.get(expected_complete_url)
+        self.assertEqual(complete_page_response.status_code, 200)
+        self.assertTemplateUsed(
+            complete_page_response, "account/registration/pass_reset_complete.html"
+        )
 
-		# STEP 4: Verify Database State Change & Complete View Renders
-		complete_page_response = self.client.get(expected_complete_url)
-		self.assertEqual(complete_page_response.status_code, 200)
-		self.assertTemplateUsed(complete_page_response, "account/registration/pass_reset_complete.html")
+        login_access = self.client.login(
+            username="test_user", password="NewSecurePass1234!"
+        )
+        self.assertTrue(
+            login_access,
+            "Authentication failed with the newly generated password layout.",
+        )
 
-		login_access = self.client.login(username="test_user", password="NewSecurePass1234!")
-		self.assertTrue(login_access, "Authentication failed with the newly generated password layout.")
+    def test_unknown_email_behavior_does_not_leak_user_presence(self):
+        """Ensure submitting a non-existent email safely routes to Done without errors or mail outbox generation."""
+        reset_url = reverse("account:password_reset")
+        response = self.client.post(reset_url, {"email": "stranger@danger.com"})
 
-	def test_unknown_email_behavior_does_not_leak_user_presence(self):
-			"""Ensure submitting a non-existent email safely routes to Done without errors or mail outbox generation."""
-			reset_url = reverse("account:password_reset")
-			response = self.client.post(reset_url, {"email": "stranger@danger.com"})
-			
-			self.assertRedirects(response, reverse("account:password_reset_done"))
-			self.assertEqual(len(mail.outbox), 0)
+        self.assertRedirects(response, reverse("account:password_reset_done"))
+        self.assertEqual(len(mail.outbox), 0)

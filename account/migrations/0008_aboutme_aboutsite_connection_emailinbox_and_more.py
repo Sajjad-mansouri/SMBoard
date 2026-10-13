@@ -5,54 +5,102 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('account', '0007_alter_notification_email_frequency'),
+        ("account", "0007_alter_notification_email_frequency"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='AboutMe',
+            name="AboutMe",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('bio', models.TextField()),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("bio", models.TextField()),
             ],
         ),
         migrations.CreateModel(
-            name='AboutSite',
+            name="AboutSite",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(blank=True, max_length=150)),
-                ('api_endpoints', models.CharField(blank=True, max_length=20)),
-                ('data_models', models.CharField(blank=True, max_length=20)),
-                ('source_code_page', models.URLField()),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("title", models.CharField(blank=True, max_length=150)),
+                ("api_endpoints", models.CharField(blank=True, max_length=20)),
+                ("data_models", models.CharField(blank=True, max_length=20)),
+                ("source_code_page", models.URLField()),
             ],
         ),
         migrations.CreateModel(
-            name='Connection',
+            name="Connection",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(help_text='github,linkedln,...', max_length=150)),
-                ('address', models.CharField(max_length=150)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(help_text="github,linkedln,...", max_length=150),
+                ),
+                ("address", models.CharField(max_length=150)),
             ],
         ),
         migrations.CreateModel(
-            name='EmailInbox',
+            name="EmailInbox",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=150)),
-                ('email', models.EmailField(max_length=150)),
-                ('message', models.TextField()),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=150)),
+                ("email", models.EmailField(max_length=150)),
+                ("message", models.TextField()),
             ],
         ),
         migrations.CreateModel(
-            name='AboutSiteImage',
+            name="AboutSiteImage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(blank=True, max_length=50)),
-                ('slug', models.SlugField()),
-                ('img', models.ImageField(upload_to='about_site/')),
-                ('about_site', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='account.aboutsite')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("title", models.CharField(blank=True, max_length=50)),
+                ("slug", models.SlugField()),
+                ("img", models.ImageField(upload_to="about_site/")),
+                (
+                    "about_site",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="account.aboutsite",
+                    ),
+                ),
             ],
         ),
     ]

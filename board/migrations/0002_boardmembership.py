@@ -6,26 +6,61 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0001_initial'),
+        ("board", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='BoardMembership',
+            name="BoardMembership",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('member_type', models.CharField(choices=[('admin', 'Admin'), ('member', 'Member'), ('observer', 'Observer'), ('guest', 'Guest')], max_length=8, verbose_name='Member Type')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('updated', models.DateTimeField(auto_now=True)),
-                ('board', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='board_memberships', to='board.board', verbose_name='Board')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='user_memberships', to=settings.AUTH_USER_MODEL, verbose_name='User')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "member_type",
+                    models.CharField(
+                        choices=[
+                            ("admin", "Admin"),
+                            ("member", "Member"),
+                            ("observer", "Observer"),
+                            ("guest", "Guest"),
+                        ],
+                        max_length=8,
+                        verbose_name="Member Type",
+                    ),
+                ),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                ("updated", models.DateTimeField(auto_now=True)),
+                (
+                    "board",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="board_memberships",
+                        to="board.board",
+                        verbose_name="Board",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="user_memberships",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="User",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Board Member',
-                'verbose_name_plural': 'Boards Members',
+                "verbose_name": "Board Member",
+                "verbose_name_plural": "Boards Members",
             },
         ),
     ]

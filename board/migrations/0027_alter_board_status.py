@@ -4,15 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0026_activity'),
+        ("board", "0026_activity"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='board',
-            name='status',
-            field=models.CharField(choices=[('private', 'Private'), ('public', 'Public')], default='workspace', max_length=10, verbose_name='Status'),
+            model_name="board",
+            name="status",
+            field=models.CharField(
+                choices=[("private", "Private"), ("public", "Public")],
+                default="workspace",
+                max_length=10,
+                verbose_name="Status",
+            ),
         ),
     ]

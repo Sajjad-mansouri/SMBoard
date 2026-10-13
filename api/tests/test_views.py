@@ -1,29 +1,32 @@
 from unittest.mock import patch
+
 import pytest
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.test import override_settings
 from django.urls import reverse
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.contrib.auth import get_user_model
-from board.models import BoardMembership, BoardWatch, CardWatch, Card, Activity
-from account.models import Notification, EmailInbox
+
+from account.models import EmailInbox, Notification
+from board.models import BoardMembership, BoardWatch, Card, CardWatch
+
 from .conftest import (
-    UserFactory,
+    ActivityFactory,
     BoardFactory,
     BoardListFactory,
-    CardFactory,
     BoardMembershipFactory,
     BoardWatchFactory,
+    CardFactory,
     CardWatchFactory,
-    ActivityFactory,
-    ProfileFactory
+    ProfileFactory,
+    UserFactory,
 )
 
 User = get_user_model()
 
-#======================
+# ======================
 #  Start GuestBoardListView Tests
-#======================
+# ======================
+
 
 @pytest.mark.django_db
 class TestGuestBoardListView:
@@ -67,7 +70,7 @@ class TestGuestBoardListView:
         )
 
         # User owns this board (should NOT appear)
-        owned_board = BoardFactory(
+        BoardFactory(
             owner=user,
             closed=False,
         )
@@ -114,18 +117,15 @@ class TestGuestBoardListView:
         assert response.data == []
 
 
-
-
-#======================
+# ======================
 #  End GuestBoardListView Tests
-#======================
+# ======================
 
 
-
-
-#======================
+# ======================
 #  Start UserRetrieveView Tests
-#======================
+# ======================
+
 
 @pytest.mark.django_db
 class TestUserRetrieveView:
@@ -192,14 +192,15 @@ class TestUserRetrieveView:
         assert response.data["id"] != other_user.id
         assert response.data["username"] != other_user.username
 
-#======================
+
+# ======================
 #  End UserRetrieveView Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start SearchBoardView Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -364,14 +365,16 @@ class TestSearchBoardView:
         with pytest.raises(KeyError):
             api_client.get(url)
 
-#======================
+
+# ======================
 #  End SearchBoardView Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start SearchCardView Tests
-#======================
+# ======================
+
 
 @pytest.mark.django_db
 class TestSearchCardView:
@@ -556,14 +559,16 @@ class TestSearchCardView:
 
         with pytest.raises(KeyError):
             api_client.get(url)
-#======================
+
+
+# ======================
 #  End SearchCardView Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start ClosedBoardView Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -675,14 +680,16 @@ class TestClosedBoardView:
         assert response.status_code == 200
         assert response.data == []
 
-#======================
+
+# ======================
 #  End ClosedBoardView Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start BoardRetrieveView Tests
-#======================
+# ======================
+
 
 @pytest.mark.django_db
 class TestBoardRetrieveView:
@@ -832,15 +839,16 @@ class TestBoardRetrieveView:
         response = api_client.get(url)
 
         assert response.status_code == 404
-#======================
+
+
+# ======================
 #  End BoardRetrieveView Tests
-#======================
+# ======================
 
 
-
-#======================
+# ======================
 #  Start CurrentUser Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -903,13 +911,15 @@ class TestCurrentUserView:
 
         assert response.data["user"] == user.id
         assert response.data["user"] != other_user.id
-#======================
-#  End CurrentUser Tests
-#======================
 
-#======================
+
+# ======================
+#  End CurrentUser Tests
+# ======================
+
+# ======================
 #  Start BoardListOrderUpdating Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -984,7 +994,7 @@ class TestBoardListOrderUpdatingView:
 
         assert response.status_code == 200
 
-        for obj, expected_order in zip(board_lists, [3, 1, 2]):
+        for obj, expected_order in zip(board_lists, [3, 1, 2], strict=False):
             obj.refresh_from_db()
             assert obj.order == expected_order
 
@@ -1159,14 +1169,14 @@ class TestBoardListOrderUpdatingView:
         assert board_lists[0].order == 1
 
 
-#======================
+# ======================
 #  End BoardListOrderUpdating Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start CardOrderUpdating Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -1246,7 +1256,7 @@ class TestCardOrderUpdatingView:
 
         assert response.status_code == 200
 
-        for card, expected in zip(cards, [3, 1, 2]):
+        for card, expected in zip(cards, [3, 1, 2], strict=False):
             card.refresh_from_db()
             assert card.order == expected
 
@@ -1260,9 +1270,7 @@ class TestCardOrderUpdatingView:
         assert kwargs["board_list"] == board_list
         assert kwargs["card"] is None
         assert kwargs["action_type"] == "change_cards_order"
-        assert kwargs["text"] == (
-            f"Cards of '{board_list.name}' list, order changed"
-        )
+        assert kwargs["text"] == (f"Cards of '{board_list.name}' list, order changed")
 
     # ---------------------------------------------------------
     # Board member
@@ -1396,15 +1404,16 @@ class TestCardOrderUpdatingView:
 
         cards[0].refresh_from_db()
         assert cards[0].order == 1
-#======================
+
+
+# ======================
 #  End CardOrderUpdating Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start BoardWatchView Tests
-#======================
-
+# ======================
 
 
 @pytest.mark.django_db
@@ -1487,9 +1496,7 @@ class TestBoardWatchView:
         assert kwargs["board_list"] is None
         assert kwargs["card"] is None
         assert kwargs["action_type"] == "watch_board"
-        assert kwargs["text"] == (
-            f"{board.name} Board started being watched"
-        )
+        assert kwargs["text"] == (f"{board.name} Board started being watched")
 
     # ---------------------------------------------------------
     # Unwatch
@@ -1535,9 +1542,7 @@ class TestBoardWatchView:
         kwargs = mock_log.call_args.kwargs
 
         assert kwargs["action_type"] == "unwatch_board"
-        assert kwargs["text"] == (
-            f"{board.name} Board stopped being watched"
-        )
+        assert kwargs["text"] == (f"{board.name} Board stopped being watched")
 
     # ---------------------------------------------------------
     # Update existing watch object
@@ -1569,10 +1574,13 @@ class TestBoardWatchView:
 
         assert response.status_code == 200
 
-        assert BoardWatch.objects.filter(
-            user=owner,
-            board=board,
-        ).count() == 1
+        assert (
+            BoardWatch.objects.filter(
+                user=owner,
+                board=board,
+            ).count()
+            == 1
+        )
 
         board_watch.refresh_from_db()
 
@@ -1601,18 +1609,20 @@ class TestBoardWatchView:
         )
 
         assert response.status_code == 400
-#======================
+
+
+# ======================
 #  End BoardWatchView Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start CardWatchView Tests
-#======================
+# ======================
+
 
 @pytest.mark.django_db
 class TestCardWatchView:
-
     @pytest.fixture
     def url(self):
         return reverse("card_watch")
@@ -1620,7 +1630,6 @@ class TestCardWatchView:
     @pytest.fixture
     def user(self):
         return UserFactory()
-
 
     @pytest.fixture
     def board(self, user):
@@ -1668,7 +1677,6 @@ class TestCardWatchView:
         card,
         url,
     ):
-
         api_client.force_authenticate(user)
 
         response = api_client.post(
@@ -1699,9 +1707,7 @@ class TestCardWatchView:
         assert kwargs["board_list"] == card.board_list
         assert kwargs["card"] == card
         assert kwargs["action_type"] == "watch_card"
-        assert kwargs["text"] == (
-            f"{card.name} Card started being watched"
-        )
+        assert kwargs["text"] == (f"{card.name} Card started being watched")
 
     # ------------------------------------------------------------------
     # Unwatch
@@ -1747,9 +1753,7 @@ class TestCardWatchView:
         kwargs = mock_log.call_args.kwargs
 
         assert kwargs["action_type"] == "unwatch_card"
-        assert kwargs["text"] == (
-            f"{card.name} Card stopped being watched"
-        )
+        assert kwargs["text"] == (f"{card.name} Card stopped being watched")
 
     # ------------------------------------------------------------------
     # Existing object is updated
@@ -1781,10 +1785,13 @@ class TestCardWatchView:
 
         assert response.status_code == 200
 
-        assert CardWatch.objects.filter(
-            user=user,
-            card=card,
-        ).count() == 1
+        assert (
+            CardWatch.objects.filter(
+                user=user,
+                card=card,
+            ).count()
+            == 1
+        )
 
         card_watch.refresh_from_db()
 
@@ -1831,14 +1838,15 @@ class TestCardWatchView:
         )
 
         assert response.status_code == 403
-#======================
+
+
+# ======================
 #  End CardWatchView Tests
-#======================
+# ======================
 
-#======================
+# ======================
 #  Start CopyCardView Tests
-#======================
-
+# ======================
 
 
 @pytest.mark.django_db
@@ -1940,9 +1948,7 @@ class TestCopyCardView:
         assert kwargs["board_list"] == board_list
         assert kwargs["card"] == copied_card
         assert kwargs["action_type"] == "copy_card"
-        assert kwargs["text"] == (
-            f"The '{copied_card.name}' card copied "
-        )
+        assert kwargs["text"] == (f"The '{copied_card.name}' card copied ")
 
     # ------------------------------------------------------------------
     # Success (board member)
@@ -1962,10 +1968,13 @@ class TestCopyCardView:
 
         assert response.status_code == 200
 
-        assert Card.objects.filter(
-            name=card.name,
-            board_list=card.board_list,
-        ).count() == 2
+        assert (
+            Card.objects.filter(
+                name=card.name,
+                board_list=card.board_list,
+            ).count()
+            == 2
+        )
 
     # ------------------------------------------------------------------
     # Permission
@@ -1983,14 +1992,15 @@ class TestCopyCardView:
 
         assert response.status_code == 404
 
-#======================
+
+# ======================
 #  End CopyCardView Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start CardArchivedUpdateView Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -2120,9 +2130,7 @@ class TestCardArchivedUpdateView:
         kwargs = mock_log.call_args.kwargs
 
         assert kwargs["action_type"] == "unarchive_card"
-        assert kwargs["text"] == (
-            f"The '{archived_card.name}' card was unarchived"
-        )
+        assert kwargs["text"] == (f"The '{archived_card.name}' card was unarchived")
 
     # ---------------------------------------------------------
     # No change
@@ -2199,13 +2207,15 @@ class TestCardArchivedUpdateView:
 
         card.refresh_from_db()
         assert card.archived is False
-#======================
-#  End CardArchivedUpdateView Tests
-#======================
 
-#======================
+
+# ======================
+#  End CardArchivedUpdateView Tests
+# ======================
+
+# ======================
 #  Start BoardListArchivedUpdateView Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -2299,9 +2309,7 @@ class TestBoardListArchivedUpdateView:
         assert kwargs["board_list"] == board_list
         assert kwargs["card"] is None
         assert kwargs["action_type"] == "archive_list"
-        assert kwargs["text"] == (
-            f"The '{board_list.name}' list was archived"
-        )
+        assert kwargs["text"] == (f"The '{board_list.name}' list was archived")
 
     # ------------------------------------------------------------------
     # Unarchive
@@ -2417,14 +2425,16 @@ class TestBoardListArchivedUpdateView:
 
         board_list.refresh_from_db()
         assert board_list.archived is False
-#======================
+
+
+# ======================
 #  End BoardListArchivedUpdateView Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start PublicBoardAddress Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -2500,9 +2510,7 @@ class TestPublicBoardAddressView:
         assert response.status_code == 200
 
         expected = (
-            f"https://example.com/public/"
-            f"{public_board.short_uuid}/"
-            f"{public_board.slug}/"
+            f"https://example.com/public/{public_board.short_uuid}/{public_board.slug}/"
         )
 
         assert response.data == {
@@ -2572,14 +2580,17 @@ class TestPublicBoardAddressView:
         response = api_client.get(url)
 
         assert response.status_code == 404
-#======================
+
+
+# ======================
 #  End PublicBoardAddress Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start ActivitytView Tests
-#======================
+# ======================
+
 
 @pytest.mark.django_db
 class TestActivityView:
@@ -2772,14 +2783,16 @@ class TestActivityView:
         assert len(response.data) == 1
         assert response.data[0]["id"] == board_activity.id
 
-#======================
+
+# ======================
 #  End ActivitytView Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start ProfileUpdateView Tests
-#======================
+# ======================
+
 
 @pytest.mark.django_db
 class TestProfileUpdateView:
@@ -2878,16 +2891,9 @@ class TestProfileUpdateView:
     # ------------------------------------------------------------------
 
     def test_user_can_update_profile_image(
-        self,
-        api_client,
-        user,
-        profile,
-        url,
-        simple_uploaded_image_file
+        self, api_client, user, profile, url, simple_uploaded_image_file
     ):
         api_client.force_authenticate(user)
-
-
 
         response = api_client.patch(
             url,
@@ -2958,13 +2964,14 @@ class TestProfileUpdateView:
         assert profile.bio == "My new bio"
         assert another_profile.bio == "Another bio"
 
-#======================
-#  End ProfileUpdateView Tests
-#======================
 
-#======================
+# ======================
+#  End ProfileUpdateView Tests
+# ======================
+
+# ======================
 #  Start UserUpdateView Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -3108,13 +3115,14 @@ class TestUserUpdateView:
         assert user.first_name == "Updated"
         assert another_user.first_name != "Updated"
 
-#======================
-#  End UserUpdateView Tests
-#======================
 
-#======================
+# ======================
+#  End UserUpdateView Tests
+# ======================
+
+# ======================
 #  Start CardListView Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -3193,15 +3201,9 @@ class TestCardListView:
         assert response.data["count"] == 5
         assert len(response.data["results"]) == 5
 
-        returned_ids = {
-            card["id"]
-            for card in response.data["results"]
-        }
+        returned_ids = {card["id"] for card in response.data["results"]}
 
-        expected_ids = {
-            card.id
-            for card in own_cards
-        }
+        expected_ids = {card.id for card in own_cards}
 
         assert returned_ids == expected_ids
 
@@ -3350,14 +3352,16 @@ class TestCardListView:
         assert response.data["previous"] is not None
 
         assert len(response.data["results"]) == 5
-#======================
+
+
+# ======================
 #  End CardListView Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start UserDestroyView Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -3448,14 +3452,16 @@ class TestUserDestroyView:
 
         assert not User.objects.filter(pk=user.pk).exists()
 
-#======================
+
+# ======================
 #  End UserDestroyView Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start SettingConfig Tests
-#======================
+# ======================
+
 
 @pytest.mark.django_db
 class TestSettingConfigView:
@@ -3531,14 +3537,15 @@ class TestSettingConfigView:
         assert response.data["host_async_ability"] == settings.HOST_ASYNC_ABILITY
 
 
-#======================
+# ======================
 #  End SettingConfig Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start ContactMessage Tests
-#======================
+# ======================
+
 
 @pytest.mark.django_db
 class TestContactMessage:
@@ -3692,6 +3699,7 @@ class TestContactMessage:
         assert email == valid_data["email"]
         assert message == valid_data["message"]
 
-#======================
+
+# ======================
 #  End ContactMessage Tests
-#======================
+# ======================

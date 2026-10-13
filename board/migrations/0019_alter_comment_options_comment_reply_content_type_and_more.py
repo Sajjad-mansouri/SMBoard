@@ -5,30 +5,37 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0018_remove_card_status_card_completed'),
-        ('contenttypes', '0002_remove_content_type_name'),
+        ("board", "0018_remove_card_status_card_completed"),
+        ("contenttypes", "0002_remove_content_type_name"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='comment',
-            options={'ordering': ['-created'], 'verbose_name': 'Comment', 'verbose_name_plural': 'Comments'},
+            name="comment",
+            options={
+                "ordering": ["-created"],
+                "verbose_name": "Comment",
+                "verbose_name_plural": "Comments",
+            },
         ),
         migrations.AddField(
-            model_name='comment',
-            name='reply_content_type',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='contenttypes.contenttype'),
+            model_name="comment",
+            name="reply_content_type",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to="contenttypes.contenttype",
+            ),
         ),
         migrations.AddField(
-            model_name='comment',
-            name='reply_object_id',
+            model_name="comment",
+            name="reply_object_id",
             field=models.PositiveIntegerField(null=True),
         ),
         migrations.AlterField(
-            model_name='card',
-            name='completed',
-            field=models.BooleanField(default=False, verbose_name='Completed'),
+            model_name="card",
+            name="completed",
+            field=models.BooleanField(default=False, verbose_name="Completed"),
         ),
     ]

@@ -5,39 +5,73 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0008_cardlabel'),
+        ("board", "0008_cardlabel"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CheckList',
+            name="CheckList",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=250, verbose_name='Name')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('updated', models.DateTimeField(auto_now=True)),
-                ('card', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='card_checklists', to='board.card', verbose_name='Card')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=250, verbose_name="Name")),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                ("updated", models.DateTimeField(auto_now=True)),
+                (
+                    "card",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="card_checklists",
+                        to="board.card",
+                        verbose_name="Card",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'CheckList',
-                'verbose_name_plural': 'CheckLists',
+                "verbose_name": "CheckList",
+                "verbose_name_plural": "CheckLists",
             },
         ),
         migrations.CreateModel(
-            name='ChecklistItem',
+            name="ChecklistItem",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=250, verbose_name='Name')),
-                ('is_completed', models.BooleanField(default=False, verbose_name='is completed')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('updated', models.DateTimeField(auto_now=True)),
-                ('checklist', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='checklist_items', to='board.checklist', verbose_name='CheckList')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=250, verbose_name="Name")),
+                (
+                    "is_completed",
+                    models.BooleanField(default=False, verbose_name="is completed"),
+                ),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                ("updated", models.DateTimeField(auto_now=True)),
+                (
+                    "checklist",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="checklist_items",
+                        to="board.checklist",
+                        verbose_name="CheckList",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'CheckList Item',
-                'verbose_name_plural': 'CheckLists Items',
+                "verbose_name": "CheckList Item",
+                "verbose_name_plural": "CheckLists Items",
             },
         ),
     ]

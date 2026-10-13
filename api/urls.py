@@ -1,79 +1,101 @@
 from django.urls import path
-from rest_framework_simplejwt.views import (
-		TokenObtainPairView,
-		TokenRefreshView,
-		TokenVerifyView
-	)
-from .board import views as board_views
 from rest_framework.routers import DefaultRouter
+from rest_framework_simplejwt.views import (
+    TokenObtainPairView,
+    TokenRefreshView,
+    TokenVerifyView,
+)
+
 from .auth import views as api_auth_views
-
-
+from .board import views as board_views
 
 router = DefaultRouter()
-router.register(r'boards', board_views.BoardViewSet, basename='board')
-router.register(r'cards', board_views.CardViewSet, basename='card')
+router.register(r"boards", board_views.BoardViewSet, basename="board")
+router.register(r"cards", board_views.CardViewSet, basename="card")
 
-router.register(r'checklists', board_views.ChecklistViewSet, basename='checklist')
-router.register(r'checklist-items', board_views.ChecklistItemViewSet, basename='checklistitem')
-router.register(r'comments', board_views.CommentViewSet, basename='comment')
-router.register(r'card-files', board_views.CardFileViewSet, basename='cardfile')
-router.register(r'card-images', board_views.CardImageViewSet, basename='cardimage')
-router.register(r'card-labels', board_views.CardLabelViewSet, basename='cardlabel')
-router.register(r'board-lists', board_views.BoardListViewSet, basename='boardlist')
-router.register(r'card-members', board_views.CardMemberViewSet, basename='cardmember')
-router.register(r'board-members', board_views.BoardMemberViewSet, basename='boardmember')
-router.register(r'link-attachments', board_views.LinkAttachmentViewSet, basename='linkattachment')
-router.register(r'notification-settings', board_views.NotificationSettingViewset, basename='notification-setting')
-
+router.register(r"checklists", board_views.ChecklistViewSet, basename="checklist")
+router.register(
+    r"checklist-items", board_views.ChecklistItemViewSet, basename="checklistitem"
+)
+router.register(r"comments", board_views.CommentViewSet, basename="comment")
+router.register(r"card-files", board_views.CardFileViewSet, basename="cardfile")
+router.register(r"card-images", board_views.CardImageViewSet, basename="cardimage")
+router.register(r"card-labels", board_views.CardLabelViewSet, basename="cardlabel")
+router.register(r"board-lists", board_views.BoardListViewSet, basename="boardlist")
+router.register(r"card-members", board_views.CardMemberViewSet, basename="cardmember")
+router.register(
+    r"board-members", board_views.BoardMemberViewSet, basename="boardmember"
+)
+router.register(
+    r"link-attachments", board_views.LinkAttachmentViewSet, basename="linkattachment"
+)
+router.register(
+    r"notification-settings",
+    board_views.NotificationSettingViewset,
+    basename="notification-setting",
+)
 
 
 urlpatterns = router.urls
 
 urlpatterns += [
-	path("guest-boards/", board_views.GuestBoardListView.as_view(), name="guest_boards"),
-	path("user/", board_views.UserRetrieveView.as_view(), name="user"),
-	path("search/board/", board_views.SearchBoardView.as_view(), name="search_boards"),
-	path("search/card/", board_views.SearchCardView.as_view(), name="search_cards"),
-	path("closed/", board_views.ClosedBoardView.as_view(), name="closed_boards"),
-
-	path("board/<int:pk>/", board_views.BoardRetrieveView.as_view(), name="board"),
-
-
-	path("current-user/", board_views.CurrentUser.as_view(), name="current_user"),
-	path("board-list-order/", board_views.BoardListOrderUpdating.as_view(), name="update_list_order"),
-	path("card-order/", board_views.CardOrderUpdating.as_view(), name="card_order"),
-	path("board-watch/", board_views.BoardWatchView.as_view(), name="board_watch"),
-	path("card-watch/", board_views.CardWatchView.as_view(), name="card_watch"),
-	path("copy-card/<int:pk>/", board_views.CopyCardView.as_view(), name="copy_card"),
-	path("card/update-archived/<int:pk>/", board_views.CardArchivedUpdateView.as_view(), name="archive_card"),
-	path("list/update-archived/<int:pk>/", board_views.BoardListArchivedUpdateView.as_view(), name="archive_list"),
-
-
-	path("public-board-address/<int:pk>/", board_views.PublicBoardAddress.as_view(), name="public_board_address"),
-	path("activities/<int:board>/", board_views.ActivitytView.as_view(), name="activities"),
-	path("update-profile/", board_views.ProfileUpdateView.as_view(), name="update_profile"),
-	path("update-user/", board_views.UserUpdateView.as_view(), name="update_user"),
-	path("card-list/", board_views.CardListView.as_view(), name="card_list"),
-	path("delete-account/", board_views.UserDestroyView.as_view(), name="delete_account"),
-	path("setting-config/", board_views.SettingConfig.as_view(), name="setting_config"),
-	path("message/", board_views.ContactMessage.as_view(), name="message"),
-
-
-
-
-
+    path(
+        "guest-boards/", board_views.GuestBoardListView.as_view(), name="guest_boards"
+    ),
+    path("user/", board_views.UserRetrieveView.as_view(), name="user"),
+    path("search/board/", board_views.SearchBoardView.as_view(), name="search_boards"),
+    path("search/card/", board_views.SearchCardView.as_view(), name="search_cards"),
+    path("closed/", board_views.ClosedBoardView.as_view(), name="closed_boards"),
+    path("board/<int:pk>/", board_views.BoardRetrieveView.as_view(), name="board"),
+    path("current-user/", board_views.CurrentUser.as_view(), name="current_user"),
+    path(
+        "board-list-order/",
+        board_views.BoardListOrderUpdating.as_view(),
+        name="update_list_order",
+    ),
+    path("card-order/", board_views.CardOrderUpdating.as_view(), name="card_order"),
+    path("board-watch/", board_views.BoardWatchView.as_view(), name="board_watch"),
+    path("card-watch/", board_views.CardWatchView.as_view(), name="card_watch"),
+    path("copy-card/<int:pk>/", board_views.CopyCardView.as_view(), name="copy_card"),
+    path(
+        "card/update-archived/<int:pk>/",
+        board_views.CardArchivedUpdateView.as_view(),
+        name="archive_card",
+    ),
+    path(
+        "list/update-archived/<int:pk>/",
+        board_views.BoardListArchivedUpdateView.as_view(),
+        name="archive_list",
+    ),
+    path(
+        "public-board-address/<int:pk>/",
+        board_views.PublicBoardAddress.as_view(),
+        name="public_board_address",
+    ),
+    path(
+        "activities/<int:board>/",
+        board_views.ActivitytView.as_view(),
+        name="activities",
+    ),
+    path(
+        "update-profile/",
+        board_views.ProfileUpdateView.as_view(),
+        name="update_profile",
+    ),
+    path("update-user/", board_views.UserUpdateView.as_view(), name="update_user"),
+    path("card-list/", board_views.CardListView.as_view(), name="card_list"),
+    path(
+        "delete-account/", board_views.UserDestroyView.as_view(), name="delete_account"
+    ),
+    path("setting-config/", board_views.SettingConfig.as_view(), name="setting_config"),
+    path("message/", board_views.ContactMessage.as_view(), name="message"),
 ]
 
-#authorization
+# authorization
 urlpatterns += [
-	path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-	path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-	path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
-	path("login/", api_auth_views.LoginApiView.as_view(), name="login"),
-	path("logout/", api_auth_views.LogoutApiView.as_view(), name="logout"),
-
-
-	]
-
-
+    path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
+    path("login/", api_auth_views.LoginApiView.as_view(), name="login"),
+    path("logout/", api_auth_views.LogoutApiView.as_view(), name="logout"),
+]

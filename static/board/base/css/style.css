@@ -237,7 +237,7 @@
         .profile-avatar-btn img{
             width: 32px;
             height: 32px;
-            border-radius: 50%; 
+            border-radius: 50%;
         }
         .profile-avatar-btn:hover {
             transform: scale(1.08);
@@ -517,13 +517,13 @@
             z-index: 45;
             justify-content: space-between;
         }
-        
+
         .board-menu-bar-left {
             display: flex;
             align-items: center;
             gap: 8px;
         }
-        
+
         .board-menu-bar-right {
             display: flex;
             align-items: center;

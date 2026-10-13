@@ -61,12 +61,12 @@
                 </button>
                 <div class="invite-link-row" style="display:none">
 
-                    <input 
-                        type="text" 
-                        id="invite-link-input" 
-                        class="invite-link-input" 
-                        
-                        readonly 
+                    <input
+                        type="text"
+                        id="invite-link-input"
+                        class="invite-link-input"
+
+                        readonly
                     />
                     <button class="btn-secondary copy-link-btn" id="copy-link-btn">
                         📋 Copy
@@ -75,7 +75,7 @@
 
             </div>
         </div>
-        
+
         <!-- Existing board members section -->
         <div class="share-section">
             <div class="share-section-header" id="board-members-toggle">
@@ -84,7 +84,7 @@
             </div>
             <div class="share-section-content" id="board-members-content"></div>
         </div>
-        
+
         <!-- Existing join requests section -->
         <div class="share-section">
             <div class="share-section-header" id="join-requests-toggle">
@@ -205,13 +205,13 @@
 
     <!-- Users Modal -->
     <div id="users-modal-overlay" class="modal-overlay hidden"><div class="small-modal"><button class="modal-close-top" id="close-users-modal-top">✕</button><h2>👥 Manage Users</h2><div id="users-list"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><input type="text" id="new-user-name" placeholder="User name..." /><input type="color" id="new-user-color" value="#0079bf" /><button id="add-user-btn" class="btn-primary small">Add User</button></div><button id="close-users-modal" class="btn-secondary" style="margin-top:12px;">Close</button></div></div>
-    
+
     <!-- Labels Modal -->
     <div id="labels-modal-overlay" class="modal-overlay hidden"><div class="small-modal"><button class="modal-close-top" id="close-labels-modal-top">✕</button><h2>🔖 Manage Labels</h2><div id="labels-list"></div><div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;"><input type="text" id="new-label-name" placeholder="Label name..." /><input type="color" id="new-label-color" value="#eb5a46" /><button id="add-label-btn" class="btn-primary small">Add Label</button></div><button id="close-labels-modal" class="btn-secondary" style="margin-top:12px;">Close</button></div></div>
-    
+
     <!-- Background Modal (old, keep for compatibility) -->
     <div id="bg-modal-overlay" class="modal-overlay hidden"><div class="small-modal"><button class="modal-close-top" id="close-bg-modal-top">✕</button><h2>🎨 Board Background</h2><div class="bg-presets" id="bg-presets"><div class="bg-preset" data-bg="#f0f2f5" style="background:#f0f2f5"></div><div class="bg-preset" data-bg="#e4f0f6" style="background:#e4f0f6"></div><div class="bg-preset" data-bg="#fce4ec" style="background:#fce4ec"></div><div class="bg-preset" data-bg="#1a1a2e" style="background:#1a1a2e"></div><div class="bg-preset" data-bg="linear-gradient(135deg, #667eea, #764ba2)" style="background:linear-gradient(135deg, #667eea, #764ba2)"></div><div class="bg-preset" data-bg="linear-gradient(135deg, #4facfe, #00f2fe)" style="background:linear-gradient(135deg, #4facfe, #00f2fe)"></div></div><input type="color" id="custom-bg-color" value="#f0f2f5" /><button id="apply-bg-btn" class="btn-primary small">Apply</button><button id="close-bg-modal" class="btn-secondary">Close</button></div></div>
-    
+
     <!-- Board Activity Modal (old, keep for compatibility) -->
     <div id="board-activity-overlay" class="modal-overlay hidden"><div class="small-modal" style="max-width:650px;"><button class="modal-close-top" id="close-board-activity-btn-top">✕</button><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h2>📋 Board Activity</h2><button id="close-board-activity-btn" class="icon-btn">✕</button></div><div id="board-activity-list" style="max-height:60vh;overflow-y:auto;"></div></div></div>
 

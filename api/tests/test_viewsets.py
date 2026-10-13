@@ -1,46 +1,47 @@
 import io
-from PIL import Image
+from unittest.mock import call, patch
+
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.utils import IntegrityError
 from django.urls import reverse
-from unittest.mock import call, patch
-from rest_framework import status
-from .conftest import (
-    BoardFactory, 
-    UserFactory, 
-    BoardListFactory, 
-    CardFactory, 
-    CheckListFactory, 
-    CheckListItemFactory,
-    CommentFactory,
-    CardFileFactory,
-    CardImageFactory,
-    LinkAttachmentFactory,
-    CardLabelFactory,
-    CardMembershipFactory,
-    BoardMembershipFactory,
-    NotificationFactory
-    )
+from PIL import Image
+
 from board.models import (
-    Board, 
-    BoardMembership, 
-    Card, 
-    CheckList, 
-    ChecklistItem, 
-    Comment,
+    Board,
+    BoardList,
+    BoardMembership,
+    Card,
     CardFile,
     CardImage,
-    LinkAttachment,
     CardLabel,
-    BoardList,
-    CardMembership
-    )
+    CardMembership,
+    CheckList,
+    ChecklistItem,
+    Comment,
+    LinkAttachment,
+)
 
+from .conftest import (
+    BoardFactory,
+    BoardListFactory,
+    BoardMembershipFactory,
+    CardFactory,
+    CardFileFactory,
+    CardImageFactory,
+    CardLabelFactory,
+    CardMembershipFactory,
+    CheckListFactory,
+    CheckListItemFactory,
+    CommentFactory,
+    LinkAttachmentFactory,
+    NotificationFactory,
+    UserFactory,
+)
 
-#======================
+# ======================
 #  Start BoardViewSet Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -213,11 +214,7 @@ class TestBoardRetrieveView:
 
         assert response.status_code == 404
 
-    def test_anonymous_user_cannot_retrieve_board(
-        self,
-        board,
-        api_client
-    ):
+    def test_anonymous_user_cannot_retrieve_board(self, board, api_client):
         url = reverse("board-detail", args=[board.id])
 
         response = api_client.get(url)
@@ -408,7 +405,6 @@ class TestBoardCreateView:
         assert kwargs["text"] == f"{board.name} created"
 
 
-
 @pytest.mark.django_db
 class TestBoardUpdateView:
     """Tests for BoardViewSet.update()."""
@@ -499,8 +495,7 @@ class TestBoardUpdateView:
         assert kwargs["action_type"] == "edit_board_title"
         assert kwargs["board"] == board
         assert kwargs["text"] == (
-            "The name of the board was changed "
-            "from Project Alpha to Backend "
+            "The name of the board was changed from Project Alpha to Backend "
         )
 
     @patch("api.board.views.ActivityLog.log")
@@ -671,7 +666,6 @@ class TestBoardUpdateView:
         mock_log.assert_not_called()
 
 
-
 @pytest.mark.django_db
 class TestBoardDestroyView:
     """Tests for BoardViewSet.destroy()."""
@@ -747,15 +741,17 @@ class TestBoardDestroyView:
         response = api_client.delete(url)
 
         assert response.status_code == 404
-#======================
+
+
+# ======================
 #  End BoardViewSet Tests
-#======================
+# ======================
 
 
-
-#======================
+# ======================
 #  Start CardViewSet Tests
-#======================
+# ======================
+
 
 @pytest.mark.django_db
 class TestCardListView:
@@ -921,7 +917,6 @@ class TestCardListView:
         )
 
         with pytest.raises(IntegrityError) as exc_info:
-
             # second membership shouldn't duplicate results
             BoardMembership.objects.create(
                 board=board,
@@ -931,9 +926,6 @@ class TestCardListView:
             )
 
         assert "UNIQUE constraint failed" in str(exc_info)
-
-
-
 
 
 @pytest.mark.django_db
@@ -1070,7 +1062,6 @@ class TestCardRetrieveView:
         response = api_client.get(url)
 
         assert response.status_code == 404
-
 
 
 @pytest.mark.django_db
@@ -1298,7 +1289,6 @@ class TestCardCreateView:
         )
 
 
-
 @pytest.mark.django_db
 class TestCardUpdateView:
     """Tests for CardViewSet.update()."""
@@ -1501,7 +1491,6 @@ class TestCardUpdateView:
             f"The name of the card was was changed from {old_name} to New Card "
         )
 
-
     @patch("api.board.views.ActivityLog.log")
     def test_update_description_logs_activity(
         self,
@@ -1531,10 +1520,7 @@ class TestCardUpdateView:
         kwargs = mock_log.call_args.kwargs
 
         assert kwargs["action_type"] == "edit_card_description"
-        assert kwargs["text"] == (
-            f"The description of {card.name} card was changed"
-        )
-
+        assert kwargs["text"] == (f"The description of {card.name} card was changed")
 
     @patch("api.board.views.ActivityLog.log")
     def test_update_start_date_logs_activity(
@@ -1566,14 +1552,13 @@ class TestCardUpdateView:
 
         assert kwargs["action_type"] == "edit_start_date"
 
-
     @patch("api.board.views.ActivityLog.log")
     def test_update_due_date_logs_activity(
-    self,
-    mock_log,
-    api_client,
-    user,
-    card,
+        self,
+        mock_log,
+        api_client,
+        user,
+        card,
     ):
         api_client.force_authenticate(user)
 
@@ -1596,7 +1581,6 @@ class TestCardUpdateView:
         kwargs = mock_log.call_args.kwargs
 
         assert kwargs["action_type"] == "edit_due_date"
-
 
     @patch("api.board.views.ActivityLog.log")
     def test_update_completed_logs_activity(
@@ -1767,10 +1751,7 @@ class TestCardUpdateView:
 
         assert mock_log.call_count == 3
 
-        action_types = [
-            call.kwargs["action_type"]
-            for call in mock_log.call_args_list
-        ]
+        action_types = [call.kwargs["action_type"] for call in mock_log.call_args_list]
 
         assert action_types == [
             "edit_card_title",
@@ -1801,12 +1782,9 @@ class TestCardUpdateView:
         mock_log.assert_not_called()
 
 
-
 @pytest.mark.django_db
 class TestCardDestroyView:
     """Tests for CardViewSet.destroy()."""
-
-
 
     @pytest.fixture
     def owner_card(self, user):
@@ -1865,8 +1843,6 @@ class TestCardDestroyView:
 
         assert response.status_code == 404
 
-
-
     # ---------------------------------------------------------
     # Permission
     # ---------------------------------------------------------
@@ -1912,7 +1888,6 @@ class TestCardDestroyView:
         api_client.force_authenticate(user)
         url = reverse("card-detail", args=[stranger_card.pk])
 
-
         response = api_client.delete(url)
 
         # Hidden by get_queryset()
@@ -1937,16 +1912,15 @@ class TestCardDestroyView:
 
         assert response.status_code == 404
 
-#======================
+
+# ======================
 #  End CardViewSet Tests
-#======================
+# ======================
 
 
-
-#======================
+# ======================
 #  Start ChecklistViewSet Tests
-#======================
-
+# ======================
 
 
 @pytest.mark.django_db
@@ -2033,15 +2007,9 @@ class TestChecklistListView:
 
         assert response.status_code == 200
 
-        returned_ids = {
-            item["id"]
-            for item in response.data
-        }
+        returned_ids = {item["id"] for item in response.data}
 
-        expected_ids = {
-            checklist.id
-            for checklist in owner_checklists
-        }
+        expected_ids = {checklist.id for checklist in owner_checklists}
 
         assert returned_ids == expected_ids
 
@@ -2062,15 +2030,9 @@ class TestChecklistListView:
 
         assert response.status_code == 200
 
-        returned_ids = {
-            item["id"]
-            for item in response.data
-        }
+        returned_ids = {item["id"] for item in response.data}
 
-        expected_ids = {
-            checklist.id
-            for checklist in member_checklists
-        }
+        expected_ids = {checklist.id for checklist in member_checklists}
 
         assert returned_ids == expected_ids
 
@@ -2090,15 +2052,9 @@ class TestChecklistListView:
 
         response = api_client.get(url)
 
-        returned_ids = {
-            item["id"]
-            for item in response.data
-        }
+        returned_ids = {item["id"] for item in response.data}
 
-        stranger_ids = {
-            checklist.id
-            for checklist in stranger_checklists
-        }
+        stranger_ids = {checklist.id for checklist in stranger_checklists}
 
         assert returned_ids.isdisjoint(stranger_ids)
 
@@ -2117,10 +2073,7 @@ class TestChecklistListView:
 
         response = api_client.get(url)
 
-        ids = [
-            item["id"]
-            for item in response.data
-        ]
+        ids = [item["id"] for item in response.data]
 
         assert len(ids) == len(set(ids))
 
@@ -2149,7 +2102,6 @@ class TestChecklistListView:
             "checklist_items",
             "card",
         }
-
 
 
 @pytest.mark.django_db
@@ -2323,8 +2275,6 @@ class TestChecklistRetrieveView:
         assert isinstance(response.data["checklist_items"], list)
 
 
-
-
 @pytest.mark.django_db
 class TestChecklistCreateView:
     """Tests for ChecklistViewSet.create()."""
@@ -2431,9 +2381,7 @@ class TestChecklistCreateView:
         assert kwargs["board_list"] == owner_card.board_list
         assert kwargs["card"] == owner_card
         assert kwargs["action_type"] == "add_checklist"
-        assert kwargs["text"] == (
-            f"'{checklist.name}' checklist added"
-        )
+        assert kwargs["text"] == (f"'{checklist.name}' checklist added")
 
     # ---------------------------------------------------------
     # Board member
@@ -2534,7 +2482,6 @@ class TestChecklistCreateView:
             format="json",
         )
 
-
         assert response.status_code == 400
 
     def test_invalid_card_returns_403(
@@ -2555,7 +2502,6 @@ class TestChecklistCreateView:
         )
 
         assert response.status_code == 403
-
 
 
 @pytest.mark.django_db
@@ -2644,9 +2590,7 @@ class TestChecklistDestroyView:
 
         assert response.status_code == 204
 
-        assert not CheckList.objects.filter(
-            pk=owner_checklist.pk
-        ).exists()
+        assert not CheckList.objects.filter(pk=owner_checklist.pk).exists()
 
         mock_log.assert_called_once()
 
@@ -2683,9 +2627,7 @@ class TestChecklistDestroyView:
 
         assert response.status_code == 204
 
-        assert not CheckList.objects.filter(
-            pk=member_checklist.pk
-        ).exists()
+        assert not CheckList.objects.filter(pk=member_checklist.pk).exists()
 
         mock_log.assert_called_once()
 
@@ -2708,9 +2650,7 @@ class TestChecklistDestroyView:
         # Hidden by get_queryset()
         assert response.status_code == 404
 
-        assert CheckList.objects.filter(
-            pk=stranger_checklist.pk
-        ).exists()
+        assert CheckList.objects.filter(pk=stranger_checklist.pk).exists()
 
     # ---------------------------------------------------------
     # Not found
@@ -2728,14 +2668,16 @@ class TestChecklistDestroyView:
         response = api_client.delete(url)
 
         assert response.status_code == 404
-#======================
+
+
+# ======================
 #  End ChecklistViewSet Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start ChecklistItemViewSet Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -2825,15 +2767,9 @@ class TestChecklistItemListView:
 
         assert response.status_code == 200
 
-        returned_ids = {
-            item["id"]
-            for item in response.data
-        }
+        returned_ids = {item["id"] for item in response.data}
 
-        expected_ids = {
-            item.id
-            for item in owner_items
-        }
+        expected_ids = {item.id for item in owner_items}
 
         assert returned_ids == expected_ids
 
@@ -2854,15 +2790,9 @@ class TestChecklistItemListView:
 
         assert response.status_code == 200
 
-        returned_ids = {
-            item["id"]
-            for item in response.data
-        }
+        returned_ids = {item["id"] for item in response.data}
 
-        expected_ids = {
-            item.id
-            for item in member_items
-        }
+        expected_ids = {item.id for item in member_items}
 
         assert returned_ids == expected_ids
 
@@ -2882,15 +2812,9 @@ class TestChecklistItemListView:
 
         response = api_client.get(url)
 
-        returned_ids = {
-            item["id"]
-            for item in response.data
-        }
+        returned_ids = {item["id"] for item in response.data}
 
-        stranger_ids = {
-            item.id
-            for item in stranger_items
-        }
+        stranger_ids = {item.id for item in stranger_items}
 
         assert returned_ids.isdisjoint(stranger_ids)
 
@@ -2909,10 +2833,7 @@ class TestChecklistItemListView:
 
         response = api_client.get(url)
 
-        ids = [
-            item["id"]
-            for item in response.data
-        ]
+        ids = [item["id"] for item in response.data]
 
         assert len(ids) == len(set(ids))
 
@@ -3336,7 +3257,6 @@ class TestChecklistItemCreateView:
             format="json",
         )
 
-
         assert response.status_code == 400
 
     def test_invalid_checklist_returns_403(
@@ -3537,10 +3457,7 @@ class TestChecklistItemUpdateView:
 
         assert mock_log.call_count == 2
 
-        action_types = [
-            c.kwargs["action_type"]
-            for c in mock_log.call_args_list
-        ]
+        action_types = [c.kwargs["action_type"] for c in mock_log.call_args_list]
 
         assert "edit_checklist_item_name" in action_types
         assert "edit_checklist_item_completed" in action_types
@@ -3668,7 +3585,6 @@ class TestChecklistItemUpdateView:
         assert "name" in response.data
 
 
-
 @pytest.mark.django_db
 class TestChecklistItemDestroyView:
     """Tests for ChecklistItemViewSet.destroy()."""
@@ -3758,9 +3674,7 @@ class TestChecklistItemDestroyView:
 
         assert response.status_code == 204
 
-        assert not ChecklistItem.objects.filter(
-            pk=owner_item.pk
-        ).exists()
+        assert not ChecklistItem.objects.filter(pk=owner_item.pk).exists()
 
         mock_log.assert_called_once()
 
@@ -3797,9 +3711,7 @@ class TestChecklistItemDestroyView:
 
         assert response.status_code == 204
 
-        assert not ChecklistItem.objects.filter(
-            pk=member_item.pk
-        ).exists()
+        assert not ChecklistItem.objects.filter(pk=member_item.pk).exists()
 
         mock_log.assert_called_once()
 
@@ -3822,9 +3734,7 @@ class TestChecklistItemDestroyView:
         # Hidden by get_queryset()
         assert response.status_code == 404
 
-        assert ChecklistItem.objects.filter(
-            pk=stranger_item.pk
-        ).exists()
+        assert ChecklistItem.objects.filter(pk=stranger_item.pk).exists()
 
     # ---------------------------------------------------------
     # Not found
@@ -3842,13 +3752,15 @@ class TestChecklistItemDestroyView:
         response = api_client.delete(url)
 
         assert response.status_code == 404
-#======================
-#  End ChecklistItemViewSet Tests
-#======================
 
-#======================
+
+# ======================
+#  End ChecklistItemViewSet Tests
+# ======================
+
+# ======================
 #  Start CommentViewSet Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -4033,7 +3945,6 @@ class TestCommentListView:
         }
 
 
-
 @pytest.mark.django_db
 class TestCommentRetrieveView:
     """Tests for CommentViewSet.retrieve()."""
@@ -4210,7 +4121,6 @@ class TestCommentRetrieveView:
             "card",
             "reply",
         }
-
 
 
 @pytest.mark.django_db
@@ -4449,7 +4359,6 @@ class TestCommentCreateView:
         assert "content" in response.data
 
         assert Comment.objects.count() == 0
-
 
 
 @pytest.mark.django_db
@@ -4725,7 +4634,6 @@ class TestCommentUpdateView:
         assert "content" in response.data
 
 
-
 @pytest.mark.django_db
 class TestCommentDestroyView:
     """Tests for CommentViewSet.destroy()."""
@@ -4867,9 +4775,7 @@ class TestCommentDestroyView:
         assert kwargs["board_list"] == own_comment.card.board_list
         assert kwargs["card"] == own_comment.card
         assert kwargs["action_type"] == "remove_comment"
-        assert kwargs["text"] == (
-            f"'{user.username}' remove his comment"
-        )
+        assert kwargs["text"] == (f"'{user.username}' remove his comment")
 
     # ---------------------------------------------------------
     # Board owner
@@ -4957,14 +4863,16 @@ class TestCommentDestroyView:
         response = api_client.delete(url)
 
         assert response.status_code == 404
-#======================
+
+
+# ======================
 #  End CommentViewSet Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start CardFileViewSet Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -5139,9 +5047,16 @@ class TestCardFileListView:
         assert response.status_code == 200
 
         assert set(response.data[0].keys()) == {
-            "id", "name", "display_name","description", "file", "file_type", "upload_at", "user", "card"
+            "id",
+            "name",
+            "display_name",
+            "description",
+            "file",
+            "file_type",
+            "upload_at",
+            "user",
+            "card",
         }
-
 
 
 @pytest.mark.django_db
@@ -5285,7 +5200,6 @@ class TestCardFileRetrieveView:
         response = api_client.get(url)
 
         assert response.status_code == 404
-
 
 
 @pytest.mark.django_db
@@ -5996,14 +5910,17 @@ class TestCardFileDestroyView:
         response = api_client.delete(url)
 
         assert response.status_code == 404
-#======================
+
+
+# ======================
 #  End CardFileViewSet Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start CardImageViewSet Tests
-#======================
+# ======================
+
 
 @pytest.mark.django_db
 class TestCardImageListView:
@@ -6177,10 +6094,16 @@ class TestCardImageListView:
         assert response.status_code == 200
 
         assert set(response.data[0].keys()) == {
-            "id", "name", "display_name","description", "file", "file_type", "upload_at", "user", "card"
-
+            "id",
+            "name",
+            "display_name",
+            "description",
+            "file",
+            "file_type",
+            "upload_at",
+            "user",
+            "card",
         }
-
 
 
 @pytest.mark.django_db
@@ -6324,7 +6247,6 @@ class TestCardImageRetrieveView:
         response = api_client.get(url)
 
         assert response.status_code == 404
-
 
 
 @pytest.mark.django_db
@@ -7051,14 +6973,15 @@ class TestCardImageDestroyView:
 
         assert response.status_code == 404
 
-#======================
+
+# ======================
 #  End CardImageViewSet Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start LinkAttachmentViewSet Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -7233,8 +7156,15 @@ class TestLinkAttachmentListView:
         assert response.status_code == 200
 
         assert set(response.data[0].keys()) == {
-            "id", "name", "display_name","description", "file", "file_type", "upload_at", "user", "card"
-
+            "id",
+            "name",
+            "display_name",
+            "description",
+            "file",
+            "file_type",
+            "upload_at",
+            "user",
+            "card",
         }
 
 
@@ -7989,8 +7919,7 @@ class TestLinkAttachmentDestroyView:
         assert kwargs["card"] == own_link.card
         assert kwargs["action_type"] == "remove_attachment"
         assert kwargs["text"] == (
-            f"The '{own_link.file}' link in "
-            f"'{own_link.card.name}' card was removed"
+            f"The '{own_link.file}' link in '{own_link.card.name}' card was removed"
         )
 
     # ---------------------------------------------------------
@@ -8076,14 +8005,16 @@ class TestLinkAttachmentDestroyView:
         response = api_client.delete(url)
 
         assert response.status_code == 404
-#======================
+
+
+# ======================
 #  End LinkAttachmentViewSet Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start CardLabelViewSet Tests
-#======================
+# ======================
 
 
 @pytest.mark.django_db
@@ -8578,7 +8509,6 @@ class TestCardLabelCreateView:
 
         assert response.status_code == 400
 
-
     def test_invalid_card_returns_403(
         self,
         api_client,
@@ -8988,15 +8918,16 @@ class TestCardLabelDestroyView:
         response = api_client.delete(url)
 
         assert response.status_code == 404
-#======================
+
+
+# ======================
 #  End CardLabelViewSet Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start BoardListViewSet Tests
-#======================
-
+# ======================
 
 
 @pytest.mark.django_db
@@ -9161,9 +9092,15 @@ class TestBoardListListView:
         assert response.status_code == 200
 
         assert set(response.data[0].keys()) == {
-            "id", "order", "name", "cover_image", "cover_color", "list_cards", "archived","board"
+            "id",
+            "order",
+            "name",
+            "cover_image",
+            "cover_color",
+            "list_cards",
+            "archived",
+            "board",
         }
-
 
 
 @pytest.mark.django_db
@@ -9661,8 +9598,7 @@ class TestBoardListUpdateView:
         assert kwargs["card"] is None
         assert kwargs["action_type"] == "edit_list_title"
         assert kwargs["text"] == (
-            "The name of the list was changed "
-            "from 'To Do' to 'Done' "
+            "The name of the list was changed from 'To Do' to 'Done' "
         )
 
     # ---------------------------------------------------------
@@ -9789,7 +9725,6 @@ class TestBoardListUpdateView:
         assert response.status_code == 404
 
 
-
 @pytest.mark.django_db
 class TestBoardListDestroyView:
     """Tests for BoardListViewSet.destroy()."""
@@ -9879,9 +9814,7 @@ class TestBoardListDestroyView:
         assert kwargs["board_list"].name == owner_board_list.name
         assert kwargs["card"] is None
         assert kwargs["action_type"] == "remove_list"
-        assert kwargs["text"] == (
-            f"The '{owner_board_list.name}' list was removed"
-        )
+        assert kwargs["text"] == (f"The '{owner_board_list.name}' list was removed")
 
     # ---------------------------------------------------------
     # Board member
@@ -9914,9 +9847,7 @@ class TestBoardListDestroyView:
         assert kwargs["board_list"].name == member_board_list.name
         assert kwargs["card"] is None
         assert kwargs["action_type"] == "remove_list"
-        assert kwargs["text"] == (
-            f"The '{member_board_list.name}' list was removed"
-        )
+        assert kwargs["text"] == (f"The '{member_board_list.name}' list was removed")
 
     # ---------------------------------------------------------
     # Queryset filtering
@@ -9938,9 +9869,7 @@ class TestBoardListDestroyView:
 
         assert response.status_code == 404
 
-        assert BoardList.objects.filter(
-            pk=stranger_board_list.pk
-        ).exists()
+        assert BoardList.objects.filter(pk=stranger_board_list.pk).exists()
 
         mock_log.assert_not_called()
 
@@ -9960,16 +9889,16 @@ class TestBoardListDestroyView:
         response = api_client.delete(url)
 
         assert response.status_code == 404
-#======================
+
+
+# ======================
 #  End BoardListViewSet Tests
-#======================
+# ======================
 
 
-#======================
+# ======================
 #  Start CardMemberViewSet Tests
-#======================
-
-
+# ======================
 
 
 @pytest.mark.django_db
@@ -10292,7 +10221,6 @@ class TestCardMemberCreateView:
 
         assert response.status_code == 403
 
-
     def test_duplicate_card_membership_returns_400(
         self,
         api_client,
@@ -10436,9 +10364,7 @@ class TestCardMemberDestroyView:
 
         assert response.status_code == 401
 
-        assert CardMembership.objects.filter(
-            pk=card_membership.pk
-        ).exists()
+        assert CardMembership.objects.filter(pk=card_membership.pk).exists()
 
     # ---------------------------------------------------------
     # Success
@@ -10460,9 +10386,7 @@ class TestCardMemberDestroyView:
 
         assert response.status_code == 204
 
-        assert not CardMembership.objects.filter(
-            pk=card_membership.pk
-        ).exists()
+        assert not CardMembership.objects.filter(pk=card_membership.pk).exists()
 
         mock_log.assert_called_once()
 
@@ -10496,9 +10420,7 @@ class TestCardMemberDestroyView:
 
         assert response.status_code == 404
 
-        assert CardMembership.objects.filter(
-            pk=card_membership.pk
-        ).exists()
+        assert CardMembership.objects.filter(pk=card_membership.pk).exists()
 
     def test_unrelated_user_cannot_delete_card_membership(
         self,
@@ -10514,9 +10436,7 @@ class TestCardMemberDestroyView:
 
         assert response.status_code == 404
 
-        assert CardMembership.objects.filter(
-            pk=card_membership.pk
-        ).exists()
+        assert CardMembership.objects.filter(pk=card_membership.pk).exists()
 
     # ---------------------------------------------------------
     # Not found
@@ -10534,15 +10454,17 @@ class TestCardMemberDestroyView:
         response = api_client.delete(url)
 
         assert response.status_code == 404
-#======================
+
+
+# ======================
 #  End CardMemberViewSet Tests
-#======================
+# ======================
 
 
-
-#======================
+# ======================
 #  Start BoardMemberViewSet Tests
-#======================
+# ======================
+
 
 @pytest.mark.django_db
 class TestBoardMemberListView:
@@ -10593,11 +10515,9 @@ class TestBoardMemberListView:
         other_owner,
         url,
     ):
-        #when creating board owner automatically added to member by signal
+        # when creating board owner automatically added to member by signal
         second_membership = BoardMembershipFactory(board=board)
         owner = board.owner
-
-
 
         other_membership = BoardMembershipFactory(board=other_board)
 
@@ -10609,7 +10529,6 @@ class TestBoardMemberListView:
         assert len(response.data) == 2
 
         ids = {item["id"] for item in response.data}
-
 
         assert second_membership.id in ids
         assert other_membership.id not in ids
@@ -10658,7 +10577,6 @@ class TestBoardMemberListView:
 
         assert response.status_code == 200
         assert response.data == []
-
 
 
 @pytest.mark.django_db
@@ -10816,7 +10734,9 @@ class TestBoardMemberCreateView:
         response = api_client.post(reverse("boardmember-list"), valid_data)
 
         assert response.status_code == 401
-        assert BoardMembership.objects.count() == 1 #because when create board owner automatically added to board
+        assert (
+            BoardMembership.objects.count() == 1
+        )  # because when create board owner automatically added to board
 
     # ---------------------------------------------------------
     # Success
@@ -10846,8 +10766,10 @@ class TestBoardMemberCreateView:
 
         memberships = BoardMembership.objects.filter(board__owner=board.owner)
         assert memberships.count() == 2
-        assert list(memberships.values_list("id", flat=True)) == [board.owner.id, member.id]
-
+        assert list(memberships.values_list("id", flat=True)) == [
+            board.owner.id,
+            member.id,
+        ]
 
         mock_log.assert_called_once()
 
@@ -10859,9 +10781,7 @@ class TestBoardMemberCreateView:
         assert kwargs["board_list"] is None
         assert kwargs["card"] is None
         assert kwargs["action_type"] == "add_board_member"
-        assert kwargs["text"] == (
-            f"'{member.username}' added to '{board.name}'"
-        )
+        assert kwargs["text"] == (f"'{member.username}' added to '{board.name}'")
 
     # ---------------------------------------------------------
     # Validation
@@ -10884,9 +10804,7 @@ class TestBoardMemberCreateView:
         )
 
         assert response.status_code == 400
-        assert response.data == {
-            "error": "Search parameter is required"
-        }
+        assert response.data == {"error": "Search parameter is required"}
 
     def test_unknown_username_returns_404(
         self,
@@ -10957,7 +10875,9 @@ class TestBoardMemberCreateView:
         )
 
         assert response.status_code == 403
-        assert BoardMembership.objects.count() == 1#because when create board owner automatically added to board
+        assert (
+            BoardMembership.objects.count() == 1
+        )  # because when create board owner automatically added to board
 
     def test_invalid_board_returns_403(
         self,
@@ -11156,7 +11076,6 @@ class TestBoardMemberUpdateView:
         assert response.status_code == 404
 
 
-
 @pytest.mark.django_db
 class TestBoardMemberDestroyView:
     """Tests for BoardMemberViewSet.destroy()."""
@@ -11191,9 +11110,7 @@ class TestBoardMemberDestroyView:
 
         assert response.status_code == 401
 
-        assert BoardMembership.objects.filter(
-            pk=membership.pk
-        ).exists()
+        assert BoardMembership.objects.filter(pk=membership.pk).exists()
 
     # ---------------------------------------------------------
     # Success
@@ -11215,9 +11132,7 @@ class TestBoardMemberDestroyView:
 
         assert response.status_code == 204
 
-        assert not BoardMembership.objects.filter(
-            pk=membership.pk
-        ).exists()
+        assert not BoardMembership.objects.filter(pk=membership.pk).exists()
 
         mock_log.assert_called_once()
 
@@ -11260,9 +11175,7 @@ class TestBoardMemberDestroyView:
 
         assert response.status_code == 404
 
-        assert BoardMembership.objects.filter(
-            pk=membership.pk
-        ).exists()
+        assert BoardMembership.objects.filter(pk=membership.pk).exists()
 
     def test_unrelated_user_cannot_delete_board_member(
         self,
@@ -11279,9 +11192,7 @@ class TestBoardMemberDestroyView:
 
         assert response.status_code == 404
 
-        assert BoardMembership.objects.filter(
-            pk=membership.pk
-        ).exists()
+        assert BoardMembership.objects.filter(pk=membership.pk).exists()
 
     # ---------------------------------------------------------
     # Not found
@@ -11299,16 +11210,16 @@ class TestBoardMemberDestroyView:
         response = api_client.delete(url)
 
         assert response.status_code == 404
-#======================
+
+
+# ======================
 #  End BoardMemberViewSet Tests
-#======================
+# ======================
 
 
-
-#======================
+# ======================
 #  Start NotificationSettingViewset Tests
-#======================
-
+# ======================
 
 
 @pytest.mark.django_db
@@ -11358,22 +11269,10 @@ class TestNotificationSettingRetrieveView:
         assert response.data["user"] == user.id
 
         # Example boolean fields
-        assert (
-            response.data["email_frequency"]
-            == notification.email_frequency
-        )
-        assert (
-            response.data["create_card"]
-            == notification.create_card
-        )
-        assert (
-            response.data["move_card"]
-            == notification.move_card
-        )
-        assert (
-            response.data["add_comment"]
-            == notification.add_comment
-        )
+        assert response.data["email_frequency"] == notification.email_frequency
+        assert response.data["create_card"] == notification.create_card
+        assert response.data["move_card"] == notification.move_card
+        assert response.data["add_comment"] == notification.add_comment
 
     # ---------------------------------------------------------
     # get_object() ignores URL pk
@@ -11423,7 +11322,6 @@ class TestNotificationSettingRetrieveView:
         assert response.data["id"] == notification.id
         assert response.data["user"] == user.id
         assert response.data["id"] != other_notification.id
-
 
 
 @pytest.mark.django_db
@@ -11582,6 +11480,8 @@ class TestNotificationSettingUpdateView:
         )
 
         assert response.status_code == 400
-#======================
+
+
+# ======================
 #  End NotificationSettingViewset Tests
-#======================
+# ======================

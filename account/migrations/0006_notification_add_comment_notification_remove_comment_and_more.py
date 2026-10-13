@@ -4,25 +4,26 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('account', '0005_rename_activity_notificationdelivery_activity'),
-        ('board', '0032_alter_activity_action_type'),
+        ("account", "0005_rename_activity_notificationdelivery_activity"),
+        ("board", "0032_alter_activity_action_type"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='notification',
-            name='add_comment',
+            model_name="notification",
+            name="add_comment",
             field=models.BooleanField(default=False),
         ),
         migrations.AddField(
-            model_name='notification',
-            name='remove_comment',
+            model_name="notification",
+            name="remove_comment",
             field=models.BooleanField(default=False),
         ),
         migrations.AddConstraint(
-            model_name='notificationdelivery',
-            constraint=models.UniqueConstraint(fields=('activity', 'recipient'), name='unique_notification_delivery'),
+            model_name="notificationdelivery",
+            constraint=models.UniqueConstraint(
+                fields=("activity", "recipient"), name="unique_notification_delivery"
+            ),
         ),
     ]

@@ -6,28 +6,55 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0023_alter_card_options_alter_boardmembership_member_type_and_more'),
+        ("board", "0023_alter_card_options_alter_boardmembership_member_type_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='LinkAttachment',
+            name="LinkAttachment",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('updated', models.DateTimeField(auto_now=True)),
-                ('name', models.CharField(blank=True, max_length=250, verbose_name='Name')),
-                ('description', models.TextField(blank=True, verbose_name='Description')),
-                ('link', models.URLField(verbose_name='Link')),
-                ('card', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='board.card', verbose_name='Card')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL, verbose_name='User')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                ("updated", models.DateTimeField(auto_now=True)),
+                (
+                    "name",
+                    models.CharField(blank=True, max_length=250, verbose_name="Name"),
+                ),
+                (
+                    "description",
+                    models.TextField(blank=True, verbose_name="Description"),
+                ),
+                ("link", models.URLField(verbose_name="Link")),
+                (
+                    "card",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="board.card",
+                        verbose_name="Card",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="User",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Link Attachment',
-                'verbose_name_plural': 'Links Attachments',
+                "verbose_name": "Link Attachment",
+                "verbose_name_plural": "Links Attachments",
             },
         ),
     ]

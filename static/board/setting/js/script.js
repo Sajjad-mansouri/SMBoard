@@ -327,11 +327,11 @@
                             <td>${escapeHtml(card.board)}</td>
                             <td>
                                 <div class="flex-row">
-                                    ${!card.archived 
-                                        ? `<button class="btn btn-sm btn-outline archive-card-btn" data-id="${card.id}">📦 Archive</button>` 
+                                    ${!card.archived
+                                        ? `<button class="btn btn-sm btn-outline archive-card-btn" data-id="${card.id}">📦 Archive</button>`
                                         : `<button class="btn btn-sm btn-outline unarchive-card-btn" data-id="${card.id}">📤 Restore</button><button class="btn btn-sm btn-danger delete-card-btn" data-id="${card.id}" data-title="${card.name}">🗑️ Delete</button>`
                                     }
-                                    
+
                                 </div>
                             </td>
                         `;
@@ -374,8 +374,8 @@
                             ${board.closed ? '<span class="archived-badge">Closed</span>' : ''}
                         </span>
                         <div class="board-actions">
-                            ${!board.closed 
-                                ? `<button class="close-board-btn" data-id="${board.id}">🔒 Close</button>` 
+                            ${!board.closed
+                                ? `<button class="close-board-btn" data-id="${board.id}">🔒 Close</button>`
                                 : `<button class="reopen-board-btn" data-id="${board.id}">🔓 Reopen</button>`
                             }
                             <button class="remove-board-btn" data-id="${board.id}" data-name="${board.name}">🗑️ Remove</button>

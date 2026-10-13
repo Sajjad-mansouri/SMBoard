@@ -5,20 +5,33 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0029_remove_activity_content_type_and_more'),
+        ("board", "0029_remove_activity_content_type_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='activity',
-            name='board_list',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='list_activities', to='board.boardlist', verbose_name='List'),
+            model_name="activity",
+            name="board_list",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="list_activities",
+                to="board.boardlist",
+                verbose_name="List",
+            ),
         ),
         migrations.AlterField(
-            model_name='activity',
-            name='card',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='card_activities', to='board.card', verbose_name='Card'),
+            model_name="activity",
+            name="card",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="card_activities",
+                to="board.card",
+                verbose_name="Card",
+            ),
         ),
     ]

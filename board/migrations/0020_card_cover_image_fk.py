@@ -5,15 +5,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0019_alter_comment_options_comment_reply_content_type_and_more'),
+        ("board", "0019_alter_comment_options_comment_reply_content_type_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='card',
-            name='cover_image_fk',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='cards', to='board.cardimage'),
+            model_name="card",
+            name="cover_image_fk",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="cards",
+                to="board.cardimage",
+            ),
         ),
     ]

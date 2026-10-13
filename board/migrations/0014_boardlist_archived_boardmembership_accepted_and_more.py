@@ -4,25 +4,24 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0013_board_closed'),
+        ("board", "0013_board_closed"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='boardlist',
-            name='archived',
-            field=models.BooleanField(default=False, verbose_name='Archived'),
+            model_name="boardlist",
+            name="archived",
+            field=models.BooleanField(default=False, verbose_name="Archived"),
         ),
         migrations.AddField(
-            model_name='boardmembership',
-            name='accepted',
-            field=models.BooleanField(default=False, verbose_name='Accepted'),
+            model_name="boardmembership",
+            name="accepted",
+            field=models.BooleanField(default=False, verbose_name="Accepted"),
         ),
         migrations.AddField(
-            model_name='card',
-            name='archived',
-            field=models.BooleanField(default=False, verbose_name='Archived'),
+            model_name="card",
+            name="archived",
+            field=models.BooleanField(default=False, verbose_name="Archived"),
         ),
     ]

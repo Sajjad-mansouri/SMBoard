@@ -5,28 +5,45 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0022_alter_boardlist_options_card_order'),
+        ("board", "0022_alter_boardlist_options_card_order"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='card',
-            options={'ordering': ['order'], 'verbose_name': 'Card', 'verbose_name_plural': 'Cards'},
+            name="card",
+            options={
+                "ordering": ["order"],
+                "verbose_name": "Card",
+                "verbose_name_plural": "Cards",
+            },
         ),
         migrations.AlterField(
-            model_name='boardmembership',
-            name='member_type',
-            field=models.CharField(choices=[('admin', 'Admin'), ('member', 'Member'), ('observer', 'Observer'), ('guest', 'Guest')], default='observer', max_length=8, verbose_name='Member Type'),
+            model_name="boardmembership",
+            name="member_type",
+            field=models.CharField(
+                choices=[
+                    ("admin", "Admin"),
+                    ("member", "Member"),
+                    ("observer", "Observer"),
+                    ("guest", "Guest"),
+                ],
+                default="observer",
+                max_length=8,
+                verbose_name="Member Type",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='boardmembership',
-            constraint=models.UniqueConstraint(fields=('user', 'board'), name='user_board_unique'),
+            model_name="boardmembership",
+            constraint=models.UniqueConstraint(
+                fields=("user", "board"), name="user_board_unique"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='cardmembership',
-            constraint=models.UniqueConstraint(fields=('user', 'card'), name='user_card_unique'),
+            model_name="cardmembership",
+            constraint=models.UniqueConstraint(
+                fields=("user", "card"), name="user_card_unique"
+            ),
         ),
     ]

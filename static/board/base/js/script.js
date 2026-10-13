@@ -150,7 +150,7 @@ async function performSearch(query) {
                                         ${card.dueDate != null ? ' · 📅 ' + card.dueDate.split("T")[0] : ''}
                                     </div>
                                 </div>
-                               
+
                             </div>
                         `;
             });

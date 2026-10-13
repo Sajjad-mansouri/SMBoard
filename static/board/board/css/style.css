@@ -27,7 +27,7 @@
             z-index: 45;
             justify-content: space-between;
         }
-        
+
         .board-menu-bar-left {
             display: flex;
             align-items: center;
@@ -36,7 +36,7 @@
         .board-menu-bar-left #edit-title-btn{
             display: none;
         }
-        
+
         .board-menu-bar-right {
             display: flex;
             align-items: center;
@@ -78,7 +78,7 @@
             height: 26px;
             border-radius: 50%;
         }
-        
+
         .board-member-avatar-small:first-child {
             margin-left: 0;
         }
@@ -675,7 +675,7 @@
         .share-member-row .member-avatar-sm img{
             width: 34px;
             height: 34px;
-            border-radius: 50%; 
+            border-radius: 50%;
         }
         .share-member-row .member-details {
             flex: 1;
@@ -1684,7 +1684,7 @@
             background: var(--hover-bg);
             color: var(--text-color);
         }
-        
+
         /* Dropdown menu styles for board menu */
         .board-menu-dropdown {
             position: fixed;

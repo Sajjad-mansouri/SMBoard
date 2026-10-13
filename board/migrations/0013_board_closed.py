@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0012_boardwatch_cardwatch'),
+        ("board", "0012_boardwatch_cardwatch"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='board',
-            name='closed',
-            field=models.BooleanField(default=False, verbose_name='Closed'),
+            model_name="board",
+            name="closed",
+            field=models.BooleanField(default=False, verbose_name="Closed"),
         ),
     ]

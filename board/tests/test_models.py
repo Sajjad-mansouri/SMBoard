@@ -1,581 +1,618 @@
 import os
 import shutil
 import tempfile
+
+from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db.utils import IntegrityError
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from django.utils.text import slugify
-from django.contrib.auth import get_user_model
-from django.db.utils import IntegrityError
-from django.contrib.contenttypes.models import ContentType
-from django.core.files.uploadedfile import SimpleUploadedFile
-from ..models import (
-					Board, 
-					board_image_path,#function
-					BoardList,
-					list_cover_path,#function
-					Card,
-					card_cover_path,#function
-					BoardMembership,
-					CardMembership,
-					CardLabel,
-					CheckList,
-					ChecklistItem,
-					CardFile,
-					CardImage,
-					LinkAttachment,
-					attachment_path,#function
-					Comment,
-					CardWatch,
-					BoardWatch,
-					Activity
-					)
 
+from ..models import (
+    Activity,
+    Board,
+    BoardList,
+    BoardMembership,
+    BoardWatch,
+    Card,
+    CardFile,
+    CardImage,
+    CardLabel,
+    CardMembership,
+    CardWatch,
+    CheckList,
+    ChecklistItem,
+    Comment,
+    LinkAttachment,
+    attachment_path,  # function
+    board_image_path,  # function
+    card_cover_path,  # function
+    list_cover_path,  # function
+)
 
 User = get_user_model()
 
+
 class BoardModelTests(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
+        cls.temp_media = tempfile.mkdtemp()
 
-		cls.temp_media = tempfile.mkdtemp()
+        cls.override = override_settings(MEDIA_ROOT=cls.temp_media)
+        cls.override.enable()
 
-		cls.override = override_settings(
-			MEDIA_ROOT=cls.temp_media
-		)
-		cls.override.enable()
+    @classmethod
+    def tearDownClass(cls):
+        cls.override.disable()
+        shutil.rmtree(cls.temp_media)
 
-	@classmethod
-	def tearDownClass(cls):
-		cls.override.disable()
-		shutil.rmtree(cls.temp_media)
+        super().tearDownClass()
 
-		super().tearDownClass()
-		
-	def setUp(self):
-		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
 
-	def test_string_representation(self):
-		"""Ensure __str__ formats user ownership and board name correctly."""
-		board = Board.objects.create(owner=self.user, name="My Project")
-		expected_string = f"{self.user} board: My Project"
-		self.assertEqual(str(board), expected_string)
+    def test_string_representation(self):
+        """Ensure __str__ formats user ownership and board name correctly."""
+        board = Board.objects.create(owner=self.user, name="My Project")
+        expected_string = f"{self.user} board: My Project"
+        self.assertEqual(str(board), expected_string)
 
-	def test_sluggify_on_save(self):
-		"""Ensure the save override automatically generates a slug from the name."""
-		board_name = "My Trello Like Project"
-		board = Board.objects.create(owner=self.user, name=board_name)
-		self.assertTrue(board.slug)
-		self.assertEqual(board.slug,slugify(board_name))
+    def test_sluggify_on_save(self):
+        """Ensure the save override automatically generates a slug from the name."""
+        board_name = "My Trello Like Project"
+        board = Board.objects.create(owner=self.user, name=board_name)
+        self.assertTrue(board.slug)
+        self.assertEqual(board.slug, slugify(board_name))
 
-	def test_short_uuid_generation(self):
-		"""Ensure every board is initialized with a distinct 6-character short UUID."""
-		board_one = Board.objects.create(owner=self.user, name="Board One")
-		board_two = Board.objects.create(owner=self.user, name="Board Two")
+    def test_short_uuid_generation(self):
+        """Ensure every board is initialized with a distinct 6-character short UUID."""
+        board_one = Board.objects.create(owner=self.user, name="Board One")
+        board_two = Board.objects.create(owner=self.user, name="Board Two")
 
-		self.assertEqual(len(board_one.short_uuid), 6)
-		self.assertNotEqual(board_one.short_uuid, board_two.short_uuid)
+        self.assertEqual(len(board_one.short_uuid), 6)
+        self.assertNotEqual(board_one.short_uuid, board_two.short_uuid)
 
-	def test_board_image_path_resolution(self):
-		"""Verify the uploaded_to callable creates the exact expected multi-tier path"""
+    def test_board_image_path_resolution(self):
+        """Verify the uploaded_to callable creates the exact expected multi-tier path"""
 
-		board = Board.objects.create(owner=self.user, name="My Project")
-		now = timezone.now()
-		file_name = "background.jpg"
-		generated_path = board_image_path(board, file_name)
+        board = Board.objects.create(owner=self.user, name="My Project")
+        now = timezone.now()
+        file_name = "background.jpg"
+        generated_path = board_image_path(board, file_name)
 
-		expected_path = f"{self.user.id}/My Project/board_files/{now.year}/{now.month}/{now.day}/{file_name}"
+        expected_path = f"{self.user.id}/My Project/board_files/{now.year}/{now.month}/{now.day}/{file_name}"
 
-		self.assertEqual(generated_path, expected_path)
+        self.assertEqual(generated_path, expected_path)
 
+    def test_file_upload_retain_correct_path_in_db(self):
+        dummy_image = SimpleUploadedFile(
+            name="test_bg.png", content=b"\x47\x49\x46", content_type="image/png"
+        )
 
-	def test_file_upload_retain_correct_path_in_db(self):
+        board = Board.objects.create(
+            owner=self.user, name="My Project", background_image=dummy_image
+        )
+        now = timezone.now()
+        expected_path = f"{self.user.id}/My Project/board_files/{now.year}/{now.month}/{now.day}/test_bg.png"
 
-		dummy_image = SimpleUploadedFile(
-			name="test_bg.png",
-			content=b'\x47\x49\x46',
-			content_type="image/png"
-			)
+        self.assertEqual(board.background_image.name, expected_path)
 
-		board = Board.objects.create(owner=self.user, name="My Project", background_image=dummy_image)
-		now = timezone.now()
-		expected_path = f"{self.user.id}/My Project/board_files/{now.year}/{now.month}/{now.day}/test_bg.png"
+        if board.background_image and os.path.exists(board.background_image.path):
+            os.remove(board.background_image.path)
 
-		self.assertEqual(board.background_image.name, expected_path)
-
-		if board.background_image and os.path.exists(board.background_image.path):
-			os.remove(board.background_image.path)
 
 class BoardListModelTests(TestCase):
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
-		cls.temp_media = tempfile.mkdtemp()
+        cls.temp_media = tempfile.mkdtemp()
 
-		cls.override = override_settings(
-			MEDIA_ROOT=cls.temp_media
-		)
-		cls.override.enable()
+        cls.override = override_settings(MEDIA_ROOT=cls.temp_media)
+        cls.override.enable()
 
-	@classmethod
-	def tearDownClass(cls):
-		cls.override.disable()
-		shutil.rmtree(cls.temp_media)
+    @classmethod
+    def tearDownClass(cls):
+        cls.override.disable()
+        shutil.rmtree(cls.temp_media)
 
-		super().tearDownClass()
-		
-	def setUp(self):
-		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.user, name="Project")
+        super().tearDownClass()
 
-	def test_string_representation(self):
-		board_list = BoardList.objects.create(board=self.board, name="In Progress")
-		expected_string = f"In Progress is list of  {self.user} {self.board} board "
-		self.assertEqual(str(board_list), expected_string)
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.user, name="Project")
 
+    def test_string_representation(self):
+        board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        expected_string = f"In Progress is list of  {self.user} {self.board} board "
+        self.assertEqual(str(board_list), expected_string)
 
-	def test_list_cover_path_resolution(self):
-		"""Verify the list_cover_path callable creates the exact expected multi-tier path"""
+    def test_list_cover_path_resolution(self):
+        """Verify the list_cover_path callable creates the exact expected multi-tier path"""
 
-		board_list = BoardList.objects.create(board=self.board, name="In Progress")
-		now = timezone.now()
-		file_name = "background.jpg"
-		generated_path = list_cover_path(board_list, file_name)
+        board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        now = timezone.now()
+        file_name = "background.jpg"
+        generated_path = list_cover_path(board_list, file_name)
 
-		expected_path = f"{self.user.id}/{self.board.name}/list_files/In Progress/{now.year}/{now.month}/{now.day}/{file_name}"
+        expected_path = f"{self.user.id}/{self.board.name}/list_files/In Progress/{now.year}/{now.month}/{now.day}/{file_name}"
 
-		self.assertEqual(generated_path, expected_path)
+        self.assertEqual(generated_path, expected_path)
 
-	def test_default_ordering_meta(self):
-		list2 = BoardList.objects.create(board=self.board, name="list2", order=2)
-		list1 = BoardList.objects.create(board=self.board, name="list1", order=1)
-		list3 = BoardList.objects.create(board=self.board, name="list3", order=3)
+    def test_default_ordering_meta(self):
+        list2 = BoardList.objects.create(board=self.board, name="list2", order=2)
+        list1 = BoardList.objects.create(board=self.board, name="list1", order=1)
+        list3 = BoardList.objects.create(board=self.board, name="list3", order=3)
 
-		board_lists = list(BoardList.objects.filter(board=self.board))
-		self.assertEqual(board_lists[0], list1)
-		self.assertEqual(board_lists[1], list2)
-		self.assertEqual(board_lists[2], list3)
+        board_lists = list(BoardList.objects.filter(board=self.board))
+        self.assertEqual(board_lists[0], list1)
+        self.assertEqual(board_lists[1], list2)
+        self.assertEqual(board_lists[2], list3)
 
-	def test_file_upload_retain_correct_path_in_db(self):
+    def test_file_upload_retain_correct_path_in_db(self):
+        dummy_image = SimpleUploadedFile(
+            name="test_bg.png", content=b"\x47\x49\x46", content_type="image/png"
+        )
 
-		dummy_image = SimpleUploadedFile(
-			name="test_bg.png",
-			content=b'\x47\x49\x46',
-			content_type="image/png"
-			)
+        board_list = BoardList.objects.create(
+            board=self.board, name="In Progress", cover_image=dummy_image
+        )
+        now = timezone.now()
+        expected_path = f"{self.user.id}/{self.board.name}/list_files/In Progress/{now.year}/{now.month}/{now.day}/test_bg.png"
 
-		board_list = BoardList.objects.create(board=self.board, name="In Progress", cover_image=dummy_image)
-		now = timezone.now()
-		expected_path = f"{self.user.id}/{self.board.name}/list_files/In Progress/{now.year}/{now.month}/{now.day}/test_bg.png"
+        self.assertEqual(board_list.cover_image.name, expected_path)
 
-		self.assertEqual(board_list.cover_image.name, expected_path)
+        if board_list.cover_image and os.path.exists(board_list.cover_image.path):
+            os.remove(board_list.cover_image.path)
 
-		if board_list.cover_image and os.path.exists(board_list.cover_image.path):
-			os.remove(board_list.cover_image.path)
 
 class CardModelTests(TestCase):
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
-		cls.temp_media = tempfile.mkdtemp()
+        cls.temp_media = tempfile.mkdtemp()
 
-		cls.override = override_settings(
-			MEDIA_ROOT=cls.temp_media
-		)
-		cls.override.enable()
+        cls.override = override_settings(MEDIA_ROOT=cls.temp_media)
+        cls.override.enable()
 
-	@classmethod
-	def tearDownClass(cls):
-		cls.override.disable()
-		shutil.rmtree(cls.temp_media)
+    @classmethod
+    def tearDownClass(cls):
+        cls.override.disable()
+        shutil.rmtree(cls.temp_media)
 
-		super().tearDownClass()
-		
-	def setUp(self):
-		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.user, name="Project")
-		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        super().tearDownClass()
 
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.user, name="Project")
+        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
 
-	def test_string_representation(self):
-		card = Card.objects.create(board_list=self.board_list, name="card1")
-		expected_string = f"card1 is card of  {self.board_list} list"
-		self.assertEqual(str(card), expected_string)
+    def test_string_representation(self):
+        card = Card.objects.create(board_list=self.board_list, name="card1")
+        expected_string = f"card1 is card of  {self.board_list} list"
+        self.assertEqual(str(card), expected_string)
 
+    def test_card_cover_path_resolution(self):
+        """Verify the card_cover_path callable creates the exact expected multi-tier path"""
 
-	def test_card_cover_path_resolution(self):
-		"""Verify the card_cover_path callable creates the exact expected multi-tier path"""
+        card = Card.objects.create(board_list=self.board_list, name="card1")
+        now = timezone.now()
+        file_name = "cover.jpg"
+        generated_path = card_cover_path(card, file_name)
 
-		card = Card.objects.create(board_list=self.board_list, name="card1")
-		now = timezone.now()
-		file_name = "cover.jpg"
-		generated_path = card_cover_path(card, file_name)
+        expected_path = f"{self.user.id}/{self.board.name}/{self.board_list.name}/card1/card_cover/{now.year}/{now.month}/{now.day}/{file_name}"
 
-		expected_path = f"{self.user.id}/{self.board.name}/{self.board_list.name}/card1/card_cover/{now.year}/{now.month}/{now.day}/{file_name}"
+        self.assertEqual(generated_path, expected_path)
 
-		self.assertEqual(generated_path, expected_path)
+    def test_default_ordering_meta(self):
+        card2 = Card.objects.create(board_list=self.board_list, name="card2", order=2)
+        card1 = Card.objects.create(board_list=self.board_list, name="card1", order=1)
+        card3 = Card.objects.create(board_list=self.board_list, name="card3", order=3)
 
-	def test_default_ordering_meta(self):
-		card2 = Card.objects.create(board_list=self.board_list, name="card2", order=2)
-		card1 = Card.objects.create(board_list=self.board_list, name="card1", order=1)
-		card3 = Card.objects.create(board_list=self.board_list, name="card3", order=3)
+        cards = list(Card.objects.filter(board_list=self.board_list))
+        self.assertEqual(cards[0], card1)
+        self.assertEqual(cards[1], card2)
+        self.assertEqual(cards[2], card3)
 
-		cards = list(Card.objects.filter(board_list=self.board_list))
-		self.assertEqual(cards[0], card1)
-		self.assertEqual(cards[1], card2)
-		self.assertEqual(cards[2], card3)
+    def test_file_upload_retain_correct_path_in_db(self):
+        dummy_image = SimpleUploadedFile(
+            name="test_cover.png", content=b"\x47\x49\x46", content_type="image/png"
+        )
 
-	def test_file_upload_retain_correct_path_in_db(self):
+        card = Card.objects.create(
+            board_list=self.board_list, name="card1", cover_image=dummy_image
+        )
+        now = timezone.now()
+        expected_path = f"{self.user.id}/{self.board.name}/{self.board_list.name}/card1/card_cover/{now.year}/{now.month}/{now.day}/test_cover.png"
 
-		dummy_image = SimpleUploadedFile(
-			name="test_cover.png",
-			content=b'\x47\x49\x46',
-			content_type="image/png"
-			)
+        self.assertEqual(card.cover_image.name, expected_path)
 
-		card = Card.objects.create(board_list=self.board_list, name="card1", cover_image=dummy_image)
-		now = timezone.now()
-		expected_path = f"{self.user.id}/{self.board.name}/{self.board_list.name}/card1/card_cover/{now.year}/{now.month}/{now.day}/test_cover.png"
+        if card.cover_image and os.path.exists(card.cover_image.path):
+            os.remove(card.cover_image.path)
 
-		self.assertEqual(card.cover_image.name, expected_path)
-
-		if card.cover_image and os.path.exists(card.cover_image.path):
-			os.remove(card.cover_image.path)
 
 class BoardMembershipdModelTests(TestCase):
-	def setUp(self):
-		self.owner = User.objects.create_user(username="owner", password="secure_pass_1234")
-		self.invitee = User.objects.create_user(username="invited",email="invited@email.com" ,password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.owner, name="Project")
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="owner", password="secure_pass_1234"
+        )
+        self.invitee = User.objects.create_user(
+            username="invited", email="invited@email.com", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.owner, name="Project")
 
-	def test_string_representation(self):
+    def test_string_representation(self):
+        membership = BoardMembership.objects.create(
+            user=self.invitee, board=self.board, member_type="admin"
+        )
+        expected_string = f"{self.invitee} is {self.board} board admin member"
+        self.assertEqual(str(membership), expected_string)
 
-		membership = BoardMembership.objects.create(user=self.invitee, board=self.board, member_type="admin")
-		expected_string = f"{self.invitee} is {self.board} board admin member"
-		self.assertEqual(str(membership), expected_string)
+    def test_membership_default_value(self):
+        membership = BoardMembership.objects.create(user=self.invitee, board=self.board)
+        self.assertEqual(membership.member_type, "member")
+        self.assertFalse(membership.accepted)
 
-	def test_membership_default_value(self):
-		membership = BoardMembership.objects.create(user=self.invitee, board=self.board)
-		self.assertEqual(membership.member_type, "member")
-		self.assertFalse(membership.accepted)
+    def test_user_board_uniqueness_constraint(self):
+        BoardMembership.objects.create(user=self.invitee, board=self.board)
+        duplicate_membership = BoardMembership(user=self.invitee, board=self.board)
 
+        with self.assertRaises(IntegrityError):
+            duplicate_membership.save()
 
-
-	def test_user_board_uniqueness_constraint(self):
-		BoardMembership.objects.create(user=self.invitee, board=self.board)
-		duplicate_membership = BoardMembership(user=self.invitee, board=self.board)
-
-		with self.assertRaises(IntegrityError):
-			duplicate_membership.save()
 
 class BoardOwnerMembershipSignalTests(TestCase):
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
-		cls.temp_media = tempfile.mkdtemp()
+        cls.temp_media = tempfile.mkdtemp()
 
-		cls.override = override_settings(
-			MEDIA_ROOT=cls.temp_media
-		)
-		cls.override.enable()
+        cls.override = override_settings(MEDIA_ROOT=cls.temp_media)
+        cls.override.enable()
 
-	@classmethod
-	def tearDownClass(cls):
-		cls.override.disable()
-		shutil.rmtree(cls.temp_media)
+    @classmethod
+    def tearDownClass(cls):
+        cls.override.disable()
+        shutil.rmtree(cls.temp_media)
 
-		super().tearDownClass()
-		
-	def setUp(self):
-		self.owner = User.objects.create_user(username="test_user", password="secure_pass_1234")
+        super().tearDownClass()
 
-	def test_board_creationg_trigger_membership_signal(self):
-		"""Ensure post_save signal automatically handles admin registration for the owner."""
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
 
-		self.assertEqual(BoardMembership.objects.count(), 0)
+    def test_board_creationg_trigger_membership_signal(self):
+        """Ensure post_save signal automatically handles admin registration for the owner."""
 
-		board = Board.objects.create(owner=self.owner, name="Project")
+        self.assertEqual(BoardMembership.objects.count(), 0)
 
-		self.assertEqual(BoardMembership.objects.count(), 1)
+        board = Board.objects.create(owner=self.owner, name="Project")
 
-		membership = BoardMembership.objects.first()
-		self.assertEqual(membership.board, board)
-		self.assertEqual(membership.member_type, "admin")
-		self.assertEqual(membership.accepted, True)
+        self.assertEqual(BoardMembership.objects.count(), 1)
 
-	def test_board_update_does_not_duplicate_membership(self):
-		"""Ensure modifying an existing board doesn't fire duplicate membership entries."""
+        membership = BoardMembership.objects.first()
+        self.assertEqual(membership.board, board)
+        self.assertEqual(membership.member_type, "admin")
+        self.assertEqual(membership.accepted, True)
 
-		board = Board.objects.create(owner=self.owner, name="Project")
-		self.assertEqual(BoardMembership.objects.count(), 1)
-		board.name = "New Project"
-		board.save()
-		self.assertEqual(BoardMembership.objects.count(), 1)
+    def test_board_update_does_not_duplicate_membership(self):
+        """Ensure modifying an existing board doesn't fire duplicate membership entries."""
+
+        board = Board.objects.create(owner=self.owner, name="Project")
+        self.assertEqual(BoardMembership.objects.count(), 1)
+        board.name = "New Project"
+        board.save()
+        self.assertEqual(BoardMembership.objects.count(), 1)
 
 
 class CardMembershipdModelTests(TestCase):
-	def setUp(self):
-		self.owner = User.objects.create_user(username="owner", password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.owner, name="Project")
-		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
-		self.card = Card.objects.create(board_list=self.board_list, name="card1")
-		self.invitee = User.objects.create_user(username="invited",email="invited@email.com" ,password="secure_pass_1234")
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username="owner", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.owner, name="Project")
+        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        self.card = Card.objects.create(board_list=self.board_list, name="card1")
+        self.invitee = User.objects.create_user(
+            username="invited", email="invited@email.com", password="secure_pass_1234"
+        )
 
+    def test_string_representation(self):
+        membership = CardMembership.objects.create(user=self.invitee, card=self.card)
+        expected_string = f"{self.invitee} is {self.card} card member"
+        self.assertEqual(str(membership), expected_string)
 
-	def test_string_representation(self):
+    def test_user_card_uniqueness_constraint(self):
+        CardMembership.objects.create(user=self.invitee, card=self.card)
+        duplicate_membership = CardMembership(user=self.invitee, card=self.card)
 
-		membership = CardMembership.objects.create(user=self.invitee, card=self.card)
-		expected_string = f"{self.invitee} is {self.card} card member"
-		self.assertEqual(str(membership), expected_string)
-
-
-	def test_user_card_uniqueness_constraint(self):
-		CardMembership.objects.create(user=self.invitee, card=self.card)
-		duplicate_membership = CardMembership(user=self.invitee, card=self.card)
-
-		with self.assertRaises(IntegrityError):
-			duplicate_membership.save()
+        with self.assertRaises(IntegrityError):
+            duplicate_membership.save()
 
 
 class CardLabelModelTests(TestCase):
-	def setUp(self):
-		
-		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.user, name="Project")
-		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
-		self.card = Card.objects.create(board_list=self.board_list, name="card1")
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.user, name="Project")
+        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        self.card = Card.objects.create(board_list=self.board_list, name="card1")
 
-	def test_card_label_string_representation(self):
-		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-		label = CardLabel.objects.create(
-			card=self.card, 
-			name="Urgent Fix", 
-			color="#ff0055"
-		)
-		
-		expected_string = f"Urgent Fix is {self.card} label"
-		self.assertEqual(str(label), expected_string)
+    def test_card_label_string_representation(self):
+        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+        label = CardLabel.objects.create(
+            card=self.card, name="Urgent Fix", color="#ff0055"
+        )
+
+        expected_string = f"Urgent Fix is {self.card} label"
+        self.assertEqual(str(label), expected_string)
+
 
 class CheckListModelTests(TestCase):
-	def setUp(self):
-		
-		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.user, name="Project")
-		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
-		self.card = Card.objects.create(board_list=self.board_list, name="card1")
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.user, name="Project")
+        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        self.card = Card.objects.create(board_list=self.board_list, name="card1")
 
-	def test_card_label_string_representation(self):
-		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-		checklist = CheckList.objects.create(
-			card=self.card, 
-			name="Fix Bug"
-		)
-		
-		expected_string = f"Fix Bug is {self.card} checklist"
-		self.assertEqual(str(checklist), expected_string)
+    def test_card_label_string_representation(self):
+        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+        checklist = CheckList.objects.create(card=self.card, name="Fix Bug")
+
+        expected_string = f"Fix Bug is {self.card} checklist"
+        self.assertEqual(str(checklist), expected_string)
+
 
 class ChecklistItemModelTests(TestCase):
-	def setUp(self):
-		
-		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.user, name="Project")
-		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
-		self.card = Card.objects.create(board_list=self.board_list, name="card1")
-		self.checklist = CheckList.objects.create(card=self.card, name="Fix Bug")
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.user, name="Project")
+        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        self.card = Card.objects.create(board_list=self.board_list, name="card1")
+        self.checklist = CheckList.objects.create(card=self.card, name="Fix Bug")
 
-	def test_card_label_string_representation(self):
-		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-		checklist_item = ChecklistItem.objects.create(checklist=self.checklist, name="Logging", is_completed=True)
-		
-		expected_string = f"Logging is {self.checklist} checklist True"
-		self.assertEqual(str(checklist_item), expected_string)
+    def test_card_label_string_representation(self):
+        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+        checklist_item = ChecklistItem.objects.create(
+            checklist=self.checklist, name="Logging", is_completed=True
+        )
+
+        expected_string = f"Logging is {self.checklist} checklist True"
+        self.assertEqual(str(checklist_item), expected_string)
 
 
 class CardAttachmentTests(TestCase):
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
 
-		cls.temp_media = tempfile.mkdtemp()
+        cls.temp_media = tempfile.mkdtemp()
 
-		cls.override = override_settings(
-			MEDIA_ROOT=cls.temp_media
-		)
-		cls.override.enable()
+        cls.override = override_settings(MEDIA_ROOT=cls.temp_media)
+        cls.override.enable()
 
-	@classmethod
-	def tearDownClass(cls):
-		cls.override.disable()
-		shutil.rmtree(cls.temp_media)
+    @classmethod
+    def tearDownClass(cls):
+        cls.override.disable()
+        shutil.rmtree(cls.temp_media)
 
-		super().tearDownClass()
-		
-	def setUp(self):
-		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.user, name="Project")
-		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
-		self.card = Card.objects.create(board_list=self.board_list, name="card1")
+        super().tearDownClass()
 
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.user, name="Project")
+        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        self.card = Card.objects.create(board_list=self.board_list, name="card1")
 
-	def test_card_file_string_representation(self):
-		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-		card_file = CardFile.objects.create(card=self.card, user=self.user)
-		card_image = CardImage.objects.create(card=self.card, user=self.user)
+    def test_card_file_string_representation(self):
+        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+        card_file = CardFile.objects.create(card=self.card, user=self.user)
+        card_image = CardImage.objects.create(card=self.card, user=self.user)
 
-		
+        self.assertEqual(str(card_file), f"{self.user} file")
+        self.assertEqual(str(card_image), f"{self.user} image")
 
-		self.assertEqual(str(card_file), f"{self.user} file")
-		self.assertEqual(str(card_image), f"{self.user} image")
+    def test_filename_extraction_and_upload_paths(self):
+        """Test path resolution and extraction for both model types simultaneously."""
+        now = timezone.now()
+        expected_path_prefix = f"{self.user.id}/{self.board.name}/{self.board_list.name}/{self.card.name}/card_attachments/{now.year}/{now.month}/{now.day}"
+        dummy_file = SimpleUploadedFile(name="file.csv", content=b"data")
+        card_file = CardFile.objects.create(
+            card=self.card, user=self.user, file=dummy_file
+        )
+        self.assertEqual(card_file.get_name(), "file.csv")
+        self.assertEqual(card_file.file.name, f"{expected_path_prefix}/file.csv")
 
+        dummy_image = SimpleUploadedFile(name="file.png", content=b"pixels")
+        card_image = CardImage.objects.create(
+            card=self.card, user=self.user, file=dummy_image
+        )
+        self.assertEqual(card_image.get_name(), "file.png")
+        self.assertEqual(card_image.file.name, f"{expected_path_prefix}/file.png")
 
+        for obj in [card_file, card_image]:
+            if obj.file and os.path.exists(obj.file.path):
+                os.remove(obj.file.path)
 
-	def test_filename_extraction_and_upload_paths(self):
-		"""Test path resolution and extraction for both model types simultaneously."""
-		now = timezone.now()
-		expected_path_prefix = f"{self.user.id}/{self.board.name}/{self.board_list.name}/{self.card.name}/card_attachments/{now.year}/{now.month}/{now.day}" 
-		dummy_file = SimpleUploadedFile(name="file.csv",content=b'data')
-		card_file = CardFile.objects.create(card=self.card, user=self.user, file=dummy_file)
-		self.assertEqual(card_file.get_name(), "file.csv")
-		self.assertEqual(card_file.file.name, f"{expected_path_prefix}/file.csv")
+    def test_attachmenet_path_resolution(self):
+        card_file = CardFile.objects.create(card=self.card, user=self.user)
+        file_name = "file.csv"
+        now = timezone.now()
+        generated_path = attachment_path(card_file, file_name)
+        expected_path = f"{self.user.id}/{self.board.name}/{self.board_list.name}/{self.card.name}/card_attachments/{now.year}/{now.month}/{now.day}/{file_name}"
+        self.assertEqual(expected_path, generated_path)
 
-
-		dummy_image = SimpleUploadedFile(name="file.png",content=b'pixels')
-		card_image = CardImage.objects.create(card=self.card, user=self.user, file=dummy_image)
-		self.assertEqual(card_image.get_name(), "file.png")
-		self.assertEqual(card_image.file.name, f"{expected_path_prefix}/file.png")
-
-		for obj in [card_file, card_image]:
-			if obj.file and os.path.exists(obj.file.path):
-				os.remove(obj.file.path)
-
-	def test_attachmenet_path_resolution(self):
-
-		card_file = CardFile.objects.create(card=self.card, user=self.user)
-		file_name = "file.csv"
-		now = timezone.now()
-		generated_path = attachment_path(card_file, file_name)
-		expected_path = f"{self.user.id}/{self.board.name}/{self.board_list.name}/{self.card.name}/card_attachments/{now.year}/{now.month}/{now.day}/{file_name}"
-		self.assertEqual(expected_path, generated_path)
 
 class LinkAttachmentTests(TestCase):
-	def setUp(self):
-		
-		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.user, name="Project")
-		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
-		self.card = Card.objects.create(board_list=self.board_list, name="card1")
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.user, name="Project")
+        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        self.card = Card.objects.create(board_list=self.board_list, name="card1")
 
-	def test_string_representation(self):
-		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-		link = LinkAttachment.objects.create(card=self.card, user=self.user)
+    def test_string_representation(self):
+        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+        link = LinkAttachment.objects.create(card=self.card, user=self.user)
 
-		self.assertEqual(str(link), f"{self.user} link")
+        self.assertEqual(str(link), f"{self.user} link")
 
 
 class CommentModelTests(TestCase):
-	def setUp(self):
-		
-		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.user, name="Project")
-		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
-		self.card = Card.objects.create(board_list=self.board_list, name="card1")
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.user, name="Project")
+        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        self.card = Card.objects.create(board_list=self.board_list, name="card1")
 
+    def test_string_representation(self):
+        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+        comment = Comment.objects.create(
+            card=self.card, user=self.user, content="this is comment"
+        )
 
-	def test_string_representation(self):
-		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-		comment = Comment.objects.create(card=self.card, user=self.user, content="this is comment")
+        self.assertEqual(str(comment), f"{self.user} comment {self.card}")
 
-		self.assertEqual(str(comment), f"{self.user} comment {self.card}")
+    def test_comment_default_value(self):
+        """Ensure unassigned fields fallback to correct defaults (edited=False)."""
+        comment = Comment.objects.create(
+            card=self.card, user=self.user, content="this is comment"
+        )
+        self.assertFalse(comment.edited)
 
-	def test_comment_default_value(self):
-		"""Ensure unassigned fields fallback to correct defaults (edited=False)."""
-		comment = Comment.objects.create(card=self.card, user=self.user, content="this is comment")
-		self.assertFalse(comment.edited)
+    def test_generic_foreign_key_reply_resolution(self):
+        """Verify the GenericForeignKey cleanly maps a comment as a reply to another comment"""
 
+        parent_comment = Comment.objects.create(
+            card=self.card, user=self.user, content="parent comment"
+        )
 
-	def test_generic_foreign_key_reply_resolution(self):
-		"""Verify the GenericForeignKey cleanly maps a comment as a reply to another comment"""
+        child_comment = Comment.objects.create(
+            card=self.card,
+            user=self.user,
+            content="child comment",
+            reply_content_object=parent_comment,
+        )
 
-		parent_comment = Comment.objects.create(card=self.card, user=self.user, content="parent comment")
+        self.assertEqual(child_comment.reply_content_object, parent_comment)
+        self.assertEqual(child_comment.reply_object_id, parent_comment.id)
+        self.assertEqual(
+            child_comment.reply_content_type, ContentType.objects.get_for_model(Comment)
+        )
 
-		child_comment = Comment.objects.create(card=self.card, user=self.user, content="child comment", reply_content_object=parent_comment)
+    def test_comment_ordering_meta(self):
+        comment_one = Comment.objects.create(
+            user=self.user, card=self.card, content="Oldest Comment"
+        )
+        comment_two = Comment.objects.create(
+            user=self.user, card=self.card, content="Newest Comment"
+        )
 
-		self.assertEqual(child_comment.reply_content_object, parent_comment)
-		self.assertEqual(child_comment.reply_object_id, parent_comment.id)
-		self.assertEqual(child_comment.reply_content_type, ContentType.objects.get_for_model(Comment))
-
-
-	def test_comment_ordering_meta(self):
-		comment_one = Comment.objects.create(user=self.user, card=self.card, content="Oldest Comment")
-		comment_two = Comment.objects.create(user=self.user, card=self.card, content="Newest Comment")
-
-		comments = list(Comment.objects.filter(card=self.card))
-		self.assertEqual(comments[0], comment_two)
-		self.assertEqual(comments[1], comment_one)
-
+        comments = list(Comment.objects.filter(card=self.card))
+        self.assertEqual(comments[0], comment_two)
+        self.assertEqual(comments[1], comment_one)
 
 
 class CardWatchModelTests(TestCase):
-	def setUp(self):
-		
-		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.user, name="Project")
-		self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
-		self.card = Card.objects.create(board_list=self.board_list, name="card1")
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.user, name="Project")
+        self.board_list = BoardList.objects.create(board=self.board, name="In Progress")
+        self.card = Card.objects.create(board_list=self.board_list, name="card1")
 
+    def test_string_representation(self):
+        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+        card_watch = CardWatch.objects.create(
+            card=self.card, user=self.user, watch=True
+        )
+        watch = "watch"
+        self.assertEqual(str(card_watch), f"{self.user} {watch} {self.card}")
 
-	def test_string_representation(self):
-		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-		card_watch = CardWatch.objects.create(card=self.card, user=self.user, watch=True)
-		watch = "watch"
-		self.assertEqual(str(card_watch), f"{self.user} {watch} {self.card}")
-
-	def test_card_watch_default_value(self):
-		"""Ensure unassigned fields fallback to correct defaults (watch=False)."""
-		card_watch = CardWatch.objects.create(card=self.card, user=self.user)
-		self.assertFalse(card_watch.watch)
+    def test_card_watch_default_value(self):
+        """Ensure unassigned fields fallback to correct defaults (watch=False)."""
+        card_watch = CardWatch.objects.create(card=self.card, user=self.user)
+        self.assertFalse(card_watch.watch)
 
 
 class BoardWatchModelTests(TestCase):
-	def setUp(self):
-		
-		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.user, name="Project")
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.user, name="Project")
 
-	def test_string_representation(self):
-		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-		board_watch = BoardWatch.objects.create(board=self.board, user=self.user, watch=True)
-		watch = "watch"
-		self.assertEqual(str(board_watch), f"{self.user} {watch} {self.board}")
+    def test_string_representation(self):
+        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+        board_watch = BoardWatch.objects.create(
+            board=self.board, user=self.user, watch=True
+        )
+        watch = "watch"
+        self.assertEqual(str(board_watch), f"{self.user} {watch} {self.board}")
 
-	def test_board_watch_default_value(self):
-		"""Ensure unassigned fields fallback to correct defaults (watch=False)."""
-		board_watch = BoardWatch.objects.create(board=self.board, user=self.user)
-		self.assertFalse(board_watch.watch)
+    def test_board_watch_default_value(self):
+        """Ensure unassigned fields fallback to correct defaults (watch=False)."""
+        board_watch = BoardWatch.objects.create(board=self.board, user=self.user)
+        self.assertFalse(board_watch.watch)
 
 
 class ActivityModelTests(TestCase):
-	def setUp(self):
-		
-		self.user = User.objects.create_user(username="test_user", password="secure_pass_1234")
-		self.board = Board.objects.create(owner=self.user, name="Project")
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="test_user", password="secure_pass_1234"
+        )
+        self.board = Board.objects.create(owner=self.user, name="Project")
 
-	def test_string_representation(self):
-		"""Ensure the custom __str__ method evaluates and prints accurately without crashing."""
-		activity = Activity.objects.create(user=self.user, board=self.board, text="board created", action_type="create_board")
+    def test_string_representation(self):
+        """Ensure the custom __str__ method evaluates and prints accurately without crashing."""
+        activity = Activity.objects.create(
+            user=self.user,
+            board=self.board,
+            text="board created",
+            action_type="create_board",
+        )
 
-		self.assertEqual(str(activity), f"{self.user} board created")
+        self.assertEqual(str(activity), f"{self.user} board created")
 
-	def test_activity_ordering_meta(self):
-		activity_older = Activity.objects.create(user=self.user, board=self.board, text="board created", action_type="create_board")
+    def test_activity_ordering_meta(self):
+        activity_older = Activity.objects.create(
+            user=self.user,
+            board=self.board,
+            text="board created",
+            action_type="create_board",
+        )
 
-		activity_newer = Activity.objects.create(user=self.user, board=self.board, text="list created", action_type="create_list")
+        activity_newer = Activity.objects.create(
+            user=self.user,
+            board=self.board,
+            text="list created",
+            action_type="create_list",
+        )
 
-
-		activities = list(Activity.objects.all())
-		self.assertEqual(activities[0], activity_newer)
-		self.assertEqual(activities[1], activity_older)
+        activities = list(Activity.objects.all())
+        self.assertEqual(activities[0], activity_newer)
+        self.assertEqual(activities[1], activity_older)

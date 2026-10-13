@@ -6,41 +6,88 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0011_comment'),
+        ("board", "0011_comment"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='BoardWatch',
+            name="BoardWatch",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('updated', models.DateTimeField(auto_now=True)),
-                ('watch', models.BooleanField(default=False, verbose_name='Watch')),
-                ('board', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='board_boardwatchs', to='board.board', verbose_name='Board')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='user_boardwatchs', to=settings.AUTH_USER_MODEL, verbose_name='User')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                ("updated", models.DateTimeField(auto_now=True)),
+                ("watch", models.BooleanField(default=False, verbose_name="Watch")),
+                (
+                    "board",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="board_boardwatchs",
+                        to="board.board",
+                        verbose_name="Board",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="user_boardwatchs",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="User",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Board Watch',
-                'verbose_name_plural': 'Board Watchs',
+                "verbose_name": "Board Watch",
+                "verbose_name_plural": "Board Watchs",
             },
         ),
         migrations.CreateModel(
-            name='CardWatch',
+            name="CardWatch",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('updated', models.DateTimeField(auto_now=True)),
-                ('watch', models.BooleanField(default=False, verbose_name='Watch')),
-                ('card', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='card_cardwatchs', to='board.card', verbose_name='Card')),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='user_cardwatchs', to=settings.AUTH_USER_MODEL, verbose_name='User')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                ("updated", models.DateTimeField(auto_now=True)),
+                ("watch", models.BooleanField(default=False, verbose_name="Watch")),
+                (
+                    "card",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="card_cardwatchs",
+                        to="board.card",
+                        verbose_name="Card",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="user_cardwatchs",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="User",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Card Watch',
-                'verbose_name_plural': 'Card Watchs',
+                "verbose_name": "Card Watch",
+                "verbose_name_plural": "Card Watchs",
             },
         ),
     ]

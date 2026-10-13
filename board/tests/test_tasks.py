@@ -1,22 +1,24 @@
-import pytest
-from unittest.mock import patch
 from datetime import timedelta
+from unittest.mock import patch
 
-from django.utils import timezone
+import pytest
 from django.core import mail
-from django.test import override_settings
-from board.tasks import daily_notification, weekly_notification
+from django.utils import timezone
 
 from account.models import NotificationDelivery
-from board.tasks import send_email_task, send_bulk_activity_email_task
-
 from api.tests.conftest import (
     ActivityFactory,
     BoardFactory,
     BoardMembershipFactory,
-    UserFactory,
+    NotificationDeliveryFactory,
     NotificationFactory,
-    NotificationDeliveryFactory
+    UserFactory,
+)
+from board.tasks import (
+    daily_notification,
+    send_bulk_activity_email_task,
+    send_email_task,
+    weekly_notification,
 )
 
 
@@ -146,16 +148,17 @@ class TestSendEmailTask:
 
         assert len(mail.outbox) == 2
 
-        assert NotificationDelivery.objects.filter(
-            activity=activity,
-            recipient=recipient,
-        ).count() == 1
-
+        assert (
+            NotificationDelivery.objects.filter(
+                activity=activity,
+                recipient=recipient,
+            ).count()
+            == 1
+        )
 
 
 @pytest.mark.django_db
 class TestDailyNotificationTask:
-
     @patch("board.tasks.group")
     @patch("board.tasks.send_bulk_activity_email_task")
     def test_daily_notification_dispatches_one_task_per_user(
@@ -195,9 +198,9 @@ class TestDailyNotificationTask:
         )
         mock_group.return_value.delay.assert_called_once()
 
+
 @pytest.mark.django_db
 class TestWeeklyNotificationTask:
-
     @patch("board.tasks.group")
     @patch("board.tasks.send_bulk_activity_email_task")
     def test_weekly_notification_dispatches_tasks(
@@ -226,11 +229,9 @@ class TestWeeklyNotificationTask:
 
 @pytest.mark.django_db
 class TestSendBulkActivityEmailTask:
-
     @pytest.fixture
     def actor(self):
         return UserFactory()
-
 
     @pytest.fixture
     def recipient(self):
@@ -414,10 +415,13 @@ class TestSendBulkActivityEmailTask:
 
         assert len(mail.outbox) == 0
 
-        assert NotificationDelivery.objects.filter(
-            activity=activity,
-            recipient=recipient,
-        ).count() == 1
+        assert (
+            NotificationDelivery.objects.filter(
+                activity=activity,
+                recipient=recipient,
+            ).count()
+            == 1
+        )
 
     def test_multiple_activities(
         self,
@@ -467,9 +471,12 @@ class TestSendBulkActivityEmailTask:
         send_bulk_activity_email_task(**kwargs)
         send_bulk_activity_email_task(**kwargs)
 
-        assert NotificationDelivery.objects.filter(
-            activity=activity,
-            recipient=recipient,
-        ).count() == 1
+        assert (
+            NotificationDelivery.objects.filter(
+                activity=activity,
+                recipient=recipient,
+            ).count()
+            == 1
+        )
 
         assert len(mail.outbox) == 1

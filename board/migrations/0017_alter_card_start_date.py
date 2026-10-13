@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0016_comment_edited'),
+        ("board", "0016_comment_edited"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='card',
-            name='start_date',
-            field=models.DateField(blank=True, null=True, verbose_name='Start Date'),
+            model_name="card",
+            name="start_date",
+            field=models.DateField(blank=True, null=True, verbose_name="Start Date"),
         ),
     ]

@@ -176,7 +176,7 @@
 
 
         const card = {}
-        
+
         card["id"] = cardData["id"]
         card["title"] = cardData["name"]
         card["description"] = cardData["description"]
@@ -280,7 +280,7 @@
     }
 
     function getUserById(id) {
-        
+
         return appState.users.find(u => u.id === id);
     }
 
@@ -619,9 +619,9 @@
             const
                 thumbContent = isImage ? `<img src="${att.data}" alt="${escapeHtml(att.name)}" />` : (att.type ===
                     'link' ? '🔗' : '📄');
-            
+
             const uploader = getUserById(att.uploadedBy);
-            
+
             const time = att
                 .uploadedAt ? new Date(att.uploadedAt).toLocaleDateString(undefined, {
                     month: 'short',

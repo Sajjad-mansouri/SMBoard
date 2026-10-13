@@ -4,19 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0017_alter_card_start_date'),
+        ("board", "0017_alter_card_start_date"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='card',
-            name='status',
+            model_name="card",
+            name="status",
         ),
         migrations.AddField(
-            model_name='card',
-            name='completed',
-            field=models.BooleanField(default=False, verbose_name='Status'),
+            model_name="card",
+            name="completed",
+            field=models.BooleanField(default=False, verbose_name="Status"),
         ),
     ]

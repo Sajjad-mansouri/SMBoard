@@ -273,7 +273,7 @@
                 li.innerHTML = `
               <div class="closed-board-name">
                 ${escapeHtml(board.name)}
-                
+
               </div>
               <div class="closed-board-actions">
                 <button class="btn btn-outline reopen-btn" data-id="${board.id}" style="padding:6px 12px; font-size:0.8rem;">🔄 Reopen</button>

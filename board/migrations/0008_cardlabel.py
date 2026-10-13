@@ -5,25 +5,45 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0007_card'),
+        ("board", "0007_card"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CardLabel',
+            name="CardLabel",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=250, verbose_name='Name')),
-                ('label', models.CharField(help_text='format:#00fca8', max_length=7, verbose_name='Label')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('updated', models.DateTimeField(auto_now=True)),
-                ('card', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='card_labels', to='board.card', verbose_name='Card')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=250, verbose_name="Name")),
+                (
+                    "label",
+                    models.CharField(
+                        help_text="format:#00fca8", max_length=7, verbose_name="Label"
+                    ),
+                ),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                ("updated", models.DateTimeField(auto_now=True)),
+                (
+                    "card",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="card_labels",
+                        to="board.card",
+                        verbose_name="Card",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Label',
-                'verbose_name_plural': 'Labels',
+                "verbose_name": "Label",
+                "verbose_name_plural": "Labels",
             },
         ),
     ]

@@ -4,15 +4,17 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('account', '0004_rename_attachment_added_notification_add_attachment_and_more'),
+        (
+            "account",
+            "0004_rename_attachment_added_notification_add_attachment_and_more",
+        ),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='notificationdelivery',
-            old_name='Activity',
-            new_name='activity',
+            model_name="notificationdelivery",
+            old_name="Activity",
+            new_name="activity",
         ),
     ]

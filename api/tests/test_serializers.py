@@ -1,66 +1,59 @@
 import io
 import mimetypes
-import pytest
-from PIL import Image
 from datetime import timedelta
-from django.utils import timezone
-from django.contrib.auth import get_user_model
-from rest_framework.test import APIRequestFactory
-from django.http import Http404
+
+import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.http import Http404
+from django.utils import timezone
+from PIL import Image
+
+from account.models import EmailInbox, Notification, Profile
 from board.models import (
-    Activity, 
-    Board, 
-    CardLabel, 
-    Card, 
-    ChecklistItem, 
-    CheckList, 
-    Comment, 
-    CardImage, 
-    CardFile, 
-    LinkAttachment,
+    Activity,
+    Board,
+    BoardList,
+    BoardMembership,
+    BoardWatch,
+    Card,
+    CardFile,
+    CardImage,
+    CardLabel,
     CardMembership,
     CardWatch,
+    CheckList,
+    ChecklistItem,
     Comment,
-    BoardMembership,
-    BoardList,
-    BoardWatch,
-    
-    )
+    LinkAttachment,
+)
+
 from ..board.serializers import (
-    ActivitySerializer, 
-    ProfileSerializer, 
-    UserSerializer, 
+    ActivitySerializer,
+    BoardListArchivedSerializer,
+    BoardListOrderSerializer,
+    BoardListSerializer,
+    BoardMembershipSerializer,
+    BoardNestedSerializer,
     BoardSerializer,
+    BoardWatchSerializer,
+    CardArchivedSerializer,
+    CardCommentSerializer,
     CardLabelSerializer,
+    CardMembershipSerializer,
+    CardNestedSerializer,
+    CardOrderSerializer,
     CardSerializer,
+    CardWatchSerializer,
     CheckListItemSerializer,
     CheckListSerializer,
-    CardCommentSerializer,
-    CardImage,
-    CardFile,
-    LinkAttachment,
+    EmailInboxSerializer,
     FileAttachmentSerializer,
     ImageAttachmentSerializer,
     LinkAttachmentSerializer,
-    CardMembershipSerializer,
-    CardNestedSerializer,
-    CardArchivedSerializer,
-    BoardMembershipSerializer,
-    BoardListOrderSerializer,
-    BoardListSerializer,
-    BoardListArchivedSerializer,
-    BoardNestedSerializer,
-    CardOrderSerializer,
-    BoardWatchSerializer,
-    CardWatchSerializer,
     NotificationSerializer,
-    EmailInboxSerializer
-    )
-from account.models import Profile, Notification, EmailInbox
-
-
-
+    ProfileSerializer,
+    UserSerializer,
+)
 
 
 class TestActivitySerializer:
@@ -68,41 +61,40 @@ class TestActivitySerializer:
 
     @pytest.fixture
     def valid_data(self, board):
-        return {
-            "board": board.id,
-            "text": "List Created",
-            "action_type": "create_list"
-        }
+        return {"board": board.id, "text": "List Created", "action_type": "create_list"}
 
     @pytest.fixture
     def valid_data_with_optional(self, valid_data, board_list, card):
-         return {**valid_data,
-            "board_list":board_list.id,
-            "card":card.id,
-
+        return {
+            **valid_data,
+            "board_list": board_list.id,
+            "card": card.id,
         }
 
     @pytest.fixture
     def activity(self, user, board, board_list, card):
         return Activity.objects.create(
-                user=user,
-                board=board,
-                board_list=board_list,
-                card=card,
-                action_type="create_list",
-                text="List Created"
-            )
+            user=user,
+            board=board,
+            board_list=board_list,
+            card=card,
+            action_type="create_list",
+            text="List Created",
+        )
 
     @pytest.fixture
     def serializer_context(self, api_request):
         return {"request": api_request}
 
-
     def test_serializer_is_valid(self, valid_data_with_optional, serializer_context):
-        serializer = ActivitySerializer(data=valid_data_with_optional, context=serializer_context)
+        serializer = ActivitySerializer(
+            data=valid_data_with_optional, context=serializer_context
+        )
         assert serializer.is_valid(), serializer.errors
 
-    def test_serializer_is_valid_without_optional_fields(self, valid_data, serializer_context):
+    def test_serializer_is_valid_without_optional_fields(
+        self, valid_data, serializer_context
+    ):
         serializer = ActivitySerializer(data=valid_data, context=serializer_context)
         assert serializer.is_valid(), serializer.errors
 
@@ -112,13 +104,14 @@ class TestActivitySerializer:
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["user"] == user
 
-    def test_payload_user_is_overwritten_by_request_user(self, serializer_context, valid_data, user, another_user):
+    def test_payload_user_is_overwritten_by_request_user(
+        self, serializer_context, valid_data, user, another_user
+    ):
         valid_data["user"] = another_user.id
         serializer = ActivitySerializer(data=valid_data, context=serializer_context)
         serializer.is_valid()
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["user"] == user
-
 
     def test_to_internal_value_handles_missing_request(self, valid_data):
         serializer = ActivitySerializer(data=valid_data, context={})
@@ -130,14 +123,16 @@ class TestActivitySerializer:
         [
             "text",
             "action_type",
-
-        ]
-        )
-    def test_validation_errors_for_required_fields(self, field, valid_data, serializer_context):
+        ],
+    )
+    def test_validation_errors_for_required_fields(
+        self, field, valid_data, serializer_context
+    ):
         valid_data.pop(field)
         serializer = ActivitySerializer(data=valid_data, context=serializer_context)
         assert not serializer.is_valid()
         assert field in serializer.errors
+
     # ----------------------------
     # Output
     # ----------------------------
@@ -161,11 +156,6 @@ class TestActivitySerializer:
         assert serializer.data["board"] == activity.board.id
         assert serializer.data["user"] == activity.user.id
 
-    def test_timestamp_is_read_only():
-        serializer = ActivitySerializer()
-
-        assert serializer.fields["timestamp"].read_only is True
-
     def test_timestamp_returns_created_time_in_milliseconds(self, activity):
         serializer = ActivitySerializer(instance=activity)
         expected = activity.created.timestamp() * 1000
@@ -176,13 +166,15 @@ class TestActivitySerializer:
         serializer = ActivitySerializer(data=valid_data, context=serializer_context)
         assert serializer.is_valid(), serializer.errors
         assert "timestamp" not in serializer.validated_data
-
+        assert serializer.fields["timestamp"].read_only is True
 
     # ----------------------------
     # Create and Update
     # ----------------------------
 
-    def test_create_activity_through_serializer(self, user, valid_data, serializer_context):
+    def test_create_activity_through_serializer(
+        self, user, valid_data, serializer_context
+    ):
         serializer = ActivitySerializer(data=valid_data, context=serializer_context)
         assert serializer.is_valid(), serializer.errors
         activity = serializer.save()
@@ -192,18 +184,21 @@ class TestActivitySerializer:
         assert activity.id is not None
         assert activity.user == user
 
-
-    def test_update_activity_through_serializer(self, user, activity, serializer_context):
-        update_data = {
-            "text": "List Created(updated)"
-        }
-        serializer = ActivitySerializer(instance=activity, data=update_data, context=serializer_context, partial=True)
+    def test_update_activity_through_serializer(
+        self, user, activity, serializer_context
+    ):
+        update_data = {"text": "List Created(updated)"}
+        serializer = ActivitySerializer(
+            instance=activity,
+            data=update_data,
+            context=serializer_context,
+            partial=True,
+        )
         assert serializer.is_valid()
         updated_activity = serializer.save()
 
         assert updated_activity.text == "List Created(updated)"
         assert updated_activity.user == user
-
 
 
 @pytest.mark.django_db
@@ -220,15 +215,10 @@ class TestProfileSerializer:
     @pytest.fixture
     def image_file(self):
         file = io.BytesIO()
-        image = Image.new("RGB", (100,100), color="red")
+        image = Image.new("RGB", (100, 100), color="red")
         image.save(file, format="JPEG")
         file.seek(0)
-        return SimpleUploadedFile(
-                "avatar.jpg",
-                file.read(),
-                content_type="image/jpeg"
-            )
-
+        return SimpleUploadedFile("avatar.jpg", file.read(), content_type="image/jpeg")
 
     @pytest.fixture
     def valid_data_with_image(self, valid_data, image_file):
@@ -252,11 +242,18 @@ class TestProfileSerializer:
 
         assert serializer.is_valid(), serializer.errors
 
-    def test_serializer_with_image_is_valid(self, valid_data_with_image, serializer_context):
-        serializer = ProfileSerializer(data=valid_data_with_image, context=serializer_context)
+    def test_serializer_with_image_is_valid(
+        self, valid_data_with_image, serializer_context
+    ):
+        serializer = ProfileSerializer(
+            data=valid_data_with_image, context=serializer_context
+        )
 
         assert serializer.is_valid(), serializer.errors
-    def test_serializer_is_valid_without_profile_image(self, valid_data, serializer_context):
+
+    def test_serializer_is_valid_without_profile_image(
+        self, valid_data, serializer_context
+    ):
         serializer = ProfileSerializer(data=valid_data, context=serializer_context)
 
         assert serializer.is_valid(), serializer.errors
@@ -268,25 +265,26 @@ class TestProfileSerializer:
         serializer = ProfileSerializer(data=data, context=serializer_context)
 
         assert serializer.is_valid(), serializer.errors
+
     def test_user_is_taken_from_request(self, valid_data, serializer_context, user):
         serializer = ProfileSerializer(data=valid_data, context=serializer_context)
         serializer.is_valid()
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["user"] == user
 
-    def test_payload_user_is_overwritten_by_request_user(self, serializer_context, valid_data, user, another_user):
+    def test_payload_user_is_overwritten_by_request_user(
+        self, serializer_context, valid_data, user, another_user
+    ):
         valid_data["user"] = another_user.id
         serializer = ProfileSerializer(data=valid_data, context=serializer_context)
         serializer.is_valid()
         assert serializer.is_valid(), serializer.errors
         assert serializer.validated_data["user"] == user
 
-
     def test_to_internal_value_handles_missing_request(self, valid_data):
         serializer = ProfileSerializer(data=valid_data, context={})
         with pytest.raises(KeyError):
             serializer.is_valid()
-
 
     # --------------------------------------------------------
     # Output
@@ -324,7 +322,7 @@ class TestProfileSerializer:
         assert isinstance(profile, Profile)
         assert profile.user.id == valid_data["user"]
         assert profile.bio == valid_data["bio"]
-        assert profile.profile_image == None
+        assert profile.profile_image is None
 
     # --------------------------------------------------------
     # Update
@@ -337,7 +335,7 @@ class TestProfileSerializer:
                 "bio": "Senior Backend Developer",
             },
             partial=True,
-            context=serializer_context
+            context=serializer_context,
         )
 
         assert serializer.is_valid(), serializer.errors
@@ -363,10 +361,9 @@ class TestProfileSerializer:
 class TestUserSerializer:
     """Test suite for UserSerializer."""
 
-
     @pytest.fixture
     def user_with_profile(self, user):
-        profile = Profile.objects.create(user=user, bio="Backend Developer")
+        Profile.objects.create(user=user, bio="Backend Developer")
         return user
 
     @pytest.fixture
@@ -413,10 +410,7 @@ class TestUserSerializer:
     def test_serializer_returns_fullname(self, user_with_profile):
         serializer = UserSerializer(user_with_profile)
 
-        assert (
-            serializer.data["fullname"]
-            == user_with_profile.get_full_name()
-        )
+        assert serializer.data["fullname"] == user_with_profile.get_full_name()
 
     def test_serializer_returns_empty_profile_image_when_none(
         self,
@@ -437,16 +431,13 @@ class TestUserSerializer:
     # --------------------------------------------------------
 
     def test_update_all_user_fields(
-        self,
-        user_with_profile,
-        update_data,
-        serializer_context
+        self, user_with_profile, update_data, serializer_context
     ):
         serializer = UserSerializer(
             instance=user_with_profile,
             data=update_data,
             partial=True,
-            context=serializer_context
+            context=serializer_context,
         )
 
         assert serializer.is_valid(), serializer.errors
@@ -458,18 +449,14 @@ class TestUserSerializer:
         assert updated_user.first_name == update_data["first_name"]
         assert updated_user.last_name == update_data["last_name"]
 
-
     def test_update_returns_same_instance(
-        self,
-        user_with_profile,
-        update_data,
-        serializer_context
+        self, user_with_profile, update_data, serializer_context
     ):
         serializer = UserSerializer(
             instance=user_with_profile,
             data=update_data,
             partial=True,
-            context=serializer_context
+            context=serializer_context,
         )
 
         assert serializer.is_valid(), serializer.errors
@@ -503,11 +490,7 @@ class TestUserSerializer:
         assert updated.last_name == old_last_name
         assert updated.profile.bio == old_bio
 
-    def test_partial_update_only_profile(
-        self,
-        user_with_profile,
-        serializer_context
-    ):
+    def test_partial_update_only_profile(self, user_with_profile, serializer_context):
         old_username = user_with_profile.username
 
         serializer = UserSerializer(
@@ -518,7 +501,7 @@ class TestUserSerializer:
                 }
             },
             partial=True,
-            context=serializer_context
+            context=serializer_context,
         )
 
         assert serializer.is_valid(), serializer.errors
@@ -548,8 +531,6 @@ class TestUserSerializer:
 
         assert updated.username == "updated_username"
         assert updated.profile.bio == old_bio
-
-
 
 
 @pytest.mark.django_db
@@ -775,7 +756,6 @@ class TestBoardSerializer:
         assert updated.owner == board.owner
 
 
-
 @pytest.mark.django_db
 class TestCardLabelSerializer:
     """Test suite for CardLabelSerializer."""
@@ -883,7 +863,6 @@ class TestCardLabelSerializer:
         assert updated.name == "Feature"
         assert updated.color == "#00ff00"
         assert updated.card == label.card
-
 
 
 @pytest.mark.django_db
@@ -1044,7 +1023,6 @@ class TestCardSerializer:
 
         assert updated.name == "Updated card"
         assert updated.completed is True
-
 
 
 @pytest.mark.django_db
@@ -1247,10 +1225,7 @@ class TestCheckListSerializer:
 
         assert len(serializer.data["checklist_items"]) == 2
 
-        names = {
-            item["name"]
-            for item in serializer.data["checklist_items"]
-        }
+        names = {item["name"] for item in serializer.data["checklist_items"]}
 
         assert names == {
             item1.name,
@@ -1302,8 +1277,6 @@ class TestCheckListSerializer:
 class TestCardCommentSerializer:
     """Test suite for CardCommentSerializer."""
 
-
-
     @pytest.fixture
     def valid_data(self, card):
         return {
@@ -1325,20 +1298,12 @@ class TestCardCommentSerializer:
 
     @pytest.fixture
     def card_image(self, card, user):
-        test_image = SimpleUploadedFile(
-                "file.jpg",
-                b"fake content",
-                "image/jpg"
-            )
+        test_image = SimpleUploadedFile("file.jpg", b"fake content", "image/jpg")
         return CardImage.objects.create(card=card, user=user, file=test_image)
 
     @pytest.fixture
     def card_file(self, card, user):
-        test_file = SimpleUploadedFile(
-                "file.csv",
-                b"fake content",
-                "text/csv"
-            )
+        test_file = SimpleUploadedFile("file.csv", b"fake content", "text/csv")
         return CardFile.objects.create(card=card, user=user, file=test_file)
 
     @pytest.fixture
@@ -1348,15 +1313,22 @@ class TestCardCommentSerializer:
 
     @pytest.fixture
     def comment_with_image_attachment(self, user, card, card_image):
-        return Comment.objects.create(user=user, card=card, reply_content_object=card_image)
+        return Comment.objects.create(
+            user=user, card=card, reply_content_object=card_image
+        )
 
     @pytest.fixture
     def comment_with_file_attachment(self, user, card, card_file):
-        return Comment.objects.create(user=user, card=card, reply_content_object=card_file)
+        return Comment.objects.create(
+            user=user, card=card, reply_content_object=card_file
+        )
 
     @pytest.fixture
     def comment_with_link_attachment(self, user, card, link_attachment):
-        return Comment.objects.create(user=user, card=card, reply_content_object=link_attachment)
+        return Comment.objects.create(
+            user=user, card=card, reply_content_object=link_attachment
+        )
+
     # --------------------------------------------------------
     # Validation
     # --------------------------------------------------------
@@ -1447,8 +1419,6 @@ class TestCardCommentSerializer:
         assert serializer.data["content"] == comment.content
         assert serializer.data["edited"] == comment.edited
         assert serializer.data["card"] == comment.card.id
-
-
 
     def test_timestamp_returns_updated_time_in_milliseconds(
         self,
@@ -1612,20 +1582,14 @@ class TestCardCommentSerializer:
         assert reply["type"] == "link"
 
 
-
 @pytest.mark.django_db
 class TestFileAttachmentSerializer:
     """Test suite for FileAttachmentSerializer."""
 
     @pytest.fixture
     def uploaded_text_file(self):
-        file = SimpleUploadedFile(
-                "file.txt",
-                b"fake content",
-                "plain/text"
-            )
+        file = SimpleUploadedFile("file.txt", b"fake content", "plain/text")
         return file
-
 
     @pytest.fixture
     def valid_data(self, card, uploaded_text_file):
@@ -1639,7 +1603,6 @@ class TestFileAttachmentSerializer:
     @pytest.fixture
     def serializer_context(self, api_request):
         return {"request": api_request}
-
 
     @pytest.fixture
     def attachment(self, user, card, uploaded_text_file):
@@ -1750,9 +1713,7 @@ class TestFileAttachmentSerializer:
     ):
         serializer = FileAttachmentSerializer(attachment)
 
-        expected, _ = mimetypes.guess_type(
-            attachment.file.name
-        )
+        expected, _ = mimetypes.guess_type(attachment.file.name)
 
         assert serializer.data["file_type"] == expected
 
@@ -1764,10 +1725,7 @@ class TestFileAttachmentSerializer:
 
         extension = attachment.file.name.rsplit(".", 1)[1]
 
-        assert (
-            serializer.data["display_name"]
-            == f"Specification.{extension}"
-        )
+        assert serializer.data["display_name"] == f"Specification.{extension}"
 
     def test_get_display_name_uses_original_filename(
         self,
@@ -1778,10 +1736,7 @@ class TestFileAttachmentSerializer:
 
         serializer = FileAttachmentSerializer(attachment)
 
-        assert (
-            serializer.data["display_name"]
-            == attachment.file.name.rsplit("/", 1)[1]
-        )
+        assert serializer.data["display_name"] == attachment.file.name.rsplit("/", 1)[1]
 
     def test_get_upload_at_returns_created_timestamp(
         self,
@@ -1789,10 +1744,7 @@ class TestFileAttachmentSerializer:
     ):
         serializer = FileAttachmentSerializer(attachment)
 
-        assert (
-            serializer.data["upload_at"]
-            == attachment.created.timestamp()
-        )
+        assert serializer.data["upload_at"] == attachment.created.timestamp()
 
     # --------------------------------------------------------
     # Create
@@ -1822,11 +1774,7 @@ class TestFileAttachmentSerializer:
     # Update
     # --------------------------------------------------------
 
-    def test_update_attachment(
-        self,
-        attachment,
-        serializer_context
-    ):
+    def test_update_attachment(self, attachment, serializer_context):
         serializer = FileAttachmentSerializer(
             instance=attachment,
             data={
@@ -1845,7 +1793,6 @@ class TestFileAttachmentSerializer:
         assert updated.description == "Updated description"
 
 
-
 @pytest.mark.django_db
 class TestImageAttachmentSerializer:
     """Test suite for ImageAttachmentSerializer."""
@@ -1853,14 +1800,13 @@ class TestImageAttachmentSerializer:
     @pytest.fixture
     def uploaded_image(self):
         file = io.BytesIO()
-        image = Image.new("RGB", (100,100), color="red")
+        image = Image.new("RGB", (100, 100), color="red")
         image.save(file, format="JPEG")
         file.seek(0)
         return SimpleUploadedFile(
-                "upload_image.jpg",
-                file.read(),
-                content_type="image/jpeg"
-            )
+            "upload_image.jpg", file.read(), content_type="image/jpeg"
+        )
+
     @pytest.fixture
     def valid_data(self, card, uploaded_image):
         return {
@@ -1893,7 +1839,6 @@ class TestImageAttachmentSerializer:
         valid_data,
         serializer_context,
     ):
-
         serializer = ImageAttachmentSerializer(
             data=valid_data,
             context=serializer_context,
@@ -1929,9 +1874,7 @@ class TestImageAttachmentSerializer:
     ):
         serializer = ImageAttachmentSerializer(image_attachment)
 
-        expected, _ = mimetypes.guess_type(
-            image_attachment.file.name
-        )
+        expected, _ = mimetypes.guess_type(image_attachment.file.name)
 
         assert serializer.data["file_type"] == expected
 
@@ -1943,10 +1886,7 @@ class TestImageAttachmentSerializer:
 
         extension = image_attachment.file.name.rsplit(".", 1)[1]
 
-        assert (
-            serializer.data["display_name"]
-            == f"attach.{extension}"
-        )
+        assert serializer.data["display_name"] == f"attach.{extension}"
 
     # --------------------------------------------------------
     # Create
@@ -1970,7 +1910,6 @@ class TestImageAttachmentSerializer:
         assert isinstance(image, CardImage)
         assert image.user == user
         assert image.card.id == valid_data["card"]
-
 
 
 @pytest.mark.django_db
@@ -2052,10 +1991,7 @@ class TestLinkAttachmentSerializer:
     ):
         serializer = LinkAttachmentSerializer(link_attachment)
 
-        assert (
-            serializer.data["display_name"]
-            == link_attachment.file
-        )
+        assert serializer.data["display_name"] == link_attachment.file
 
     def test_get_upload_at_returns_created_timestamp(
         self,
@@ -2063,10 +1999,7 @@ class TestLinkAttachmentSerializer:
     ):
         serializer = LinkAttachmentSerializer(link_attachment)
 
-        assert (
-            serializer.data["upload_at"]
-            == link_attachment.created.timestamp()
-        )
+        assert serializer.data["upload_at"] == link_attachment.created.timestamp()
 
     # --------------------------------------------------------
     # Create
@@ -2096,11 +2029,7 @@ class TestLinkAttachmentSerializer:
     # Update
     # --------------------------------------------------------
 
-    def test_update_link_attachment(
-        self,
-        link_attachment,
-        serializer_context
-    ):
+    def test_update_link_attachment(self, link_attachment, serializer_context):
         serializer = LinkAttachmentSerializer(
             instance=link_attachment,
             data={
@@ -2117,7 +2046,6 @@ class TestLinkAttachmentSerializer:
 
         assert updated.name == "SMBoard"
         assert updated.file == "https://test-website.com"
-
 
 
 @pytest.mark.django_db
@@ -2219,7 +2147,6 @@ class TestCardMembershipSerializer:
         assert updated.card == membership.card
 
 
-
 @pytest.mark.django_db
 class TestCardNestedSerializer:
     """Test suite for CardNestedSerializer."""
@@ -2234,6 +2161,7 @@ class TestCardNestedSerializer:
             "start_date": "2026-07-01",
             "due_date": "2026-07-10T14:30",
         }
+
     @pytest.fixture
     def valid_data_create(self, board_list):
         return {
@@ -2251,26 +2179,37 @@ class TestCardNestedSerializer:
 
     @pytest.fixture
     def card_with_activity(self, user, board, board_list, card):
-        activity = Activity.objects.create(user=user, board=board, board_list=board_list, card=card, action_type="edit_card_title", text="Card Title Changed")
+        Activity.objects.create(
+            user=user,
+            board=board,
+            board_list=board_list,
+            card=card,
+            action_type="edit_card_title",
+            text="Card Title Changed",
+        )
         return card
 
     @pytest.fixture
-    def card_with_cover_image(self, board_list, valid_data_create, simple_uploaded_image_file):
-
+    def card_with_cover_image(
+        self, board_list, valid_data_create, simple_uploaded_image_file
+    ):
         valid_data_create["cover_image"] = simple_uploaded_image_file
         card = Card.objects.create(**valid_data_create)
         return card
 
     @pytest.fixture
-    def card_with_cover_image_fk(self, user, card, board_list, valid_data_create, simple_uploaded_image_file):
-
-        card_image = CardImage.objects.create(user=user, card=card, file=simple_uploaded_image_file)
+    def card_with_cover_image_fk(
+        self, user, card, board_list, valid_data_create, simple_uploaded_image_file
+    ):
+        card_image = CardImage.objects.create(
+            user=user, card=card, file=simple_uploaded_image_file
+        )
         valid_data_create["cover_image_fk"] = card_image
         return Card.objects.create(**valid_data_create)
 
     @pytest.fixture
     def watched_card(self, user, card):
-        card_watch = CardWatch.objects.create(user=user, card=card, watch=True)
+        CardWatch.objects.create(user=user, card=card, watch=True)
         return card
 
     @pytest.fixture
@@ -2417,10 +2356,7 @@ class TestCardNestedSerializer:
             context=serializer_context,
         )
 
-        assert (
-            serializer.data["cover_img"]
-            == card_with_cover_image.cover_image.url
-        )
+        assert serializer.data["cover_img"] == card_with_cover_image.cover_image.url
 
     def test_cover_img_uses_cover_image_fk(
         self,
@@ -2563,7 +2499,6 @@ class TestCardNestedSerializer:
         assert serializer.fields["archived"].read_only is True
 
 
-
 @pytest.mark.django_db
 class TestCardArchivedSerializer:
     """Test suite for CardArchivedSerializer."""
@@ -2583,7 +2518,6 @@ class TestCardArchivedSerializer:
         serializer = CardArchivedSerializer(data=valid_data)
 
         assert serializer.is_valid(), serializer.errors
-
 
     # --------------------------------------------------------
     # Output
@@ -2657,7 +2591,6 @@ class TestCardArchivedSerializer:
         assert updated.archived is True
 
 
-
 @pytest.mark.django_db
 class TestBoardMembershipSerializer:
     """Test suite for BoardMembershipSerializer."""
@@ -2716,7 +2649,7 @@ class TestBoardMembershipSerializer:
         data["user"] = another_user.id
 
         serializer = BoardMembershipSerializer(data=data)
-
+        assert serializer.fields["user"].read_only is True
         assert serializer.is_valid(), serializer.errors
 
         assert serializer.validated_data["user"].id == valid_data["user_id"]
@@ -2797,16 +2730,10 @@ class TestBoardMembershipSerializer:
     # Field configuration
     # --------------------------------------------------------
 
-    def test_user_field_is_read_only(self):
-        serializer = BoardMembershipSerializer()
-
-        assert serializer.fields["user"].read_only is True
-
     def test_user_id_field_is_write_only(self):
         serializer = BoardMembershipSerializer()
 
         assert serializer.fields["user_id"].write_only is True
-
 
 
 @pytest.mark.django_db
@@ -3019,18 +2946,17 @@ class TestBoardListOrderSerializer:
         )
 
         expected_fields = {
-            "id", 
-            "order", 
-            "name", 
-            "cover_image", 
-            "cover_color", 
-            "list_cards", 
+            "id",
+            "order",
+            "name",
+            "cover_image",
+            "cover_color",
+            "list_cards",
             "archived",
-            "board"
+            "board",
         }
 
         assert set(serializer.data[0].keys()) == expected_fields
-
 
 
 @pytest.mark.django_db
@@ -3127,7 +3053,7 @@ class TestBoardListSerializer:
     def test_nested_cards_without_context(self, board_list, card, serializer_context):
         serializer = BoardListSerializer(board_list)
         assert len(serializer.data["list_cards"]) == 1
-        assert serializer.data["list_cards"][0]["watched"] == None
+        assert serializer.data["list_cards"][0]["watched"] is None
 
     # --------------------------------------------------------
     # Create
@@ -3169,7 +3095,6 @@ class TestBoardListSerializer:
         assert updated.board == board_list.board
 
 
-
 @pytest.mark.django_db
 class TestBoardListArchivedSerializer:
     """Test suite for BoardListArchivedSerializer."""
@@ -3201,7 +3126,6 @@ class TestBoardListArchivedSerializer:
         serializer = BoardListArchivedSerializer(data={})
 
         assert serializer.is_valid()
-
 
     # --------------------------------------------------------
     # Output
@@ -3250,7 +3174,6 @@ class TestBoardListArchivedSerializer:
         assert updated.archived is False
 
 
-
 @pytest.mark.django_db
 class TestBoardNestedSerializer:
     """Test suite for BoardNestedSerializer."""
@@ -3265,7 +3188,9 @@ class TestBoardNestedSerializer:
 
     @pytest.fixture
     def activity(self, user, board):
-        return Activity.objects.create(user=user, board=board, action_type="create_list", text="List Created")
+        return Activity.objects.create(
+            user=user, board=board, action_type="create_list", text="List Created"
+        )
 
     @pytest.fixture
     def watched_board(self, user, board):
@@ -3396,7 +3321,6 @@ class TestBoardNestedSerializer:
         )
 
         assert serializer.data["board_watched"] is True
-
 
 
 @pytest.mark.django_db
@@ -3616,7 +3540,6 @@ class TestCardOrderSerializer:
         assert set(serializer.data[0].keys()) == expected_fields
 
 
-
 @pytest.mark.django_db
 class TestBoardWatchSerializer:
     """Test suite for BoardWatchSerializer."""
@@ -3786,18 +3709,14 @@ class TestBoardWatchSerializer:
     # Update
     # --------------------------------------------------------
 
-    def test_update_board_watch(
-        self,
-        board_watch,
-        serializer_context
-    ):
+    def test_update_board_watch(self, board_watch, serializer_context):
         serializer = BoardWatchSerializer(
             instance=board_watch,
             data={
                 "watch": True,
             },
             partial=True,
-            context=serializer_context
+            context=serializer_context,
         )
 
         assert serializer.is_valid(), serializer.errors
@@ -3805,7 +3724,6 @@ class TestBoardWatchSerializer:
         updated = serializer.save()
 
         assert updated.watch is True
-
 
 
 @pytest.mark.django_db
@@ -3977,18 +3895,14 @@ class TestCardWatchSerializer:
     # Update
     # --------------------------------------------------------
 
-    def test_update_card_watch(
-        self,
-        card_watch,
-        serializer_context
-    ):
+    def test_update_card_watch(self, card_watch, serializer_context):
         serializer = CardWatchSerializer(
             instance=card_watch,
             data={
                 "watch": True,
             },
             partial=True,
-            context=serializer_context
+            context=serializer_context,
         )
 
         assert serializer.is_valid(), serializer.errors
@@ -3996,7 +3910,6 @@ class TestCardWatchSerializer:
         updated = serializer.save()
 
         assert updated.watch is True
-
 
 
 @pytest.mark.django_db
@@ -4211,11 +4124,7 @@ class TestNotificationSerializer:
     # Update
     # --------------------------------------------------------
 
-    def test_update_notification(
-        self,
-        notification,
-        serializer_context
-    ):
+    def test_update_notification(self, notification, serializer_context):
         update_data = {
             "create_board": False,
             "watch_card": True,
@@ -4226,7 +4135,7 @@ class TestNotificationSerializer:
             instance=notification,
             data=update_data,
             partial=True,
-            context=serializer_context
+            context=serializer_context,
         )
 
         assert serializer.is_valid(), serializer.errors
@@ -4239,9 +4148,7 @@ class TestNotificationSerializer:
             assert getattr(updated, field) == value
 
     def test_partial_update_preserves_other_fields(
-        self,
-        notification,
-        serializer_context
+        self, notification, serializer_context
     ):
         original_create_card = notification.create_card
         original_watch_board = notification.watch_board
@@ -4252,7 +4159,7 @@ class TestNotificationSerializer:
                 "email_frequency": "daily",
             },
             partial=True,
-            context=serializer_context
+            context=serializer_context,
         )
 
         assert serializer.is_valid(), serializer.errors
@@ -4262,8 +4169,6 @@ class TestNotificationSerializer:
         assert updated.email_frequency == "daily"
         assert updated.create_card == original_create_card
         assert updated.watch_board == original_watch_board
-
-
 
 
 @pytest.mark.django_db

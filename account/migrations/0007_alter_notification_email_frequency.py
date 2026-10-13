@@ -4,15 +4,26 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('account', '0006_notification_add_comment_notification_remove_comment_and_more'),
+        (
+            "account",
+            "0006_notification_add_comment_notification_remove_comment_and_more",
+        ),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='notification',
-            name='email_frequency',
-            field=models.CharField(choices=[('daily', 'Daily'), ('weekly', 'Weekly'), ('instantly', 'Instantly'), ('never', 'Never')], default='instantly', max_length=10),
+            model_name="notification",
+            name="email_frequency",
+            field=models.CharField(
+                choices=[
+                    ("daily", "Daily"),
+                    ("weekly", "Weekly"),
+                    ("instantly", "Instantly"),
+                    ("never", "Never"),
+                ],
+                default="instantly",
+                max_length=10,
+            ),
         ),
     ]

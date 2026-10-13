@@ -863,7 +863,7 @@
                             <div class="dropdown-item" data-action="watch" id="watch-dropdown-item">👀 Watch</div>
                             <div class="dropdown-divider"></div>
                             <div class="dropdown-item ${elementVisibility}" data-action="${archiveData}" id="archive-dropdown-item">📦 Archive</div>
-                            
+
                         </div>`
 
         document.querySelector(".modal-cover-actions div").insertAdjacentHTML("beforeend", cardThreeDotDropdown)
@@ -1204,7 +1204,7 @@
             const oldList = b.lists.find(l => l.cardIds.includes(cardId));
             const card = b.cards[cardId]
             const newList = b.lists.find(l => l.id == targetListId);
-            // 
+            //
 
 
 

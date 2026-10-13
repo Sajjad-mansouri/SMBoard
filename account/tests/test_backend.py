@@ -1,5 +1,4 @@
 import pytest
-
 from django.contrib.auth import authenticate
 
 from api.tests.conftest import UserFactory

@@ -1,78 +1,89 @@
 from django.contrib import admin
+
 from .models import (
-	Board, BoardMembership, BoardList, 
-	Card, CardLabel, CheckList, ChecklistItem, 
-	CardFile, CardImage, Comment,
-	CardWatch, BoardWatch,CardMembership,LinkAttachment,
-	Activity
-	)
+    Activity,
+    Board,
+    BoardList,
+    BoardMembership,
+    BoardWatch,
+    Card,
+    CardFile,
+    CardLabel,
+    CardMembership,
+    CardWatch,
+    CheckList,
+    ChecklistItem,
+    Comment,
+    LinkAttachment,
+)
+
 
 @admin.register(Board)
 class BoardAdmin(admin.ModelAdmin):
-	list_display = ["owner", "name", "id"]
+    list_display = ["owner", "name", "id"]
 
 
 @admin.register(BoardMembership)
 class BoardMembershipAdmin(admin.ModelAdmin):
-	list_display = ["user", "board", "member_type", "created"]
+    list_display = ["user", "board", "member_type", "created"]
 
 
 @admin.register(BoardList)
 class BoardListAdmin(admin.ModelAdmin):
-	list_display = ["order", "board", "name", "created"]
+    list_display = ["order", "board", "name", "created"]
 
 
 @admin.register(Card)
 class CardAdmin(admin.ModelAdmin):
-	list_display = ["name", "board_list", "order", "created"]
+    list_display = ["name", "board_list", "order", "created"]
+
 
 @admin.register(CardLabel)
 class CardLabelAdmin(admin.ModelAdmin):
-	list_display = ["name", "card", "color", "created"]
+    list_display = ["name", "card", "color", "created"]
+
 
 @admin.register(CheckList)
 class CheckListAdmin(admin.ModelAdmin):
-	list_display = ["name", "card", "created"]
+    list_display = ["name", "card", "created"]
+
 
 @admin.register(ChecklistItem)
 class ChecklistItemAdmin(admin.ModelAdmin):
-	list_display = ["name", "checklist", "is_completed", "created"]
-
+    list_display = ["name", "checklist", "is_completed", "created"]
 
 
 @admin.register(CardFile)
 class FileAttachmentAdmin(admin.ModelAdmin):
-	list_display = ["name", "user", "card"]
+    list_display = ["name", "user", "card"]
 
-@admin.register(CardImage)
-class ImageAttachmentAdmin(admin.ModelAdmin):
-	list_display = ["name", "user", "card"]
 
 @admin.register(LinkAttachment)
 class ImageAttachmentAdmin(admin.ModelAdmin):
-	list_display = ["name", "user", "card"]
+    list_display = ["name", "user", "card"]
+
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
-	list_display = ["user", "card", "content"]
+    list_display = ["user", "card", "content"]
 
 
 @admin.register(CardWatch)
 class CardWatchAdmin(admin.ModelAdmin):
-	list_display = ["user", "card", "watch"]
+    list_display = ["user", "card", "watch"]
+
 
 @admin.register(BoardWatch)
 class BoardWatchAdmin(admin.ModelAdmin):
-	list_display = ["user", "board", "watch"]
+    list_display = ["user", "board", "watch"]
 
 
 @admin.register(CardMembership)
-class BoardMembershipAdmin(admin.ModelAdmin):
-	list_display = ["user", "card", "created"]
-
+class CardMembershipAdmin(admin.ModelAdmin):
+    list_display = ["user", "card", "created"]
 
 
 @admin.register(Activity)
-class BoardMembershipAdmin(admin.ModelAdmin):
-	list_display = ["user", "action_type", "text", "created"]
-	list_filter = ["action_type"]
+class ActivityAdmin(admin.ModelAdmin):
+    list_display = ["user", "action_type", "text", "created"]
+    list_filter = ["action_type"]
