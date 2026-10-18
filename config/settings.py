@@ -90,12 +90,12 @@ AUTH_USER_MODEL = "account.user"
 
 DATABASES = {
     "default": {
-        "ENGINE": config("DATABASAE_ENGINE"),
-        "NAME": config("DATABASAE_NAME"),
-        "USER": config("DATABASAE_USER"),
-        "PASSWORD": config("DATABASAE_PASSWORD"),
-        "HOST": config("DATABASAE_HOST"),
-        "PORT": config("DATABASAE_PORT"),
+        "ENGINE": config("DATABASE_ENGINE"),
+        "NAME": config("DATABASE_NAME"),
+        "USER": config("DATABASE_USER"),
+        "PASSWORD": config("DATABASE_PASSWORD"),
+        "HOST": config("DATABASE_HOST"),
+        "PORT": config("DATABASE_PORT"),
     }
 }
 
