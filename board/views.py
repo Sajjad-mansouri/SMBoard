@@ -80,6 +80,8 @@ class LandingPage(TemplateView):
             linkedln = Connection.objects.get(title="linkedln")
             email = Connection.objects.get(title="email")
             telegram = Connection.objects.get(title="telegram")
+            portfolio = Connection.objects.get(title="portfolio")
+
             about_site = AboutSite.objects.first()
             print("about_site", about_site)
 
@@ -101,6 +103,7 @@ class LandingPage(TemplateView):
             context["github"] = github.address
             context["email"] = email.address
             context["telegram"] = telegram.address
+            context["portfolio"] = portfolio.address
 
         except (AboutSiteImage.DoesNotExist, Connection.DoesNotExist):
             pass

@@ -701,6 +701,7 @@ class BoardListViewSet(viewsets.ModelViewSet):
         q = Q(board__owner=self.request.user) | Q(
             board__board_memberships__user=self.request.user
         )
+        print(BoardList.objects.filter(q).distinct().values_list("id"))
         return BoardList.objects.filter(q).distinct()
 
     def perform_create(self, serializer):
