@@ -77,7 +77,7 @@ class LandingPage(TemplateView):
                 title="member_management"
             )
             github = Connection.objects.get(title="github")
-            linkedln = Connection.objects.get(title="linkedln")
+            linkedin = Connection.objects.get(title="linkedin")
             email = Connection.objects.get(title="email")
             telegram = Connection.objects.get(title="telegram")
             portfolio = Connection.objects.get(title="portfolio")
@@ -99,7 +99,7 @@ class LandingPage(TemplateView):
             context["model_total_count"] = about_site.model_total_count
             context["api_endpoint_total_count"] = about_site.api_endpoint_total_count
 
-            context["linkedln"] = linkedln.address
+            context["linkedin"] = linkedin.address
             context["github"] = github.address
             context["email"] = email.address
             context["telegram"] = telegram.address
